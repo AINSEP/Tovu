@@ -244,3 +244,114 @@ test("discard refuses while the marker still needs attention, and deletes only t
   assert.deepEqual(removed, [s.copy]);
   assert.equal(await exists(s.mainPath), true);
 });
+
+test("when hard links are unavailable a verified separate copy preserves the old database before publication", async t => {
+  const s = await site(t);
+  const required = withFs(s.required, {
+    freeBytes: async directory => { assert.equal(directory, path.dirname(s.mainPath)); return 128 * 1024 * 1024; },
+    link: async (from, to) => {
+      assert.equal(from, s.mainPath);
+      assert.equal(path.dirname(to), path.dirname(s.mainPath));
+      assert.equal(await exists(to), false);
+      return "unsupported";
+    },
+  });
+  const outcome = await resolveCompactionAttention(required);
+  assert.equal(outcome.status, "restored");
+  if (outcome.status !== "restored") assert.fail(outcome.message);
+  assert.notEqual(await nodeRestoreFs.identity(outcome.preservedPath), s.oldIdentity);
+  assert.equal(await nodeRestoreFs.sha256(outcome.preservedPath), s.oldSha);
+  assert.equal(await nodeRestoreFs.sha256(s.mainPath), s.copySha);
+  assert.equal(await nodeRestoreFs.sha256(s.copy), s.copySha);
+  assert.equal(s.marker(), undefined);
+});
+
+test("a corrupt fallback copy is removed and never replaces the live database", async t => {
+  const s = await site(t);
+  const preserved: string[] = [];
+  const required = withFs(s.required, {
+    freeBytes: async directory => { assert.equal(directory, path.dirname(s.mainPath)); return 128 * 1024 * 1024; },
+    link: async () => "unsupported",
+    copyExclusive: async (from, to) => {
+      await nodeRestoreFs.copyExclusive(from, to);
+      if (from === s.mainPath) {
+        preserved.push(to);
+        await fs.appendFile(to, "incorrect bytes");
+      }
+    },
+    renameAtomic: async () => assert.fail("verification must precede publication"),
+  });
+  const outcome = await resolveCompactionAttention(required);
+  assert.equal(outcome.status === "refused" && outcome.reason, "verify-failed");
+  assert.equal(preserved.length, 1);
+  assert.equal(await exists(preserved[0]!), false);
+  assert.equal(await exists(`${s.mainPath}.restore.partial`), false);
+  assert.equal(await nodeRestoreFs.identity(s.mainPath), s.oldIdentity);
+  assert.equal(await nodeRestoreFs.sha256(s.copy), s.copySha);
+  assert.equal(await s.required.journal.read(), undefined);
+  assert.equal(s.marker()?.state, "needs-attention");
+});
+
+test("resume after a crash during staging clears only the partial file and unfinished journal", async t => {
+  const s = await site(t);
+  const stagedPath = `${s.mainPath}.restore.partial`;
+  const failure = new Error("process interrupted while copying");
+  const required = withFs(s.required, {
+    freeBytes: async directory => { assert.equal(directory, path.dirname(s.mainPath)); return 128 * 1024 * 1024; },
+    copyExclusive: async (from, to) => {
+      assert.deepEqual([from, to], [s.copy, stagedPath]);
+      await fs.writeFile(to, "unfinished snapshot");
+      throw failure;
+    },
+  });
+  await assert.rejects(resolveCompactionAttention(required), error => error === failure);
+  assert.equal(await fs.readFile(stagedPath, "utf8"), "unfinished snapshot");
+  const entry = await s.required.journal.read();
+  assert.equal(typeof entry === "object" && entry.step, "staging");
+  assert.deepEqual(await resumeCompactionRestore({ ...s.required, database: "content" }), {
+    status: "refused", reason: "verify-failed",
+    message: "The interrupted restore was rolled back. The current database was left in place and the recovery copy is kept; you can run the restore again.",
+  });
+  assert.equal(await exists(stagedPath), false);
+  assert.equal(await s.required.journal.read(), undefined);
+  assert.equal(await nodeRestoreFs.identity(s.mainPath), s.oldIdentity);
+  assert.equal(await nodeRestoreFs.sha256(s.copy), s.copySha);
+  assert.equal(s.marker()?.state, "needs-attention");
+});
+
+test("recovery filesystem distinguishes an absent path from an unreadable path and never replaces an occupied alias", async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "recovery-fs-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const main = path.join(dir, "main.db");
+  const alias = path.join(dir, "retained.db");
+  await fs.writeFile(main, "live");
+  await fs.writeFile(alias, "retained");
+  assert.equal(await nodeRestoreFs.lstatKind(path.join(dir, "missing.db")), "missing");
+  await assert.rejects(nodeRestoreFs.lstatKind(path.join(main, "not-a-child")), { code: "ENOTDIR" });
+  await assert.rejects(nodeRestoreFs.link(main, alias), { code: "EEXIST" });
+  assert.equal(await fs.readFile(alias, "utf8"), "retained");
+  assert.equal(await fs.readFile(main, "utf8"), "live");
+});
+
+test("native link limitations are reported as unsupported so recovery can retain a verified copy", async t => {
+  const calls: unknown[] = [];
+  t.mock.method(fs, "link", async (from: string, to: string) => {
+    calls.push([from, to]);
+    throw Object.assign(new Error("cross-device link"), { code: "EXDEV" });
+  });
+  const from = path.resolve("fixture", "current.db");
+  const to = path.resolve("fixture", "preserved.db");
+  assert.equal(await nodeRestoreFs.link(from, to), "unsupported");
+  assert.deepEqual(calls, [[from, to]]);
+});
+
+test("SQLite admission preserves an open failure rather than calling a missing database busy", async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "recovery-admission-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const missing = path.join(dir, "missing-content.db");
+  const ports = compactionRecoverySqlitePorts({ database: "content" });
+  assert.throws(() => ports.admitStopped({ path: missing }), {
+    name: "SqliteError", code: "SQLITE_CANTOPEN", message: /unable to open database file/i,
+  });
+  assert.equal(await nodeRestoreFs.lstatKind(missing), "missing");
+});

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
@@ -26,7 +26,7 @@ function harness({ onCard = () => {} }: { onCard?: (h: { storage: { bytes: numbe
   }, {});
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `exchange-${++count}` }, defaultChannel: "mcp-ui" });
   const contributor = createStorageToolContributor({
-    measure: async () => ({ totalBytes: 10 }),
+    measure: async (required, optional) => { log.push("measure"); assert.deepEqual([required, optional], [{}, {}]); return { totalBytes: 10 }; },
     cleanup: gate,
     authorizeOwner: async ({ principalId }) => { if (principalId !== "owner") throw new Error("Only the site owner can clean up storage."); },
     approval: { handler: approvalToolHandler }, copy: COPY,
@@ -39,7 +39,11 @@ function harness({ onCard = () => {} }: { onCard?: (h: { storage: { bytes: numbe
     store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision } }, { toolId: "site_storage_cleanup" });
   } });
   const ctx = (input: unknown, principal = "owner"): ToolExecutionContext => ({ executionId: "e", principal: { id: principal }, run: { id: "r" }, input, signal: new AbortController().signal });
-  return { log, tools, call: (input: unknown, decision: "confirm" | "cancel" = "confirm", principal?: string) => cleanup.handler(ctx(input, principal), answer(decision)) };
+  return { log, tools, report: (input: unknown, principal?: string) => {
+    const report = tools.find(r => r.descriptor.id === "site_storage_report");
+    assert.ok(report);
+    return report.handler(ctx(input, principal));
+  }, call: (input: unknown, decision: "confirm" | "cancel" = "confirm", principal?: string) => cleanup.handler(ctx(input, principal), answer(decision)) };
 }
 
 test("cleanup defaults to dryRun", async () => {
@@ -94,4 +98,30 @@ test("nothing in the tool input can stand in for the grant", async () => {
   const h = harness();
   await assert.rejects(h.call({ dryRun: false, previewToken: "grant-1" }), /'previewToken' is not an input/);
   assert.deepEqual(h.log, []);
+});
+
+test("storage report rejects a non-owner without measuring and returns the read-only measurement to the owner", async () => {
+  const h = harness();
+  await assert.rejects(h.report({}, "other-principal"), { message: "Only the site owner can clean up storage." });
+  assert.deepEqual(h.log, []);
+  assert.deepEqual(await h.report({}), { totalBytes: 10 });
+  assert.deepEqual(h.log, ["measure"]);
+  assert.equal(h.tools.find(tool => tool.descriptor.id === "site_storage_report")?.descriptor.readOnly, true);
+});
+
+test("cleanup rejects malformed arguments before measuring and accepts a dry run with safe class spellings", async () => {
+  const h = harness();
+  for (const [input, message] of [
+    [{ dryRun: "false" }, "Pass dryRun: true to preview or dryRun: false to clean up."],
+    [{ classes: "cache" }, "List the kinds of storage to clean up as words."],
+    [{ classes: ["cache", 1, "derived"] }, "List the kinds of storage to clean up as words."],
+    [{ classes: ["cache", "uploads", "derived"] }, "Tovu never cleans up your chats, revisions, screenshots or media automatically."],
+  ] as const) {
+    await assert.rejects(h.call(input), error => error instanceof ToolInputError && error.message === message);
+  }
+  assert.deepEqual(h.log, []);
+  assert.deepEqual(await h.call({ dryRun: true, classes: ["cache", "old-copy"] }), {
+    cleaned: false, dryRun: true, pass: { status: "completed", dryRun: true, policies: [{ id: "share-files", bytes: 5, items: 1 }] },
+  });
+  assert.deepEqual(h.log, ["runOnce:true"]);
 });

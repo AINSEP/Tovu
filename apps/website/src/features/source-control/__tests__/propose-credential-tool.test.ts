@@ -354,3 +354,19 @@ test('t10 source abort during sealing writes nothing', async () => {
   assert.equal(f.surfaces.size(), 0);
   assertNoSecret(emitted);
 });
+
+test('a credential save failure logs only fixed exchange metadata and leaves no persisted row', async t => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const f = fixture();
+  const writes: string[] = [];
+  f.repo.vault.put = async input => {
+    writes.push(input.workspaceId);
+    throw new Error(`storage failure involving ${SECRET}`);
+  };
+  const { pending } = await form(f);
+  submit(f, { label: 'New connection', token: SECRET });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_SAVE_FAILED });
+  assert.deepEqual(writes, ['ws-t10']);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [[JSON.stringify({ toolId: 'credential_save', exchangeId: 'source-exchange-t10', saved: false })]]);
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: 'ws-t10' }), []);
+});

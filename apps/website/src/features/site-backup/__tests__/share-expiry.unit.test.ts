@@ -12,7 +12,7 @@ import test, { type TestContext } from "node:test";
 
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { SiteShareRefusal } from "@jini-ai/devops/backup/site/share-refusal";
-import { SHARE_EXPIRY_DAYS, isShareExpired, shareExpiresAt } from "../share-expiry.js";
+import { SHARE_EXPIRY_DAYS, isShareExpired, isShareExpiryChoice, requireOwnFolder, shareExpiresAt, type ShareExpiryCopy } from "../share-expiry.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { newShareIdentity } from "@jini-ai/devops/backup/site/share-registry";
 import { createSiteShare, receiveSiteShareArtifact } from "../share-service.js";
@@ -170,4 +170,27 @@ test("an unreadable persisted expiry fails closed for serving only", async t => 
   assert.equal(await registry.findToken({ token: row.token, file: row.file }), null);
   assert.equal((await registry.get({ shareId: row.shareId }))?.status, "active", "the row is kept as written");
   assert.equal((await stat(registry.artifactPath({ shareId: row.shareId }))).size, ZIP.length, "nothing is removed");
+});
+
+test("direct expiry validation uses the requested copy and rejects unconfirmed hosting", () => {
+  const absolute = path.resolve("moved-site", "shares");
+  requireOwnFolder({ destination: { provider: "tovu-server", binding: absolute } });
+  assert.throws(() => requireOwnFolder({ destination: { provider: "tovu-server" } }),
+    { code: "INVALID_INPUT", message: NOT_HOSTED_HERE });
+  const copy: ShareExpiryCopy = {
+    choices: "Choose an expiry from the schedule.",
+    notHostedHere: "No local catalog is attached.",
+    remote: ({ provider }) => `Schedule was not set on ${provider}.`,
+  };
+  assert.throws(() => requireOwnFolder({ destination: undefined, copy }),
+    { code: "INVALID_INPUT", message: "No local catalog is attached." });
+  assert.throws(() => requireOwnFolder({ destination: { provider: "s3", binding: absolute }, copy }),
+    { code: "INVALID_INPUT", message: "Schedule was not set on s3." });
+});
+
+test("expiry choice detection does not coerce form strings or treat Never as a day count", () => {
+  for (const days of [7, 30, 90]) assert.equal(isShareExpiryChoice({ days }), true, String(days));
+  for (const days of [null, "7", 6, 8, 29, 31, 89, 91]) {
+    assert.equal(isShareExpiryChoice({ days }), false, JSON.stringify(days));
+  }
 });

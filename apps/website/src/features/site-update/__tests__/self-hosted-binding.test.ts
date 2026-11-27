@@ -97,3 +97,23 @@ test("the JSON getter throws on a non-2xx answer and parses a 2xx one", async ()
   assert.deepEqual(await createHttpJsonGetter({ client: client(200) })({ url: FEED }), { a: 1 });
   await assert.rejects(() => createHttpJsonGetter({ client: client(404) })({ url: FEED }), /404/);
 });
+
+test("a stale backup id blocks readiness before the candidate receives any artifact", async () => {
+  const calls: string[] = [];
+  const signal = new AbortController().signal;
+  const ports = createRestorePointBackup({
+    dbOps: dbOpsFake(calls),
+    registerBackup: async () => assert.fail("readiness must not register another backup"),
+    resolveBackup: async (required, optional) => {
+      assert.deepEqual([required, optional], [{ backupId: "expired-backup" }, { signal }]);
+      calls.push("resolve");
+      return null;
+    },
+    checkCandidate: async () => assert.fail("readiness must not run without the approved backup"),
+  });
+  assert.deepEqual(await ports.readiness.check({ toVersion: "1.3.0" }, { backupId: "expired-backup", fromVersion: "1.2.0", signal }), {
+    status: "blocked",
+    reason: "The backup this update needs could not be found, so the new version was not tried or installed. Nothing was changed.",
+  });
+  assert.deepEqual(calls, ["resolve"]);
+});

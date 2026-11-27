@@ -58,3 +58,38 @@ test("migration rehearsal uses a copy of the approved backup with the exact targ
   assert.equal(substituted.result.outcome, "blocked", "a staged release other than the approved one is not a candidate");
   assert.deepEqual(events, [], "nothing is copied or migrated for a substituted candidate");
 });
+
+test("if the exact target is not staged, rehearsal never makes a disposable copy", async () => {
+  const signal = new AbortController().signal;
+  const stagedCalls: unknown[] = [];
+  const rehearse = createSnapshotCopyRehearsal({
+    stagedCandidate: async (required, optional) => { stagedCalls.push([required, optional]); return null; },
+    copySnapshot: async () => assert.fail("a missing release must not copy the backup"),
+    runCandidateMigrations: async () => assert.fail("a missing release must not run migrations"),
+  });
+  assert.deepEqual(await rehearse({ artifactRef: ARTIFACT, fromVersion: "1.2.0", toVersion: "1.3.0" }, { signal }), {
+    status: "blocked", reason: "The new version is not ready on this computer to be tried first, so it was not installed. Nothing was changed.",
+  });
+  assert.deepEqual(stagedCalls, [[{ version: "1.3.0" }, { signal }]]);
+});
+
+test("failed migration still disposes the snapshot copy before rejecting", async () => {
+  const failure = new Error("migration failed");
+  const copyPath = "/tmp/disposable-rehearsal/content.db";
+  const events: string[] = [];
+  const candidate = { version: "1.3.0", release: "staged-1.3.0" };
+  const rehearse = createSnapshotCopyRehearsal({
+    stagedCandidate: async (required) => { assert.deepEqual(required, { version: "1.3.0" }); return candidate; },
+    copySnapshot: async (required) => {
+      assert.deepEqual(required, { artifactRef: ARTIFACT });
+      return { databasePath: copyPath, dispose: async () => { events.push("disposed"); } };
+    },
+    runCandidateMigrations: async (required) => {
+      assert.deepEqual(required, { candidate, databasePath: copyPath });
+      events.push("migrated");
+      throw failure;
+    },
+  });
+  await assert.rejects(rehearse({ artifactRef: ARTIFACT, fromVersion: "1.2.0", toVersion: "1.3.0" }), error => error === failure);
+  assert.deepEqual(events, ["migrated", "disposed"]);
+});

@@ -531,3 +531,12 @@ test("log safety: a failed pin, an unregistered pin, and a failed render read lo
   ]);
   assert.equal(JSON.stringify(errors).includes("hunter2"), false);
 });
+
+test("the host preservation summary reports distinct outcome counts without workspace identifiers", t => {
+  const info = t.mock.method(console, "info", () => {});
+  siteTitlePreservationHostBindings.reportPreservationSummary({
+    pinnedWorkspaceIds: ["pinned-site"], skippedWorkspaceIds: ["skip-first", "skip-second"],
+    failedWorkspaceIds: ["failure-one", "failure-two", "failure-three"],
+  });
+  assert.deepEqual(info.mock.calls.map(call => call.arguments), [["preserveLegacySiteTitles: pinned=1 skipped=2 failed=3"]]);
+});

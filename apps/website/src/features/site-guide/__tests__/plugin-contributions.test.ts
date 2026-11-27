@@ -61,3 +61,11 @@ test("malformed contribution refuses its file without running code or echoing pl
   assert.deepEqual(result.items, []);
   assert.deepEqual(result.refusals, ["site guide topics from 'bad-guide' were not loaded: tovu-site-guide.json is invalid: site-guide manifest must be valid JSON"]);
 });
+
+test("the built-in Jini guide points to live capabilities behind the same assistant permission", () => {
+  const cards = TOVU_CAPABILITY_CARDS.filter(card => card.id === "jini-packages");
+  assert.equal(cards.length, 1);
+  assert.deepEqual(cards[0]?.permissions, ["admin.assistant.use"]);
+  assert.deepEqual(cards[0]?.pointers, [{ label: "Inspect jini packages", tool: "site_describe_capabilities", permissions: ["admin.assistant.use"] }]);
+  assert.deepEqual(cards[0]?.workflows, []);
+});

@@ -166,3 +166,12 @@ test("sites_switch_site: an occupied Desktop target returns its URL without savi
   });
   assert.deepEqual(env.persists, []);
 });
+
+test("sites_create_site never calls the create port for a cancelled request", async () => {
+  const env = fake();
+  const abort = new Error("caller cancelled site creation");
+  const context = { ...ctxFor({ name: "beta" }), signal: AbortSignal.abort(abort) };
+  await assert.rejects(handlerFor(env.deps, "sites_create_site")(context), error => error === abort);
+  assert.deepEqual(env.creates, []);
+  assert.deepEqual(env.persists, []);
+});

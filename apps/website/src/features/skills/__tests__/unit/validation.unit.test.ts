@@ -120,3 +120,7 @@ test("validateSkillFiles refuses packages over 8 MiB combined even when each fil
 test("validateSkillFiles validates the SKILL.md frontmatter after the package checks", () => {
   refuses(() => validateSkillFiles([file("SKILL.md", "no frontmatter")]), "SKILL.md must have YAML frontmatter with a name and description.");
 });
+
+test("the host YAML adapter preserves digit-only names and boolean-looking prose as strings", () => {
+  assert.deepEqual(validateSkillMarkdown("---\nname: 007\ndescription: true\n---\nKeep the original text.\n"), { name: "007", description: "true" });
+});

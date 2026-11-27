@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createBundledExportFilePolicy } from '../bundled-export-file-policy.js';
 
 test('only selected installed package subpaths can skip scanning; unknown files never read', async () => {
@@ -30,4 +33,19 @@ test('resolution and read failures retain files for full scanning', async () => 
     assert.equal(await policy({ path: 'agent-plugins/sample/package/fixtures/other.txt', bytes: Buffer.from('key') }), 'scan');
     assert.equal(resolutions, 1);
   }
+});
+
+test('the default reader compares archive bytes against the installed file on disk', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'bundled-export-policy-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, 'SKILL.md'), '# Installed skill\n');
+  const policy = createBundledExportFilePolicy({ selection: new Map([['sample', '@example/sample']]) }, {
+    resolve: specifier => {
+      assert.equal(specifier, '@example/sample/plugin.json');
+      return join(root, 'plugin.json');
+    },
+  });
+  const path = 'agent-plugins/sample/package/SKILL.md';
+  assert.equal(await policy({ path, bytes: Buffer.from('# Installed skill\n') }), 'skip');
+  assert.equal(await policy({ path, bytes: Buffer.from('# Exported skill\n') }), 'scan');
 });

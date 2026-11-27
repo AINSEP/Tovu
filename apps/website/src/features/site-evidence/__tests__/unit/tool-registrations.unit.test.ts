@@ -4,6 +4,9 @@ import test from "node:test";
 import type { UUID } from "@jini-ai/core/primitives";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+import type { RenderBrowser, RenderContext } from "@jini-ai/diagnostics/web-evidence/playwright";
+import type { HttpRequest } from "#src/platform/http/index";
+import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 
 import {
   OriginNotVerifiedError,
@@ -15,6 +18,7 @@ import { SITE_EVIDENCE_LIMITS } from "@jini-ai/diagnostics/web-evidence";
 import type { ObservePageRequest, PageObservation, SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 import {
   buildSiteEvidenceRegistrations,
+  contributeSiteEvidenceTools,
   readOptionalEvidenceArguments,
   readPathsArgument,
   siteEvidenceDerivedRisk,
@@ -273,4 +277,106 @@ test("optional evidence argument validation reports selector then accessibility 
     name: ToolInputError.name,
     message: "'collectPerformance' must be a boolean when provided",
   });
+});
+
+test("an unexpected origin registry failure is not reclassified as unverified origin", async () => {
+  const failure = new Error("origin storage read failed");
+  const registration = buildSiteEvidenceRegistrations(toolDeps({
+    originRegistry: originRegistry(failure),
+    siteEvidenceBrowser: async () => assert.fail("origin lookup failed before browser setup"),
+  })).find(entry => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
+  assert.ok(registration);
+  await assert.rejects(registration.handler(toolContext({ paths: ["/"] })), error => error === failure);
+});
+
+test("the contributor keeps a missing browser reportable with or without a guarded renderer client", async t => {
+  const launchOptions: unknown[] = [];
+  t.mock.method(playwrightModuleLoader, "load", async (required: { moduleName: string }) => {
+    assert.deepEqual(required, { moduleName: "playwright" });
+    return { chromium: { launch: async (options: unknown) => {
+      launchOptions.push(options);
+      throw new Error("browser deliberately unavailable");
+    } } };
+  });
+  const httpClient = { send: async () => assert.fail("a failed browser launch must not fetch") };
+  for (const configured of [false, true]) {
+    launchOptions.length = 0;
+    const contributor = contributeSiteEvidenceTools(configured ? { httpClient } : {});
+    const { siteEvidenceBrowser: _injected, ...deps } = toolDeps();
+    const registration = contributor.build(deps, undefined).find(entry => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
+    assert.ok(registration);
+    assert.deepEqual(launchOptions, []);
+    const result = await registration.handler(toolContext({ paths: ["/pricing"] })) as { browser: { status: string; reason: string }; pages: unknown[]; skipped: { path: string; reason: string }[] };
+    assert.equal(result.browser.status, "unavailable");
+    assert.match(result.browser.reason, /Neither bundled Chromium nor system Chrome could be launched/);
+    assert.deepEqual(result.pages, []);
+    assert.deepEqual(result.skipped.map(({ path, reason }) => [path, reason]), [["/pricing", "browser-unavailable"]]);
+    const launch = configured
+      ? { headless: true, args: ["--disable-dev-shm-usage", "--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=<-loopback>", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp", "--no-sandbox"] }
+      : { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] };
+    assert.deepEqual(launchOptions, [launch, { ...launch, channel: "chrome" }]);
+  }
+});
+
+test("the default evidence browser routes third-party assets through the guarded client and keeps own-site cookies local", async t => {
+  const ownUrl = "https://example.test/pricing";
+  const cssUrl = "https://assets.example.test/layout.css";
+  const css = "body{color:navy}";
+  const guarded: HttpRequest[] = [];
+  const direct: unknown[] = [];
+  const fulfilled = new Map<string, string>();
+  let contextClosed = 0, browserClosed = 0;
+  let intercept: Parameters<RenderContext["route"]>[1] | undefined;
+  const browser: RenderBrowser = {
+    close: async () => { browserClosed++; },
+    newContext: async () => ({
+      route: async (pattern, handler) => { assert.equal(pattern, "**/*"); intercept = handler; },
+      close: async () => { contextClosed++; },
+      cookies: async () => [],
+      newPage: async () => ({
+        goto: async url => {
+          assert.equal(url, ownUrl);
+          assert.ok(intercept, "the guard is installed before navigation");
+          for (const [resourceUrl, resourceType] of [[url, "document"], [cssUrl, "stylesheet"]] as const) {
+            await intercept({
+              request: () => ({
+                url: () => resourceUrl, method: () => "GET", headers: () => ({ cookie: resourceType === "document" ? "visitor=demo" : "asset=fresh" }),
+                resourceType: () => resourceType, isNavigationRequest: () => resourceType === "document",
+                frame: () => ({ parentFrame: () => null }),
+              }),
+              fulfill: async response => { fulfilled.set(resourceUrl, response.body.toString("utf8")); },
+              abort: async code => assert.fail(`unexpected refusal of ${resourceType}: ${code}`),
+            });
+          }
+          return { status: () => 200 };
+        },
+        evaluate: async () => ({ title: "Pricing", lang: "en", textExcerpt: "Sample pricing", textTruncated: false }),
+        title: async () => "Pricing",
+        waitForTimeout: async ms => { assert.equal(ms, 1200); },
+      }),
+    }),
+  };
+  t.mock.method(playwrightModuleLoader, "load", async () => ({ chromium: { launch: async () => browser } }));
+  t.mock.method(globalThis, "fetch", async (url: string | URL | Request, options?: RequestInit) => {
+    direct.push([String(url), options?.method, new Headers(options?.headers).get("cookie"), options?.redirect]);
+    return new Response("own site");
+  });
+  const httpClient = { send: async (request: HttpRequest) => {
+    guarded.push(request);
+    assert.deepEqual({ ...request, signal: request.signal?.aborted }, {
+      method: "GET", url: cssUrl, headers: {}, signal: false, timeoutMs: 15_000, maxResponseBytes: 15 * 1024 * 1024,
+    });
+    return { status: 200, headers: { "content-type": "text/css" }, bodyText: css };
+  } };
+  const { siteEvidenceBrowser: _injected, ...deps } = toolDeps();
+  const registration = contributeSiteEvidenceTools({ httpClient }).build(deps, undefined).find(entry => entry.descriptor.id === SITE_EVIDENCE_TOOL_ID);
+  assert.ok(registration);
+  const result = await registration.handler(toolContext({ paths: ["/pricing"], collectAccessibility: false })) as { pages: { path: string; observation: PageObservation }[]; skipped: unknown[] };
+  assert.deepEqual(result.skipped, []);
+  assert.equal(result.pages.find(page => page.path === "/pricing")?.observation.document.textExcerpt, "Sample pricing");
+  assert.deepEqual(direct, [[ownUrl, "GET", "visitor=demo", "manual"]]);
+  assert.deepEqual([...fulfilled], [[ownUrl, "own site"], [cssUrl, css]]);
+  assert.equal(guarded.length, 1);
+  assert.equal(guarded[0]?.signal?.aborted, true);
+  assert.deepEqual([contextClosed, browserClosed], [1, 1]);
 });

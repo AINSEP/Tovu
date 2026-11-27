@@ -48,3 +48,11 @@ test("host preflight copy caps sorted hosts at five and preserves the privacy pl
     '1 exported page still shows the placeholder "ADD YOUR CONTACT EMAIL" (the privacy page\'s contact line). Replace it with a real address before sharing this copy. ' +
     "1 page loads third-party scripts written straight into the page (a.test, b.test, c.test, d.test, e.test, ...). The cookie banner does not hold these back until a visitor agrees. Declare them in the theme's scripts with a consent category, or remove them.");
 });
+
+test("exactly five third-party script hosts are shown without an overflow marker", () => {
+  const preflight = createExportPreflight({ copy: EXPORT_PREFLIGHT_COPY, ownOrigins: ["https://example.test"] });
+  preflight.setConsentConfigured({ configured: true });
+  preflight.observePage({ html: ["f", "b", "d", "a", "c"].map(host => `<script src="https://${host}.test/script.js"></script>`).join("") });
+  assert.equal(preflight.joinWarnings({ existing: undefined }),
+    "1 page loads third-party scripts written straight into the page (a.test, b.test, c.test, d.test, f.test). The cookie banner does not hold these back until a visitor agrees. Declare them in the theme's scripts with a consent category, or remove them.");
+});

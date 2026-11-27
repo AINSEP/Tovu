@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { LocalSiteError } from '#src/platform/site-dir/index';
 import { activateSiteWithWarmServer } from '../warm-switch.js';
 
 test('switching back to an opened site returns its own URL without restarting the API', async () => {
@@ -27,4 +28,26 @@ test('a failed warm boot warns and uses the existing restart switch', async () =
   assert.equal(result.ok && result.restarting, true);
   assert.equal(restarted, true);
   assert.equal(warnings.length, 1);
+});
+
+test('a full warm pool or failed retirement never restarts a busy site or persists a new selection', async () => {
+  for (const code of ['SITE_LIMIT', 'SITE_STOP_FAILED'] as const) {
+    const calls: unknown[] = [];
+    const result = await activateSiteWithWarmServer({ switcherBase: '/repo', name: 'other', restartNow: true }, {
+      listSites: options => {
+        assert.deepEqual(options, { cwd: '/repo' });
+        return [{ name: 'other', dir: '/repo/sites/other', displayName: 'Other', createdAt: '', active: false }];
+      },
+      warmServer: async required => { calls.push(required); throw new LocalSiteError({ code }); },
+      persistActiveSite: () => assert.fail('capacity refusal must not persist'),
+      readSiteRunning: () => assert.fail('capacity refusal must not fall back to activation'),
+      devRestart: { requestRestart: () => assert.fail('capacity refusal must not restart') },
+      warn: () => assert.fail('capacity refusal must not log a fallback'),
+    });
+    assert.deepEqual(calls, [{ name: 'other' }]);
+    assert.deepEqual(result, {
+      ok: false, code: 'SITE_ALREADY_RUNNING',
+      error: 'The warm sites are busy. Finish their work or stop an idle site before opening another.',
+    });
+  }
 });

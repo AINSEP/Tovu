@@ -484,3 +484,22 @@ test("ZIP refuses an oversized manifest before encoding and preserves non-Error 
   await assert.rejects(buildShareZip({ plan: oversized, zip: async () => assert.fail("oversized manifest must not encode") }), { code: "LIMIT_EXCEEDED", message: "Share manifest exceeds 2 MiB." });
   await assert.rejects(buildShareZip({ plan: plan(), zip: async () => { throw "encoder disconnected"; } }), error => error === "encoder disconnected");
 });
+
+test("share caps reject one extra file or byte at the first violated limit", () => {
+  const ofCount = (count: number) => Array.from({ length: count }, (_, index) => ({ path: `themes/test/${index}.html`, bytes: 1 }));
+  assert.equal(checkShareLimits({ files: ofCount(2000) }), undefined);
+  assert.throws(() => checkShareLimits({ files: ofCount(2001) }), {
+    code: "LIMIT_EXCEEDED", message: "Share exceeds the 2,000-file cap. Reduce the site or wait for streaming exports.",
+  });
+  const maxExpanded = 300 * 1024 * 1024;
+  const files = [{ path: "content.db", bytes: maxExpanded }];
+  assert.equal(checkShareLimits({ files, totalBytes: maxExpanded }), undefined);
+  for (const size of [
+    { files: [{ path: "content.db", bytes: maxExpanded + 1 }], totalBytes: 0 },
+    { files, totalBytes: maxExpanded + 1 },
+  ]) {
+    assert.throws(() => checkShareLimits(size), {
+      code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB expanded cap. Reduce the site or wait for streaming exports.",
+    });
+  }
+});

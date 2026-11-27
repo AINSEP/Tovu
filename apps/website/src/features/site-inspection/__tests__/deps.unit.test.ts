@@ -1,6 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { buildSiteCapabilities } from "@jini-ai/cms/site-inspection/site-capabilities";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "../deps.js";
 
 // F2.5/F3.6: strict ports reject lost workspace or namespace/key arguments.
@@ -83,4 +84,23 @@ test("composition boot does not recreate the obsolete active-theme ledger copy",
   const deps = createRouteDeps();
   await deps.settingsReady;
   assert.equal(await deps.settingsRepo.findActiveDefinition({ namespace: "core.presentation", key: "activeThemeId", workspaceId: null }), null);
+});
+
+test("capabilities reports a failed host content read without losing the admin screens", async t => {
+  const h = source();
+  const failure = new TypeError("private storage detail");
+  const logged = t.mock.method(console, "error", () => {});
+  const deps = toSiteCapabilitiesDeps({
+    ...h.deps,
+    contentTypeRepo: { listByWorkspace: async required => {
+      assert.deepEqual(required, { workspaceId: "ws-adapter" });
+      throw failure;
+    } },
+  });
+  const result = await buildSiteCapabilities({ deps, input: { principalId: "editor" } }, { sections: ["adminScreens", "contentTypes"] });
+  assert.deepEqual(result.sections.contentTypes, { status: "unavailable", reason: "TypeError" });
+  const screens = result.sections.adminScreens;
+  assert.equal(screens?.status, "ok");
+  assert.equal(screens?.data?.screens.find(screen => screen.id === "sites")?.path, "/sites");
+  assert.deepEqual(logged.mock.calls.map(call => call.arguments), [["[site-capabilities] section 'contentTypes' failed", failure]]);
 });

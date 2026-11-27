@@ -70,3 +70,34 @@ test("the last attempt is readable even when the release feed check fails", asyn
   assert.deepEqual(await readSiteUpdateStatus({ runtime: current.runtime, reportFailure: current.reportFailure }), { availability: { kind: "current", runningVersion: "1.2.0" } }, "no journal reader: no lastAttempt");
   assert.deepEqual(await readSiteUpdateStatus({ runtime: current.runtime, reportFailure: current.reportFailure, readLastAttempt: async () => undefined }), { availability: { kind: "current", runningVersion: "1.2.0" } });
 });
+
+test("a failed journal read is reported without hiding a healthy update check", async () => {
+  const healthy = reader();
+  const failure = new Error("cannot read /srv/site/private-journal.json");
+  const signal = new AbortController().signal;
+  const calls: unknown[] = [];
+  const result = await readSiteUpdateStatus({
+    ...healthy,
+    readLastAttempt: async (required, optional) => { calls.push([required, optional]); throw failure; },
+  }, { signal });
+  assert.deepEqual(result, { availability: { kind: "available", runningVersion: "1.2.0", latest: "1.3.0", notes: "Faster pages." } });
+  assert.deepEqual(calls, [[{}, { signal }]]);
+  assert.deepEqual(healthy.reports, [{ error: failure }]);
+});
+
+test("journal cancellation rejects even when the feed is healthy and is not logged as a failure", async () => {
+  const healthy = reader();
+  const controller = new AbortController();
+  const cancel = new Error("status reader disconnected");
+  await assert.rejects(readSiteUpdateStatus({
+    ...healthy,
+    readLastAttempt: async (required, optional) => {
+      assert.deepEqual([required, optional], [{}, { signal: controller.signal }]);
+      // Let the healthy version/feed promises settle before only the journal is cancelled.
+      await new Promise<void>(resolve => setImmediate(resolve));
+      controller.abort(cancel);
+      throw cancel;
+    },
+  }, { signal: controller.signal }), error => error === cancel);
+  assert.deepEqual(healthy.reports, []);
+});

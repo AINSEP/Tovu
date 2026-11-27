@@ -338,3 +338,19 @@ test("normalizeBuildOutputDirectory deletes index.csr.html -- Tovu's serving mod
   // Its presence must not have leaked into the relocation plan either -- it was excluded before planning.
   assert.deepEqual(result.plan.relocations, [{ from: "styles.css", to: "css/styles.css" }]);
 });
+
+test("a secondary stylesheet's exact href relocates without altering its attributes or similarly named assets", () => {
+  const plan = planAssetRelocation({ fileNames: ["styles.css", "print-v2.css"] });
+  const primary = '<link rel="stylesheet" href="styles.css">';
+  const unrelated = '<link rel="stylesheet" href="print-v2Xcss"><link rel="stylesheet" href="print-v2.css?variant=1">';
+  const html = primary + unrelated + "<link rel='stylesheet' media='print' href='print-v2.css'>";
+  assert.equal(rewriteBundlerHtml({ html, plan, primaryStylesheetFile: "styles.css" }),
+    TOKEN_STYLESHEET_SENTINEL + unrelated + "<link rel='stylesheet' media='print' href='../css/print-v2.css'>");
+});
+
+test("rewriting a relocated script changes src but preserves data-src on the same element", () => {
+  const plan = planAssetRelocation({ fileNames: ["styles.css", "main.js"] });
+  const html = '<link rel="stylesheet" href="styles.css"><script type="module" src="main.js" data-src="main.js"></script>';
+  assert.equal(rewriteBundlerHtml({ html, plan, primaryStylesheetFile: "styles.css" }),
+    TOKEN_STYLESHEET_SENTINEL + '<script type="module" src="../js/main.js" data-src="main.js"></script>');
+});

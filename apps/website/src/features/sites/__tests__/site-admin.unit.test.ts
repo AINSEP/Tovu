@@ -293,3 +293,28 @@ test("switching to the actual current site skips its own lease and only cancels 
   }), { ok: true, activeSiteName: "alpha", restartRequired: false, restartInstructions: "This site is already active.", restarting: false });
   assert.deepEqual(persisted, [{ name: "alpha" }]);
 });
+
+test("a synchronous analytics failure cannot undo site creation or relabel the actor and source", async () => {
+  const events: unknown[] = [];
+  const result = await createSiteForOwner({ workspaceId: "ws-analytics", switcherBase: "/repo", name: "beta" }, {
+    bundledSourceRoot: bundledAgentPluginsDir(),
+    createSite: async (required, optional) => {
+      events.push([required, optional]);
+      return { name: "beta", dir: "/repo/sites/beta", siteId: "beta-id" };
+    },
+    tracker: {
+      capture: (required, optional) => {
+        events.push([required, optional]);
+        throw new Error("analytics sink offline");
+      },
+      error: () => assert.fail("unexpected tracker error"),
+      trace: async () => assert.fail("unexpected tracker trace"),
+      metric: () => assert.fail("unexpected tracker metric"),
+    },
+  });
+  assert.deepEqual(result, { ok: true, site: { name: "beta", dir: "/repo/sites/beta", siteId: "beta-id" }, agentPluginTokens: { status: "none", pluginIds: [] } });
+  assert.deepEqual(events, [
+    [{ name: "beta", adminPassword: "tovu-dev" }, { cwd: "/repo" }],
+    [{ name: "site_created", userId: "system:ws-analytics" }, { properties: { targetSiteId: "beta-id", templateKind: "default", source: "service" } }],
+  ]);
+});

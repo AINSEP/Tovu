@@ -23,3 +23,23 @@ test("drafts, prereleases and malformed answers are no release", async () => {
 test("a blank feed URL is refused at construction, so no default URL can creep in", () => {
   assert.throws(() => createGithubReleaseFeed({ feedUrl: "  ", getJson: async () => null }), /feed URL/);
 });
+
+test("a release tag is trimmed, optional notes are normalized, and the request keeps the caller signal", async () => {
+  const signal = new AbortController().signal;
+  const seen: unknown[] = [];
+  const feed = createGithubReleaseFeed({
+    feedUrl: `  ${URL_}  `,
+    getJson: async (required, optional) => {
+      seen.push([required, optional]);
+      return { tag_name: "  v2.7.1  ", body: null };
+    },
+  });
+  assert.deepEqual(seen, []);
+  assert.deepEqual(await feed.latestRelease({}, { signal }), { version: "2.7.1", notes: "" });
+  assert.deepEqual(seen, [[{ url: URL_ }, { signal }]]);
+});
+
+test("an all-whitespace tag never advertises an update, even with valid notes", async () => {
+  const feed = createGithubReleaseFeed({ feedUrl: URL_, getJson: async () => ({ tag_name: " \t ", body: "notes" }) });
+  assert.equal(await feed.latestRelease({}), null);
+});

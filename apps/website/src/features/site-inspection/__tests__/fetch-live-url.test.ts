@@ -7,7 +7,7 @@ import { EgressRefusedError, type HttpRequest, type HttpResponse } from "#src/pl
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "@jini-ai/diagnostics/web-evidence/live-url";
 import { selectConnectedDestination } from "@jini-ai/cms/publish/content/peer-registry";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
-import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
+import { buildSiteInspectionRegistrations, contributeSiteInspectionTools } from "../tool-registrations.js";
 import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 const origin = 'https://site.example';
 const hostPolicy = { reservedSegments: RESERVED_SEGMENTS, isEgressRefusal: (error: unknown): error is EgressRefusedError => error instanceof EgressRefusedError };
@@ -79,4 +79,33 @@ test("old distinct publish URLs survive more than 200 later publishes and stay w
   await history.recordSuccess({ workspaceId: 'other-workspace', entry: { ...entry, url: 'https://other.example' } });
   assert.deepEqual(await listKnownLiveOrigins({ selectConnectedDestination, workspaceId: 'w', publishHistoryStore: history }), ['https://old.example', origin]);
   assert.deepEqual(await history.listLiveUrls({ workspaceId: 'w' }), ['https://old.example', origin]);
+});
+
+test("the live inspection contributor logs only the origin and response metadata", async t => {
+  const date = new Date("2026-11-26T00:00:00.000Z");
+  t.mock.timers.enable({ apis: ["Date"], now: date });
+  const info = t.mock.method(console, "info", () => {});
+  const f = fake();
+  const deps = {
+    workspaceId: "w",
+    authorize: async (required: { principalId: string; workspaceId: string; permission: string }) => {
+      assert.deepEqual([required.principalId, required.workspaceId, required.permission], ["editor", "w", "content.read"]);
+      return { allowed: true, reason: "matched" };
+    },
+    originRegistry: { canonicalOrigin: async (required: { workspaceId: string }) => {
+      assert.deepEqual(required, { workspaceId: "w" });
+      return { scheme: "https", host: "site.example", source: "workspace-setting" };
+    } },
+  };
+  const registration = contributeSiteInspectionTools({ httpClient: f.deps.httpClient, selectConnectedDestination })
+    .build(deps as unknown as Parameters<ReturnType<typeof contributeSiteInspectionTools>["build"]>[0], undefined)
+    .find(r => r.descriptor.id === "fetch_live_url");
+  assert.ok(registration);
+  const reply = await registration.handler({ principal: { id: "editor" }, input: { path: "/pricing?campaign=preview" }, signal: new AbortController().signal } as never) as { status: number; origin: string };
+  assert.deepEqual([reply.status, reply.origin], [200, "https://site.example"]);
+  assert.deepEqual(f.calls.map(call => call.url), ["https://site.example/pricing?campaign=preview"]);
+  assert.deepEqual(info.mock.calls.map(call => call.arguments), [[JSON.stringify({
+    timestamp: "2026-11-26T00:00:00.000Z", level: "info", service: "site-inspection", message: "fetch_live_url",
+    context: { origin: "https://site.example", status: 200, durationMs: 0, outcome: "response" },
+  })]]);
 });

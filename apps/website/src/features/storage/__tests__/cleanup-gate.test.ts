@@ -65,3 +65,17 @@ test("a grant is bound to the principal it was minted for and expires", async ()
   assert.equal((await h.gate.apply({ principalId: "owner", previewToken }, {})).status, "refused");
   assert.equal(h.state.live, 0);
 });
+
+test("a plan status change invalidates approval even when neither pass has policy rows", async () => {
+  let status = "completed";
+  const calls: boolean[] = [];
+  const gate = createStorageCleanupGate({
+    runOnce: async ({ dryRun }) => { calls.push(dryRun); return { status, dryRun }; },
+    previewStore: createCleanupPreviewStore({ randomToken: () => "owner-reviewed", mono: () => 0 }),
+  });
+  const { pass, previewToken } = await gate.preview({ principalId: "owner" }, {});
+  assert.deepEqual(pass, { status: "completed", dryRun: true });
+  status = "busy";
+  assert.deepEqual(await gate.apply({ principalId: "owner", previewToken }, {}), { status: "refused", reason: "grant-invalid" });
+  assert.deepEqual(calls, [true, true]);
+});

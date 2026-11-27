@@ -319,3 +319,54 @@ test('performance opt-in reaches the shared browser and numeric evidence survive
   assert.deepEqual(requested.pages[0].observation.performance, performance);
   assert.equal(browser.closed, 2);
 });
+
+test("host disclosure redacts application keys in observed strings without dropping structural evidence", async () => {
+  const publicId = "tovu_ak_012345abcdef.";
+  const raw = publicId + "BoundedFakeSecretValue12345";
+  const hidden = publicId + "[REDACTED:tovu_api_key]";
+  // Materialize independent fixtures so an in-place redaction cannot make the expectation pass.
+  function sample(key: string, authHeader: string): PageObservation {
+    return {
+      document: {
+        ...observation().document, lang: null, title: `Status for ${key}`, textExcerpt: `Captured: ${key}`,
+        headers: [{ name: "content-type", value: "text/html" }, { name: "X-Api-Key", value: authHeader }, { name: "x-diagnostic", value: key }],
+      },
+      cookies: [{ name: "sid", domain: "example.test", path: `/${key}`, sameSite: "Lax", secure: true, httpOnly: true, expiresAt: null, firstParty: true, phase: "before" }],
+      requests: [
+        { method: "POST", host: "example.test", pathname: `/api/${key}`, resourceType: "fetch", firstParty: true, phase: "before", blockedReason: `Blocked ${key}` },
+        { method: "GET", host: "example.test", pathname: "/logo.svg", resourceType: "image", firstParty: true, phase: "before" },
+      ],
+      accessibility: {
+        landmarks: [{ role: "main", selector: "#main", accessibleName: key }],
+        headings: [{ level: 2, selector: "#heading", text: key }],
+        images: [{ selector: "#logo", src: `/media/${key}`, alt: null, ariaHidden: false }, { selector: "#decor", src: "/line.svg", alt: "", ariaHidden: true }],
+        formControls: [{ selector: "#reply", tag: "input", type: "text", name: key, accessibleName: null, labelSource: "none", required: true }],
+        contrastSamples: [{ selector: `[data-key="${key}"]`, foreground: "#000000", background: "#ffffff", ratio: 21, fontSizePx: 16, fontWeight: 400 }],
+        truncated: [`Skipped node ${key}`],
+      },
+      performance: { context: "fresh-isolated-page", heap: null, domNodes: 17, domTruncated: false, mountedHiddenPanels: 0, hiddenPreElements: 0, hiddenPreTextChars: 0, iframes: 0, longTasks: { supported: false, count: 0, totalMs: 0, maxMs: 0, truncated: false }, suspects: [`Source ${key}`] },
+      notes: [`Observed ${key}`],
+    };
+  }
+  const observed = sample(raw, "short");
+  const browser = fakeBrowser(request => {
+    assert.equal(request.url, "https://example.test/");
+    return { ok: true, observation: observed };
+  });
+  const result = await collectPageEvidence({ ...deps(browser.factory), paths: ["/"] }, { collectAccessibility: true, collectPerformance: true });
+  assert.deepEqual(result.skipped, []);
+  assert.deepEqual(result.pages.find(page => page.path === "/")?.observation, sample(hidden, "[REDACTED:auth_header]"));
+  assert.deepEqual(observed, sample(raw, "short"));
+  assert.equal(browser.closed, 1);
+});
+
+test("a browser launch failure retains actionable text without its application key", async () => {
+  const unavailable: SiteEvidenceBrowserFactory = async () => ({
+    available: false, reason: "Browser could not start with tovu_ak_012345abcdef.BoundedFakeSecretValue12345",
+  });
+  const result = await collectPageEvidence({ ...deps(unavailable), paths: ["/"] });
+  assert.deepEqual(result.browser, {
+    status: "unavailable", reason: "Browser could not start with tovu_ak_012345abcdef.[REDACTED:tovu_api_key]",
+  });
+  assert.deepEqual(result.pages, []);
+});

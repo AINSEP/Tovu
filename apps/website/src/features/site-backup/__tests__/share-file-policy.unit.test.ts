@@ -373,3 +373,23 @@ test("a file NAMED like a vendor token is a credential filename through the host
   requireShareSecretFree({ path: `themes/${providerKey()}.txt`, bytes: Buffer.from("plain text") }, { credentialWarnings });
   assert.deepEqual(credentialWarnings.map(warning => warning.kind), ["credential filename"]);
 });
+
+test("the bundled inventory defaults to the host's composed source root, not the site install tree", async t => {
+  const sourceRoot = await mkdtemp(join(tmpdir(), "composed-backup-inventory-"));
+  const envKey = "TOVU_BUNDLED_AGENT_PLUGINS_DIR";
+  const previous = process.env[envKey];
+  t.after(async () => {
+    if (previous === undefined) delete process.env[envKey]; else process.env[envKey] = previous;
+    await rm(sourceRoot, { recursive: true, force: true });
+  });
+  process.env[envKey] = sourceRoot;
+
+  const root = join(sourceRoot, "sample");
+  await mkdir(root);
+  await writeFile(join(root, "plugin.json"), JSON.stringify({ "$schema": "https://agent-plugins.org/schemas/1.1.0/plugin.schema.json", name: "sample", version: "1.0.0", description: "Fixture plugin" }));
+  await writeFile(join(root, "README.md"), "Bundled inventory marker");
+  const sha = createHash("sha256").update("Bundled inventory marker").digest("hex");
+  const inventory = await readBundledPackageFiles();
+  assert.equal(inventory.size, 1);
+  assert.equal([...inventory.values()][0]?.get("README.md"), sha);
+});

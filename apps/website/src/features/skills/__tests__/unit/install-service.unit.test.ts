@@ -1,7 +1,7 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -100,3 +100,19 @@ test("mixed files exceeding the aggregate byte cap are refused before installati
   await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, files })), { message: "Skill files exceed 8 MiB combined." });
   assert.deepEqual(await listManagedSkills(ctx), []);
 }));
+
+test("the host warns which malformed skill folder was skipped and still serves the valid skill", async t => {
+  const site = createTempSiteLayoutFixture({});
+  t.after(site.cleanup);
+  const context = { ...site.deps, workspaceId: "ws-skill-log" };
+  await installSkill({ ...context, files: [file("SKILL.md", MD)] });
+  const broken = path.join(context.skillLayout.forWorkspace({ workspaceId: "ws-skill-log" }).root, "broken");
+  await mkdir(broken);
+  await writeFile(path.join(broken, "SKILL.md"), "no frontmatter\n");
+  const warn = t.mock.method(console, "warn", () => {});
+  const sources = await loadInstalledSkillToolSources(context);
+  assert.deepEqual(sources.map(source => source.markdown), [MD]);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [
+    ["[skills] 'broken': SKILL.md has no parseable frontmatter with both 'name' and 'description' — skipped"],
+  ]);
+});

@@ -281,3 +281,10 @@ test("absent handoff exposes no apply operation: the runtime is check-only (FIX 
   assert.deepEqual(ids, ["site_update_check"], "site ports without a durable hand-off must not register site_update_apply");
   assert.deepEqual(fake.calls, []);
 });
+
+test("the shared update lock is released on preparation failure so the same site can retry", async () => {
+  const lock = createOperationUpdateLock({ lock: createOperationLock({}, {}), siteId: "site-retry", clock: createSystemClock() });
+  const failure = new Error("backup staging rejected");
+  await assert.rejects(lock.withLock({ run: async () => { throw failure; } }), error => error === failure);
+  assert.deepEqual(await lock.withLock({ run: async () => ({ operationId: "retry-op" }) }), { operationId: "retry-op" });
+});

@@ -9,6 +9,7 @@ import { createFakeSiteUpdate, type FakeSiteUpdateOptions, type SiteRelease } fr
 import { buildSiteUpdateRegistrations, type SiteUpdateRuntime, type SiteUpdateToolDeps } from "../tools.js";
 
 import type { PreparedSiteUpdate } from "@jini-ai/devops/deploy";
+import { handOffApproved } from "../approved-handoff.js";
 
 /** @file The approved hand-off: nothing reaches the update supervisor without the owner's click and an uncancelled preparation. */
 
@@ -78,4 +79,40 @@ test("declining the card or cancelling before acceptance leaves the supervisor u
   await okCard.answer();
   assert.deepEqual(await okCard.pending, { applied: false, outcome: "updating", operationId: "op-1", message: "Updating to 1.3.0. The site restarts on the new version and is put back on 1.2.0 if it does not work." });
   assert.deepEqual(accepted.supervisor, ["submit:1.3.0"]);
+});
+
+test("after submit starts the durable supervisor accepts without inheriting the caller signal", async () => {
+  const controller = new AbortController();
+  const plan = { fromVersion: "1.2.0", toVersion: "1.3.0", notes: "Release notes." };
+  const submissions: unknown[] = [];
+  const result = await handOffApproved({
+    plan,
+    approvedBy: OWNER,
+    ports: {
+      ids: { newId: () => assert.fail("preparing this update should need no error id") },
+      backup: { createBackup: async (required, optional) => {
+        assert.deepEqual([required, optional], [{ fromVersion: "1.2.0" }, { signal: controller.signal }]);
+        return { backupId: "backup-opaque" };
+      } },
+      readiness: { check: async (required, optional) => {
+        assert.deepEqual([required, optional], [{ toVersion: "1.3.0" }, { signal: controller.signal, backupId: "backup-opaque", fromVersion: "1.2.0" }]);
+        return { status: "ok" };
+      } },
+    },
+    handoff: {
+      submitPrepared: async ({ prepared }, options) => {
+        submissions.push([prepared.plan, prepared.backupId, options]);
+        // The caller disconnects during submission. The supervisor has a separate lifetime.
+        controller.abort();
+        options?.signal?.throwIfAborted();
+        return { operationId: "durable-update-1" };
+      },
+      readLastAttempt: async () => assert.fail("handoff does not read status"),
+    },
+  }, { signal: controller.signal });
+  assert.deepEqual(submissions, [[{ fromVersion: "1.2.0", toVersion: "1.3.0", notes: "Release notes." }, "backup-opaque", undefined]]);
+  assert.deepEqual(result, {
+    applied: false, outcome: "updating", operationId: "durable-update-1",
+    message: "Updating to 1.3.0. The site restarts on the new version and is put back on 1.2.0 if it does not work.",
+  });
 });

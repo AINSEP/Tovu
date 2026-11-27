@@ -443,3 +443,13 @@ test("a non-file, non-directory entry in the generated tree (a FIFO) is skipped:
 
   assert.deepEqual(issues, []);
 });
+
+test("an unreadable generated tree is not reported as an empty valid inventory", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-inventory-not-directory-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const notDirectory = path.join(root, "release");
+  fs.writeFileSync(notDirectory, "not a theme directory");
+  assert.throws(() => checkBuiltThemeConformance({
+    themeId: "release", themeDir: notDirectory, pages: {}, partials: {}, artifactHashes: {},
+  }), { code: "ENOTDIR", path: notDirectory });
+});
