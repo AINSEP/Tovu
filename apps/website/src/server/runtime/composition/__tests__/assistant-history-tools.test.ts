@@ -88,7 +88,7 @@ test('the contribution names its domain and risk, and its build binds history to
   const grants: unknown[] = [];
   const deps: AssistantHistoryHostDeps = { workspaceId: 'site-c', authorize: async input => { grants.push(input); return { allowed: false, reason: 'denied' }; },
     chatHistory: () => { throw new Error('scope factory must not run'); } };
-  const tools = contribution.build(deps);
+  const tools = contribution.build(deps, {}); // This contributor takes no surfaces.
   assert.deepEqual(tools.map(tool => tool.descriptor.id).sort(), ['assistant_chat_read', 'assistant_chats_list']);
   const list = tools.find(tool => tool.descriptor.id === 'assistant_chats_list')!;
   await assert.rejects(list.handler({ executionId: 'exec', principal: { id: 'caller' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }),

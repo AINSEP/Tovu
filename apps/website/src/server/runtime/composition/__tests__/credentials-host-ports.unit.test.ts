@@ -8,8 +8,9 @@ import { bindCredentialsHostPorts, type CredentialsHostPortDeps } from "../crede
 
 test("the saved-key host port reads the current workspace store and describes without opening its key", async t => {
   const workspaceId = "site-a", label = "Repository service", baseUrl = "https://git.example.test";
-  const makeStore = (hkdfSalt: string) => {
-    const keyring = new InMemoryKeyring({ hkdfSalt });
+  const makeStore = () => {
+    // Each store gets its own random root key, so the replacement cannot open the first store's rows.
+    const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer({ keyring });
     const repo = new InMemoryCustomCredentialSetRepo();
     return { keyring, sealer, repo,
@@ -21,19 +22,21 @@ test("the saved-key host port reads the current workspace store and describes wi
     return current;
   } });
 
-  const first = makeStore("initial-store");
+  const first = makeStore();
   current = first.host;
   assert.equal(await keys.describeByLabel({ workspaceId, label }), null);
   assert.equal(await keys.resolveByLabel({ workspaceId, label }), null);
 
-  const next = makeStore("replacement-store");
+  const next = makeStore();
   const token = "test-fixture-repository-key";
   await createCustomCredential({ ...next, clock: { nowMs: () => 0 }, idGen: { newId: () => "credential-9" } },
     { workspaceId, label, category: "ops", baseUrl, connection: { token } });
   current = next.host;
   const open = t.mock.method(next.sealer, "open");
   const description = await keys.describeByLabel({ workspaceId, label });
-  assert.deepEqual({ id: description?.id, label: description?.label, origin: description?.baseUrl },
+  assert.ok(description, "the saved key is described");
+  const shown = description as Record<string, unknown>;
+  assert.deepEqual({ id: shown.id, label: shown.label, origin: shown.baseUrl },
     { id: "credential-9", label, origin: baseUrl });
   assert.equal(JSON.stringify(description).includes(token), false);
   assert.equal(open.mock.callCount(), 0);
