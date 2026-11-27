@@ -18,7 +18,7 @@ import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vaul
 import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
-import { deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialNotFoundError } from "@jini-ai/devops/source-control/site/store";
+import { deleteSourceControlCredential, listSourceControlCredentials, resolveDefaultForSourceControl, SourceControlCredentialDuplicateLabelError, SourceControlCredentialNotFoundError } from "@jini-ai/devops/source-control/site/store";
 import { createSourceControlCredential, updateSourceControlCredential, type SourceControlCredentialWriteDeps } from "../store.js";
 import { exampleRegistry } from "./fixtures/example-provider.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";
@@ -144,4 +144,19 @@ test("a canonical Source Control key refuses a host move or a paired field and k
   await assert.rejects(updateSourceControlCredential({ deps, input: { workspaceId: SITE_A, id: created.id, connection: { providerId: "example-git", token: secret("moved") } } }), refusal);
   await assert.rejects(updateSourceControlCredential({ deps, input: { workspaceId: SITE_A, id: created.id, connection: { token: secret("paired"), owner: "someone" } } }), refusal);
   assert.equal((await resolveDefaultForSourceControl({ ...deps, deps: SOURCE_CONTROL_CREDENTIAL_DEPS }, { workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("kept"));
+});
+
+// Mutations: drop the duplicate-label translation; skip the provider-availability check; describe
+// a provider that declares no saved key label instead of refusing it.
+test("the canonical binding describes by the declared label, refuses an unavailable host and keeps the duplicate-label identity", async () => {
+  const keys = sourceControlKeyBinding({ credentials: customDeps({ opens: { count: 0 } }), loadProviders: providers });
+  assert.equal(await keys.describe({ workspaceId: SITE_A, providerId: "github" }), null);
+  await assert.rejects(keys.describe({ workspaceId: SITE_A, providerId: "example-git" }), { message: "source control provider example-git has no saved key label" });
+  await assert.rejects(keys.create({ workspaceId: SITE_A, connection: { providerId: "no-such-host", token: secret("orphan") } }),
+    { message: "The source control provider is unavailable. Turn it on and open its key card again." });
+  const created = await keys.create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("first") } });
+  assert.deepEqual(await keys.describe({ workspaceId: SITE_A, providerId: "github" }), { id: created.id, label: created.label, providerId: "github" });
+  await assert.rejects(keys.create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("second") } }),
+    error => error instanceof SourceControlCredentialDuplicateLabelError);
+  assert.equal((await keys.resolve({ workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("first"));
 });
