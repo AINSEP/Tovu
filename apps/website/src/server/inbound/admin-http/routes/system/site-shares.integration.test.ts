@@ -24,6 +24,8 @@ test("all share routes including static export require authentication, site-back
   const registry = new SiteShareRegistry({ directory: path.join(directory, ".hidden", "shares"), now: () => Date.now() });
   const operation = async (input: unknown) => { calls++; inputs.push(input); return { ok: true }; };
   deps.siteShareBackend = { registry, staticOptions: operation as never, create: operation, revoke: operation as never, list: async () => { calls++; return []; },
+    // The list route answers `expiryChoices` beside the shares; this backend offers no day counts (Never only).
+    expiryChoices: async () => [],
     acknowledge: async () => assert.fail("these share routes must not acknowledge credential warnings"),
     revealPassword: async () => assert.fail("these share routes must not reveal passwords") };
   const app = createApp(deps);

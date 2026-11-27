@@ -221,12 +221,15 @@ test("inherited stopIfIdle calls the serving hook on the existing channel", asyn
 test('unexpected readiness failures expose plain recovery steps with redacted diagnostic detail', async t => {
   const { awaitDaemonForResponse } = await import('../../composition/modules/assistant-daemon-client.js');
   t.mock.method(console, 'error', () => {});
-  let body!: { error: string; detail: string };
-  const res = { status: () => res, json(value: typeof body) { body = value; return res; } };
+  const { createCapturingResponse } = await import('#src/server/__tests__/helpers/http-test-server');
+  const { res, capture } = createCapturingResponse();
   const secret = 'sk-ant-api03-very-secret-test-token';
   await awaitDaemonForResponse({ res }, {
     ensureReady: async () => { throw new Error(`Connection failed: api_key=${secret} /Users/private/.credentials`); },
   });
+  const body = capture.jsonBody;
+  assert.ok(body && typeof body === 'object' && 'error' in body && 'detail' in body && typeof body.error === 'string' && typeof body.detail === 'string',
+    'the readiness failure answers { error, detail } strings');
   assert.match(body.error, /could not connect.*Retry/);
   assert.doesNotMatch(body.error, /Connection failed|api_key|Users/);
   assert.doesNotMatch(body.detail, new RegExp(secret));
