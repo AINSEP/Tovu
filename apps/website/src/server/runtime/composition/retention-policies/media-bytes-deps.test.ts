@@ -6,7 +6,10 @@ import type { BlobStorePort, VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createBlobGcJournal } from "#src/platform/db/repos/blob-gc-journal";
 import { createMediaBytesPolicy } from "./media-bytes.js";
-import { mediaBytesDeps } from "./media-bytes-deps.js";
+import { mediaBytesDeps, servingRecoveryArtifacts } from "./media-bytes-deps.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 10, 25);
@@ -93,3 +96,31 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => kernel as Ke
     assert.deepEqual(bound, ["forms", "live", "recovery", "rendition", "transfer", "trashed"]);
   });
 }
+
+test("recovery artifacts are the journal's restore points plus the pre-migration copies (with sidecars) beside the content database", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "recovery-artifacts-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const ops = path.join(dir, "ops");
+  fs.mkdirSync(ops);
+  const older = path.join(ops, "pre-migrations-2026-11-01T10-00-00-000Z.db");
+  const newer = path.join(ops, "pre-migrations-2026-11-02T10-00-00-000Z.db");
+  fs.writeFileSync(older, "a".repeat(3));
+  fs.writeFileSync(newer, "b".repeat(5));
+  fs.writeFileSync(`${newer}-wal`, "w".repeat(7));
+  fs.writeFileSync(path.join(ops, "notes.txt"), "not a copy");
+  const restorePoint = { filePath: path.join(dir, "journal-point.db"), createdAt: 1, bytes: 11 };
+  const list = servingRecoveryArtifacts({ restorePoints: { list: async () => [restorePoint] }, contentDbPath: path.join(dir, "content.db") });
+  assert.deepEqual(await list(), [
+    restorePoint,
+    { filePath: newer, createdAt: Date.UTC(2026, 10, 2, 10), bytes: 12 },
+    { filePath: older, createdAt: Date.UTC(2026, 10, 1, 10), bytes: 3 },
+  ]);
+  // Listing is read-only: every copy is still on disk.
+  assert.deepEqual(fs.readdirSync(ops).sort(), [path.basename(older), path.basename(newer), `${path.basename(newer)}-wal`, "notes.txt"].sort());
+});
+
+test("a memory-only site lists only its restore points", async () => {
+  const restorePoint = { filePath: "/journal/point.db", createdAt: 2, bytes: 1 };
+  const list = servingRecoveryArtifacts({ restorePoints: { list: async () => [restorePoint] }, contentDbPath: ":memory:" });
+  assert.deepEqual(await list(), [restorePoint]);
+});
