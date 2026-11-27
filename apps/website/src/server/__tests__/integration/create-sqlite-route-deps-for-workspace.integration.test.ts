@@ -158,3 +158,101 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
 });
+
+/** Transpile one named `deps.ts` function and bind it to explicit boot ports (the file's established seam above). */
+function compileDepsFunction<T>(name: string, ports: Record<string, unknown>): T {
+  const source = ts.createSourceFile("deps.ts", fs.readFileSync(new URL("../../runtime/composition/deps.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
+  const declaration = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
+  assert.ok(declaration, `deps.ts must declare ${name}`);
+  const compiled = ts.transpileModule(declaration.getText(source).replace(/^export\s+/, ""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  return runInNewContext(`${compiled}\n${name}`, ports) as T;
+}
+
+test("workspaceIdOverride on a Postgres/PGlite site: no SQLite handle is opened; the override is handed to the composition as requestedWorkspaceId", async () => {
+  const dbPath = mkTempDbPath();
+  const storageLookups: string[] = [];
+  const composeCalls: Array<{ required: unknown; optional: { dbPath: string; overrides: Record<string, unknown> } }> = [];
+  const composed = { marker: "pglite-deps" };
+  const onStoreOpened = (_required: { store: SiteStore }, _optional?: Record<string, never>): void => {};
+  try {
+    const composeWithPorts = compileDepsFunction<typeof createSiteRouteDepsForWorkspace>("createSiteRouteDepsForWorkspace", {
+      assertContentDbFileName, defaultContentDbPath, isInMemoryDbPath,
+      resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
+      resolveSiteStorage: ({ siteDir }: { siteDir: string }) => { storageLookups.push(siteDir); return { kind: "pglite" }; },
+      openSiteContentDb: async () => { throw new Error("a non-SQLite site must never open a SQLite validation handle"); },
+      resolveWorkspace: async () => { throw new Error("the composition validates the id against its own store"); },
+      createSiteRouteDeps: async (required: unknown, optional: { dbPath: string; overrides: Record<string, unknown> }) => {
+        composeCalls.push({ required, optional });
+        return composed;
+      },
+    });
+    const deps = await composeWithPorts({ workspaceIdOverride: "ws-pg" }, { dbPath, onStoreOpened });
+    assert.equal(deps, composed);
+    assert.deepEqual(storageLookups, [path.dirname(dbPath)]);
+    assert.equal(composeCalls.length, 1);
+    const [call] = composeCalls;
+    assert.deepEqual({ ...call!.optional, overrides: { ...call!.optional.overrides } },
+      { dbPath, overrides: { onStoreOpened, requestedWorkspaceId: "ws-pg", storeRole: "owner" } });
+  } finally {
+    fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+  }
+});
+
+test("workspaceIdOverride supplied: a composition failure AFTER validation closes the opener's own connection and rethrows the same error", async () => {
+  const dbPath = mkTempDbPath();
+  const openedHandles: Awaited<ReturnType<typeof openSiteContentDb>>[] = [];
+  const failure = new Error("compose-failed");
+  const composedFor: Array<string | undefined> = [];
+  try {
+    const seedDb = openContentDb(dbPath);
+    seedDb.insert(workspaces).values({ id: "ws-compose-fails", name: "Compose Fails", slug: "compose-fails", createdAt: "2026-01-01T00:00:00.000Z" }).run();
+    seedDb.$client.close();
+    const composeWithPorts = compileDepsFunction<typeof createSiteRouteDepsForWorkspace>("createSiteRouteDepsForWorkspace", {
+      assertContentDbFileName, defaultContentDbPath, isInMemoryDbPath, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
+      resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
+      openSiteContentDb: async ({ dbPath: file }: { dbPath: string }) => {
+        const opened = await openSiteContentDb({ dbPath: file });
+        openedHandles.push(opened);
+        return opened;
+      },
+      createSiteRouteDeps: async (_required: unknown, optional: { overrides: { workspaceId?: string } }) => {
+        composedFor.push(optional.overrides.workspaceId);
+        throw failure;
+      },
+    });
+    await assert.rejects(() => composeWithPorts({ workspaceIdOverride: "ws-compose-fails" }, { dbPath }), (error) => error === failure);
+    assert.deepEqual(composedFor, ["ws-compose-fails"], "the validated id reaches the composition before it fails");
+    assert.equal(openedHandles.length, 1);
+    assert.equal(openedHandles[0]!.$client.open, false, "the failed composition must not leak the validation connection");
+  } finally {
+    for (const handle of openedHandles) if (handle.$client.open) handle.$client.close();
+    fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+  }
+});
+
+test("chat-orphan boot warning: a failing SQLite orphan count is logged once and never fails boot; non-SQLite stores skip the count", async () => {
+  const counted: Array<{ contentDbPath: string; chatDbPath: string }> = [];
+  const logged: Array<{ message: string }> = [];
+  let failWith: Error | undefined = new Error("chat.db is locked");
+  type Warn = (required: { dbPath: string; store: { storage: { kind: string } }; kernel: unknown; chatDbPath: string }) => Promise<void>;
+  const warn = compileDepsFunction<Warn>("warnCompositionChatOrphans", {
+    warnOnOrphanedChatRows: async ({ contentDbPath, chatDbPath }: { contentDbPath: string; chatDbPath: string }) => {
+      counted.push({ contentDbPath, chatDbPath });
+      if (failWith) throw failWith;
+    },
+    consoleLogger: { error: (entry: { message: string }) => { logged.push({ message: entry.message }); } },
+  });
+  const kernel = { marker: "content-kernel" };
+
+  await warn({ dbPath: "/site/content.db", store: { storage: { kind: "sqlite" } }, kernel, chatDbPath: "/site/chat.db" });
+  assert.deepEqual(counted, [{ contentDbPath: "/site/content.db", chatDbPath: "/site/chat.db" }]);
+  assert.deepEqual(logged, [{ message: "warnOnOrphanedChatRows failed at boot: chat.db is locked" }]);
+
+  failWith = undefined;
+  await warn({ dbPath: "/site/content.db", store: { storage: { kind: "sqlite" } }, kernel, chatDbPath: "/site/chat.db" });
+  assert.equal(counted.length, 2);
+  assert.equal(logged.length, 1, "a successful count logs nothing");
+
+  await warn({ dbPath: "/site/content.db", store: { storage: { kind: "pglite" } }, kernel, chatDbPath: "/site/chat.db" });
+  assert.equal(counted.length, 2, "a PGlite/Postgres site never had chat rows in its content tables");
+});
