@@ -12,9 +12,14 @@ import { createLocalSiteSupervisor, type LocalSiteProcess } from "#src/platform/
 const net = await import("@jini-ai/platform/net");
 let retirementStatus = 204;
 let retirementFailure: Error | undefined;
-mock.module("@jini-ai/platform/net", { namedExports: { ...net, requestLoopbackHttp: async () => {
-  if (retirementFailure) throw retirementFailure;
-  return { status: retirementStatus };
+/** When set, only requests with this method fail; otherwise a set failure applies to every method. */
+let retirementFailMethod: string | undefined;
+let deleteStatus: number | undefined;
+const retirementRequests: Array<{ url: string; method: string; headers?: Record<string, string> }> = [];
+mock.module("@jini-ai/platform/net", { namedExports: { ...net, requestLoopbackHttp: async (input: { url: string; method: string; headers?: Record<string, string> }) => {
+  retirementRequests.push(input);
+  if (retirementFailure && (retirementFailMethod === undefined || retirementFailMethod === input.method)) throw retirementFailure;
+  return { status: input.method === "DELETE" && deleteStatus !== undefined ? deleteStatus : retirementStatus };
 } } });
 const { createLocalSiteProcessPort } = await import("../local-site-process.js");
 
@@ -112,4 +117,48 @@ test("retirement cancellation records failures without masking the supervisor's 
   retirementFailure = undefined;
   retirementStatus = 204;
   await launched.cancelRetirement();
+});
+
+test("tryRetire asks the child's retire route with its own token and undoes a failed POST before refusing", async (t) => {
+  const switcherBase = fs.mkdtempSync(path.join(os.tmpdir(), "site-try-retire-"));
+  t.after(() => fs.rmSync(switcherBase, { recursive: true, force: true }));
+  const siteDir = path.join(switcherBase, "sites/slow");
+  fs.mkdirSync(siteDir, { recursive: true });
+  fs.writeFileSync(path.join(siteDir, "config.json"), JSON.stringify({ name: "slow" }));
+  fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "slow-try-retire", templateId: "blank",
+    templateVersion: "1", schemaTag: "test", schemaVersion: 0, createdAt: "2026-10-31" }));
+  const child = Object.assign(new EventEmitter(), { pid: 4242, stdout: new PassThrough(), stderr: new PassThrough() });
+  t.after(() => { child.stdout.end(); child.stderr.end(); });
+  let childToken: string | undefined;
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1" },
+    processOptions: { spawn: ({ options }) => { childToken = options.env!.TOVU_DEV_RETIRE_TOKEN; return child as unknown as ChildProcess; } },
+  });
+  t.after(() => { retirementStatus = 204; retirementFailure = undefined; retirementFailMethod = undefined; deleteStatus = undefined; return local.dispose?.(); });
+  const launched = await local.launch({ name: "slow", port: 3101, daemonPort: 3102 });
+  assert.match(childToken ?? "", /^[0-9a-f]{64}$/);
+  const log = path.join(siteDir, "ops/logs/local-site.log");
+  const logText = () => fs.existsSync(log) ? fs.readFileSync(log, "utf8") : "";
+  const attempt = async () => { retirementRequests.length = 0; const retired = await launched.tryRetire!(); return { retired, methods: retirementRequests.map(r => r.method) }; };
+
+  retirementStatus = 204;
+  assert.deepEqual(await attempt(), { retired: true, methods: ["POST"] });
+  assert.deepEqual(retirementRequests[0], { url: "http://localhost:3101/internal/dev-site-retire", method: "POST", headers: { "x-tovu-retire": childToken } });
+
+  retirementStatus = 409;
+  assert.deepEqual(await attempt(), { retired: false, methods: ["POST"] }, "a busy site refuses without a cancel");
+
+  retirementFailure = new Error("socket hang up"); retirementFailMethod = "POST"; deleteStatus = 204;
+  assert.deepEqual(await attempt(), { retired: false, methods: ["POST", "DELETE"] }, "a failed POST is undone");
+  assert.doesNotMatch(logText(), /Could not cancel site retirement/, "a successful undo logs nothing");
+
+  deleteStatus = 500;
+  assert.deepEqual(await attempt(), { retired: false, methods: ["POST", "DELETE"] });
+  assert.match(logText(), /Could not cancel site retirement: HTTP 500/);
+
+  retirementFailure = new Error("cancel transport down"); retirementFailMethod = undefined;
+  assert.deepEqual(await attempt(), { retired: false, methods: ["POST", "DELETE"] }, "a failed undo still refuses eviction");
+  // tryRetire describes the cancel error with `describeErrorForLog` (error class only), unlike
+  // cancelRetirement's `formatErrorForLog`; the failure is still recorded at error level.
+  assert.match(logText(), /"level":"error".*Could not cancel site retirement: Error"/);
 });
