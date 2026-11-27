@@ -150,13 +150,15 @@ test("a canonical Source Control key refuses a host move or a paired field and k
 // a provider that declares no saved key label instead of refusing it.
 test("the canonical binding describes by the declared label, refuses an unavailable host and keeps the duplicate-label identity", async () => {
   const keys = sourceControlKeyBinding({ credentials: customDeps({ opens: { count: 0 } }), loadProviders: providers });
+  const create = keys.create;
+  assert.ok(create, "the canonical binding saves keys");
   assert.equal(await keys.describe({ workspaceId: SITE_A, providerId: "github" }), null);
   await assert.rejects(keys.describe({ workspaceId: SITE_A, providerId: "example-git" }), { message: "source control provider example-git has no saved key label" });
-  await assert.rejects(keys.create({ workspaceId: SITE_A, connection: { providerId: "no-such-host", token: secret("orphan") } }),
+  await assert.rejects(create({ workspaceId: SITE_A, connection: { providerId: "no-such-host", token: secret("orphan") } }),
     { message: "The source control provider is unavailable. Turn it on and open its key card again." });
-  const created = await keys.create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("first") } });
+  const created = await create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("first") } });
   assert.deepEqual(await keys.describe({ workspaceId: SITE_A, providerId: "github" }), { id: created.id, label: created.label, providerId: "github" });
-  await assert.rejects(keys.create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("second") } }),
+  await assert.rejects(create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("second") } }),
     error => error instanceof SourceControlCredentialDuplicateLabelError);
   assert.equal((await keys.resolve({ workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("first"));
 });
