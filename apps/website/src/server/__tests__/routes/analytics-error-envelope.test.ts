@@ -89,3 +89,28 @@ for (const failure of ["authorize", "sink"] as const) {
     });
   }
 }
+
+// Mutation: disclose `details` (errorId, failure) whether or not a principal is attached.
+test("analytics/recent-hits: a failure with no authenticated principal answers the 500 without diagnostic details", async t => {
+  const recorded = recordingComposedReporter();
+  const routeErrors = { ...createRouteIncidentReporter().errors, reporter: recorded.reporter };
+  t.mock.method(console, "error", () => {});
+  const app = express();
+  applyRequestTracking({ app, deps: { tracker: createTracker({}), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
+  app.use((_req, res, next) => { res.locals.failureReporter = recorded.reporter; next(); });
+  const deps: AdminAnalyticsRecentHitsDeps = {
+    workspaceId: "ws",
+    authorize: async () => { throw new Error("private authorize failure"); },
+    analyticsSink: { capabilities: () => ({ durable: false, batch: true }), accept: async () => {}, acceptBatch: async () => {}, list: async () => [] },
+  };
+  registerAdminAnalyticsRecentHitsRoute({ errors: routeErrors, app, deps });
+  const response = await request(app, "analytics-anonymous-request");
+  const error = (response.body as { error: Record<string, unknown> }).error;
+  assert.equal(response.status, 500);
+  assert.deepEqual(Object.keys(error).sort(), ["code", "message", "requestId"]);
+  assert.deepEqual([error.code, error.requestId], ["INTERNAL_ERROR", "analytics-anonymous-request"]);
+  const errorId = /\(error (ERR-[0-9A-F-]+)\)$/.exec(String(error.message))?.[1];
+  assert.ok(errorId, "the caller still gets an error id to report");
+  assert.equal((recorded.reports[0]![1] as { context: { attributes: { incidentId: string } } }).context.attributes.incidentId, errorId);
+  assert.doesNotMatch(JSON.stringify(response.body), /private/);
+});
