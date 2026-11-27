@@ -1,0 +1,79 @@
+packages/admin/src/posts/__tests__/y5-post-list.test.tsx :: the list columns preserve all sorting choices and use host URL builders
+packages/admin/src/screens/__tests__/y5-admin-surfaces.test.tsx :: plugin Add falls back to Installed when folder installation is unavailable
+packages/admin/src/react/shell/__tests__/theme-boundaries.test.ts :: keeps admin product-neutral and reads component colors from the variable contract
+packages/admin/src/screens/providers/__tests__/AlwaysAllowPanel.unit.test.tsx :: AlwaysAllowPanel lists each server's tools and revokes one row, disabling only the pending row
+packages/admin/src/security/host/__tests__/y5-live-secrets.test.tsx :: the live tab preserves combined search counts and disables custom Save until the key is present
+packages/admin/src/screens/media/media-i18n/__tests__/create-media-dictionary.test.ts :: createMediaDictionary composes every slice: same key count per locale as the single-file dictionary
+packages/admin/src/screens/media/media-i18n/__tests__/create-media-dictionary.test.ts :: createMediaDictionary composes the host's product entries last, so they win and extend
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer imports the root and uses the legacy discovery API and owned native runtime
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer returns no connection when no usable provider credentials or selection exist
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer uses explicit provider URLs without integrations ('claude' / '')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer uses explicit provider URLs without integrations ('aider' / 'anthropic/claude-test')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer uses explicit provider URLs without integrations ('aider' / 'openrouter/test')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer uses explicit provider URLs without integrations ('aider' / 'openai/gpt-test')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer uses explicit provider URLs without integrations ('qwen' / 'custom')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer reports the missing peer only when a default URL is needed ('anthropic/claude-test')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer reports the missing peer only when a default URL is needed ('google/gemini-test')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer reports the missing peer only when a default URL is needed ('openrouter/test')
+packages/agent-runtime/tests/loads-without-integrations.test.ts :: @jini-ai/agent-runtime without its optional integrations peer reports the missing peer only when a default URL is needed ('openai/gpt-test')
+packages/chat/src/core/__tests__/durable-run-subscription.paths.unit.test.ts :: followDurableRun with a binding and checkpoints P26: settles an empty AG-UI start and a durable run that is gone
+packages/chat/src/core/ag-ui/__tests__/interrupts.test.ts :: hands an interrupt to the live consumer before finish and resumes on the same thread with a fresh run
+packages/chat/src/core/assistant-client/__tests__/assistant-transport.ag-ui.approvals.unit.test.ts :: AG-UI parked approvals an expired resume shows the plain refusal once and never acknowledges a repeat as sent
+packages/cms/src/__tests__/integration-package.contract.test.ts :: gives every public export a source target for a subsequent clean build
+packages/cms/forms/src/__tests__/package-boundary.test.ts :: forms keeps its own published root entry and CMS exposes no forms alias
+packages/cms/src/asset-transfer/__tests__/copy-tool.test.ts :: files copy execution one large video reaches Media without an approval payload
+packages/cms/src/content-types/__tests__/sql.repo.dialects.test.ts :: content-type repo [pglite] save inserts, then a second save fully replaces the row
+packages/cms/src/content-types/__tests__/universal-entries.boundary.test.ts :: no CMS universal entry reaches a Node builtin
+packages/cms/src/forms/__tests__/create-tables.reference.test.ts :: pglite: createFormsTables matches the reference DDL's catalog
+packages/cms/src/forms/__tests__/create-tables.test.ts :: pglite: creates the tables, is idempotent, and the repos round-trip
+packages/cms/src/forms/__tests__/submission-ip-retention.dialects.test.ts :: submission IP retention adapter and migration 0006 [pglite] bounded batches cover more than 500 records; concurrent passes count each cleared row once
+packages/cms/src/pages/__tests__/html-recording-revert.test.ts :: conflicting undo preserves the newer HTML and never permits force
+packages/cms/src/posts/__tests__/content-duplicate.post-page.test.ts :: duplicates an HTML page through the injected HTML store without losing its body
+packages/cms/src/site-inspection/__tests__/tool-registrations.test.ts :: refuses caller context and denied live URLs before rendering or fetch
+packages/cms/src/trash/__tests__/sql.kit.test.ts :: trash sql kit [pglite] notTrashed, as a real WHERE: a timestamp marker, a status marker, and hidden-with-parent over a live, trashed and NULL parent
+packages/cms/src/forms/site/__tests__/publish-content.test.ts :: source notification recipients never replace destination recipients
+packages/cms/src/media/site/__tests__/provider-credential-vault.test.ts :: a row whose kind, ownerKey, principalId or binding differs from the policy is refused with VaultError({code:'context'}) on list, read, replace and delete, never mapped to a record
+packages/cms/src/media/site/__tests__/publish-content.test.ts :: the bound contributor records the normalized video's sniffed content type
+packages/cms/src/media/site/__tests__/publish-content.test.ts :: the bound contributor refuses Library documents and missing blobs without writes
+packages/cms/src/publish/content/__tests__/tool-registrations.test.ts :: uses an explicit saved destination before the inferred connected destination
+packages/cms/src/publish/content/__tests__/tool-registrations.test.ts :: reports the no-destination readiness result
+packages/cms/src/publish/content/__tests__/tool-registrations.test.ts :: rechecks a pull after approval and refuses a changed plan without execution
+packages/cms/src/react/publish-content/__tests__/y5-publish-ceremony.test.tsx :: multiple peers require selection; changing peer discards its report and selection
+packages/cms/src/taxonomy/site/__tests__/publish-content.test.ts :: packs child-first input parent-first and applies the parent before its child
+packages/cms/src/widgets/site/__tests__/publish-content.test.ts :: destination form ids swap only for the matching widget type
+packages/core/src/tool-metadata/__tests__/provider-neutral.test.ts :: core tool metadata vocabulary custom-credentials.ts carries no provider-specific search keyword
+packages/core/src/tool-metadata/__tests__/provider-neutral.test.ts :: core tool metadata vocabulary media-generation.ts carries no provider-specific search keyword
+packages/core/src/tool-metadata/__tests__/provider-neutral.test.ts :: core tool metadata vocabulary site-guide.ts carries no provider-specific search keyword
+packages/db/src/__tests__/loads-without-driver.test.ts :: @jini-ai/db in an install with no database driver present exports exactly the subpaths under test (no root barrel that would load everything)
+packages/db/src/__tests__/loads-without-driver.test.ts :: @jini-ai/db in an install with no database driver present ./transfer/destination-store imports alone, works, and loads only transfer
+packages/db/src/recovery/__tests__/tool-registrations.test.ts :: a malformed internal confirm result must not proceed to execute
+packages/db/src/site/__tests__/tool-registrations.database-recovery.test.ts :: no human click never confirms or executes
+packages/db/src/site/__tests__/tool-registrations.database-recovery.test.ts :: a refused restore-point plan never executes
+packages/db/src/site/__tests__/tool-registrations.database-recovery.test.ts :: confirmation belongs to the human and execution to the agent inside the operation lock
+packages/devops/src/checks/__tests__/hardwiring-node.pins.test.ts :: installedPublicFunctions export targets legacy types/main fields, with or without a ./ prefix, stand in for exports
+packages/devops/src/deploy/__tests__/no-hosting-vendor.test.ts :: @jini-ai/devops names no hosting vendor has no hosting-vendor name or host in any file under src
+packages/devops/src/backup/site/share-database/__tests__/projection.test.ts :: binds trusted bootstrap and preserves explicit staging scopes (mutation: overwrite-archive-temp-root)
+packages/http-kit/src/__tests__/http-error-log-redaction.test.ts :: HTTP exception logging class guard requires the shared redactor at every exception log in HTTP packages
+packages/http-kit/src/__tests__/http-error-log-redaction.test.ts :: HTTP exception logging class guard requires shared redaction for caught errors across the remaining packages
+packages/infra/src/__tests__/merge-surface.dbpkg-infra.test.ts :: the package publishes only the event entries, and no database peer
+packages/integrations/src/vendor-credentials/__tests__/vault-adapter.test.ts :: the sealed fixture requires the original owner and writes only after protected sealing
+packages/mcp/src/external/__tests__/tool-registrations.test.ts :: a changed connection after the card requires a new approval and performs no write
+packages/plugin-catalog/__tests__/catalog.test.ts :: standalone plugin catalog lists every provider source exactly once and each agent plugin package
+packages/plugin-fixture-provider/__tests__/package.test.ts :: declares only its artifact exports, build-time contracts, and publication hooks
+packages/provider-plugins/src/__tests__/observability-opentelemetry.test.ts :: the factory resolves a general endpoint to /v1/traces and serves the port until disposed
+packages/provider-plugins/src/__tests__/observability-opentelemetry.test.ts :: a settings card supplies no tracer name: the service name is the tracer name
+packages/provider-plugins/src/__tests__/observability-opentelemetry.test.ts :: site attribution: every exported span's resource carries the host's attributes; service.name stays the host's service
+packages/provider-plugins/src/__tests__/observability-sentry.test.ts :: a composed tracker correlates Sentry errors to the actual active OTel span only
+packages/provider-plugins/src/ai-trace-langfuse/__tests__/distribution-package.test.ts :: exports its provider subpaths from the shared distribution with build-only vendor dependencies
+packages/provider-plugins/src/analytics-posthog/__tests__/distribution-pack.test.ts :: packs exactly its own sealed artifact and provenance without sibling code or runtime dependencies
+packages/provider-plugins/src/observability-opentelemetry/__tests__/distribution-pack.test.ts :: packs exactly its own sealed artifact and provenance without sibling code or runtime dependencies
+packages/provider-plugins/src/observability-sentry/__tests__/distribution-pack.test.ts :: packs exactly its own sealed artifact and provenance without sibling code or runtime dependencies
+packages/provider-plugins/src/payments-stripe/__tests__/distribution-package.test.ts :: exports its provider subpaths from the shared distribution with build-only vendor dependencies
+packages/user-management/src/__tests__/package-entries.test.ts :: every published entry has matching runtime metadata and a source module
+packages/user-management/src/__tests__/public-args.test.ts :: public functions, constructors and adapter methods accept named argument objects
+packages/user-management/src/__tests__/user-management-rename.contract.test.ts :: publishes user management from its canonical folder and preserves runtime entries
+packages/user-management/src/identity/__tests__/tool-registrations.identity-authorization.test.ts :: a non-owner cannot enable the protected owner account
+packages/user-management/src/members/__tests__/tool-registrations.test.ts :: magic-link result exposes delivery only
+packages/user-management/src/identity/sql/__tests__/user-trash-adapter.test.ts :: a blocked user purge leaves identity and sessions untouched
+packages/user-management/src/newsletter/delivery/__tests__/tool-registrations.test.ts :: launches a scheduled campaign only after the fresh transition commits, then freezes and fans out
+packages/user-management/src/newsletter/delivery/__tests__/tool-registrations.test.ts :: a launch-gate refusal keeps its exact error and never freezes or fans out

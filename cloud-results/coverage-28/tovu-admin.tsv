@@ -1,0 +1,505 @@
+file	lines%	branches%	functions%	uncovered_source_lines	uncovered_line_count	line_total	branch_hit/total fn_hit/total
+apps/admin/src/App.chrome.tsx	93.33	95.0	85.71	135	1	15	19/20 12/14
+apps/admin/src/App.hooks.ts	98.97	99.22	97.89	899,932	2	195	128/129 93/95
+apps/admin/src/App.session.ts	100.0	100.0	100.0		0	42	16/16 11/11
+apps/admin/src/App.tsx	100.0	95.92	100.0		0	114	94/98 33/33
+apps/admin/src/admin-themes/apply.ts	100.0	100.0	100.0		0	12	12/12 5/5
+apps/admin/src/admin-themes/registry.ts	100.0	92.31	100.0		0	7	12/13 3/3
+apps/admin/src/admin-themes/use-admin-theme.hooks.ts	100.0	98.51	100.0		0	71	66/67 29/29
+apps/admin/src/app-i18n.ts	100.0	100.0	100.0		0	6	0/0 0/0
+apps/admin/src/components/AssistantDock/AssistantDock.tsx	100.0	100.0	100.0		0	6	1/1 3/3
+apps/admin/src/components/AssistantDock/assistant-runtime-preferences.adapter.ts	77.78	87.5	71.43	13,19	2	9	7/8 5/7
+apps/admin/src/components/AssistantDock/chat-agent-plugin-preferences.adapter.ts	100.0	100.0	100.0		0	10	9/9 8/8
+apps/admin/src/components/AssistantDock/chat-cleanup-copy.ts	100.0	66.67	100.0		0	7	2/3 5/5
+apps/admin/src/components/AssistantDock/chat-cleanup-kit.tsx	100.0	75.0	100.0		0	4	3/4 2/2
+apps/admin/src/components/AssistantDock/chat-display-preferences.adapter.ts	100.0	100.0	100.0		0	9	6/6 7/7
+apps/admin/src/components/AssistantDock/execution-config-write.ts	100.0	100.0	100.0		0	21	22/22 7/7
+apps/admin/src/components/AssistantDock/hooks/agents-inventory.hooks.ts	100.0	100.0	100.0		0	11	13/13 8/8
+apps/admin/src/components/AssistantDock/hooks/assistant-transport.binding.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/components/AssistantDock/hooks/byok-runtime.hooks.ts	100.0	100.0	100.0		0	6	9/9 4/4
+apps/admin/src/components/AssistantDock/hooks/composer-discovery.hooks.ts	100.0	100.0	100.0		0	9	16/16 8/8
+apps/admin/src/components/AssistantDock/hooks/composer-files.hooks.ts	100.0	100.0	90.91		0	15	12/12 10/11
+apps/admin/src/components/AssistantDock/hooks/dock-chrome.hooks.ts	100.0	100.0	100.0		0	10	15/15 8/8
+apps/admin/src/components/AssistantDock/hooks/execution-config.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/components/AssistantDock/hooks/local-cli-selection.hooks.ts	100.0	100.0	100.0		0	4	5/5 3/3
+apps/admin/src/components/AssistantDock/hooks/runtime-access.hooks.ts	100.0	100.0	100.0		0	2	6/6 2/2
+apps/admin/src/components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts	90.91	100.0	85.71	180-181	2	22	1/1 12/14
+apps/admin/src/components/CredentialHint.tsx	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.hooks.tsx	66.67	85.71	66.67	31	1	3	6/7 2/3
+apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx	100.0	100.0	100.0		0	1	4/4 2/2
+apps/admin/src/components/MediaEditDialog/MediaEditDialog.hooks.tsx	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/components/MediaPickerDialog/media-picker-dependencies.hooks.ts	100.0	100.0	100.0		0	9	9/9 7/7
+apps/admin/src/components/MediaPickerDialog/media-picker-host.tsx	100.0	100.0	100.0		0	5	11/11 3/3
+apps/admin/src/components/Placeholder.tsx	100.0	100.0	100.0		0	8	1/1 5/5
+apps/admin/src/components/Select/Select.tsx	100.0	100.0	100.0		0	3	2/2 3/3
+apps/admin/src/components/TemplateSource/TemplateSourceModal.hooks.ts	100.0	100.0	100.0		0	4	3/3 2/2
+apps/admin/src/components/TemplateSource/TemplateSourceModal.tsx	100.0	100.0	100.0		0	14	15/15 4/4
+apps/admin/src/components/TemplateSource/template-source-dependencies.hooks.ts	100.0	100.0	100.0		0	7	7/7 3/3
+apps/admin/src/components/TemplateSource/use-template-source.hooks.ts	100.0	100.0	100.0		0	12	12/12 5/5
+apps/admin/src/components/WidgetConfigFields/HtmlAttributeRows.tsx	100.0	100.0	100.0		0	2	3/3 3/3
+apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx	100.0	100.0	100.0		0	7	3/3 9/9
+apps/admin/src/components/WidgetConfigFields/WidgetPreview.hooks.ts	100.0	100.0	100.0		0	3	2/2 1/1
+apps/admin/src/components/WidgetConfigFields/widget-config-fields-dependencies.hooks.ts	100.0	100.0	100.0		0	13	15/15 8/8
+apps/admin/src/components/WidgetConfigFields/widget-config-host-policy.ts	100.0	100.0	100.0		0	10	9/9 1/1
+apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx	100.0	100.0	100.0		0	6	13/13 7/7
+apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx	100.0	100.0	100.0		0	5	7/7 3/3
+apps/admin/src/components/WidgetPickerDialog/widget-picker-dependencies.hooks.ts	100.0	100.0	100.0		0	10	9/9 6/6
+apps/admin/src/components/status-labels.ts	100.0	100.0	100.0		0	3	0/0 3/3
+apps/admin/src/features/admin-themes/AdminThemes.tsx	100.0	100.0	100.0		0	25	42/42 10/10
+apps/admin/src/features/admin-themes/admin-themes-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/admin-themes/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/admin-ui/AdminUi.tsx	100.0	100.0	100.0		0	7	7/7 2/2
+apps/admin/src/features/ai-assistant/AiAssistant.hooks.ts	100.0	100.0	100.0		0	3	2/2 4/4
+apps/admin/src/features/ai-assistant/AiAssistant.tsx	100.0	100.0	100.0		0	68	73/73 31/31
+apps/admin/src/features/ai-assistant/ai-assistant-i18n.ts	100.0	100.0	100.0		0	3	0/0 0/0
+apps/admin/src/features/ai-assistant/ai-assistant-layout-i18n.ts	100.0	100.0	100.0		0	5	1/1 2/2
+apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	100.0	100.0	100.0		0	24	13/13 14/14
+apps/admin/src/features/ai-assistant/hooks/ai-assistant-dependencies.hooks.ts	100.0	100.0	100.0		0	10	4/4 6/6
+apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts	88.89	100.0	83.33	82	1	9	0/0 5/6
+apps/admin/src/features/ai-assistant/hooks/assistant-owner-grant-dependencies.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/ai-assistant/hooks/permanent-deletes-dependencies.hooks.ts	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/features/ai-assistant/hooks/use-admin-execution-mode.hooks.ts	75.0	100.0	50.0	63	1	4	0/0 1/2
+apps/admin/src/features/ai-assistant/hooks/use-admin-subagents.hooks.ts	97.5	95.0	95.45	45	1	40	57/60 21/22
+apps/admin/src/features/ai-assistant/hooks/use-ai-assistant-locale-sync.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/ai-assistant/hooks/use-ai-assistant.hooks.ts	100.0	100.0	100.0		0	11	14/14 9/9
+apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-dependencies.hooks.ts	100.0	100.0	100.0		0	22	5/5 14/14
+apps/admin/src/features/ai-assistant/hooks/visitor-tools-dependencies.hooks.ts	50.0	0.0	0.0	22-23,27	3	6	0/3 0/3
+apps/admin/src/features/ai-assistant/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/ai-assistant/owner-grant-bindings.ts	100.0	100.0	100.0		0	5	0/0 1/1
+apps/admin/src/features/ai-assistant/rules.ts	100.0	100.0	100.0		0	22	39/39 8/8
+apps/admin/src/features/ai-assistant/visitor-tools-i18n.ts	100.0	66.67	100.0		0	12	2/3 4/4
+apps/admin/src/features/analytics/api/analytics-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/auth/api/auth-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/auth/auth-host-binding.tsx	85.71	100.0	83.33	30	1	7	3/3 5/6
+apps/admin/src/features/auth/hooks/login-dependencies.hooks.ts	66.67	50.0	50.0	12	1	3	1/2 1/2
+apps/admin/src/features/auth/hooks/use-wired-login.hooks.ts	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/features/auth/index.tsx	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/features/authentication/authentication-host-binding.tsx	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/features/authentication/index.tsx	100.0	100.0	100.0		0	2	3/3 1/1
+apps/admin/src/features/authentication/model/provider-schemas.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/collections/CollectionEntriesScreen.tsx	100.0	100.0	100.0		0	1	1/1 1/1
+apps/admin/src/features/collections/CollectionsScreen.tsx	100.0	100.0	100.0		0	1	8/8 1/1
+apps/admin/src/features/collections/collection-entry-panel.tsx	100.0	100.0	100.0		0	13	15/15 6/6
+apps/admin/src/features/collections/collections-host-ports.ts	100.0	100.0	100.0		0	9	0/0 1/1
+apps/admin/src/features/collections/collections-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/collections/hooks/use-collection-entries.hooks.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts	100.0	75.0	100.0		0	6	3/4 4/4
+apps/admin/src/features/collections/hooks/use-collections.hooks.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/features/collections/hooks/use-edit-fields-dialog.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/features/collections/hooks/use-lifecycle-confirm-dialog.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/collections/hooks/use-new-content-type-dialog.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/collections/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/comments/comments-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/comments/comments-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/content-analysis/hooks/content-analysis-dependencies.hooks.ts	83.33	75.0	100.0	19	1	6	3/4 4/4
+apps/admin/src/features/content-analysis/hooks/use-content-analysis.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/dashboard/dashboard-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/dashboard/hooks/dashboard-dependencies.hooks.ts	100.0	100.0	100.0		0	10	4/4 8/8
+apps/admin/src/features/dashboard/hooks/use-dashboard.hooks.ts	100.0	100.0	100.0		0	4	0/0 2/2
+apps/admin/src/features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/dashboard/index.ts	100.0	100.0	100.0		0	3	0/0 3/3
+apps/admin/src/features/database/Database.tsx	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/features/database/api/database-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	100.0	100.0	100.0		0	16	15/15 10/10
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	100.0	100.0	100.0		0	8	5/5 5/5
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	100.0	100.0	100.0		0	12	10/10 7/7
+apps/admin/src/features/database/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/deployment/StaticSiteTab.hooks.ts	100.0	100.0	100.0		0	1	1/1 2/2
+apps/admin/src/features/deployment/StaticSiteTab.tsx	100.0	100.0	100.0		0	4	0/0 2/2
+apps/admin/src/features/deployment/deployment-classes.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/deployment/deployment-host-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/deployment/deployment-host-policy.ts	100.0	100.0	100.0		0	5	0/0 1/1
+apps/admin/src/features/deployment/deployment-host-ports.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/deployment/deployment-panel.tsx	100.0	100.0	100.0		0	3	5/5 4/4
+apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts	100.0	100.0	100.0		0	4	3/3 3/3
+apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	100.0	100.0	100.0		0	17	16/16 13/13
+apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	100.0	100.0	100.0		0	14	17/17 13/13
+apps/admin/src/features/deployment/hooks/static-export-dependencies.hooks.ts	100.0	100.0	100.0		0	7	8/8 6/6
+apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	100.0	100.0	100.0		0	12	11/11 9/9
+apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	100.0	100.0	100.0		0	4	1/1 4/4
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/email/api/mail-status-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/email/email-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/email/email-hooks-host.ts	84.62	71.43	72.73	50,55	2	13	5/7 8/11
+apps/admin/src/features/email/email-panel.tsx	90.91	100.0	50.0	115	1	11	0/0 1/2
+apps/admin/src/features/forms/forms-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/forms/forms-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/fs-files/api/fs-files-api.ts	87.5	50.0	100.0	46	1	8	3/6 4/4
+apps/admin/src/features/import-export/ImportExport.tsx	100.0	85.71	100.0		0	1	6/7 1/1
+apps/admin/src/features/import-export/api/import-export-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/import-export/hooks/git-backup-dependencies.hooks.ts	100.0	100.0	100.0		0	8	2/2 6/6
+apps/admin/src/features/import-export/hooks/import-export-dependencies.hooks.ts	100.0	100.0	100.0		0	8	2/2 7/7
+apps/admin/src/features/import-export/import-export-tabs.tsx	100.0	100.0	100.0		0	3	2/2 2/2
+apps/admin/src/features/import-export/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/integrations/hooks/integration-deliveries-dependencies.hooks.ts	100.0	100.0	100.0		0	8	6/6 5/5
+apps/admin/src/features/integrations/hooks/integrations-dependencies.hooks.ts	100.0	100.0	100.0		0	23	14/14 13/13
+apps/admin/src/features/integrations/index.ts	100.0	100.0	100.0		0	2	0/0 2/2
+apps/admin/src/features/integrations/integration-deliveries-panel.tsx	100.0	100.0	100.0		0	1	1/1 1/1
+apps/admin/src/features/integrations/integrations-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/library/Library.tsx	100.0	100.0	100.0		0	1	2/2 1/1
+apps/admin/src/features/library/hooks/library-dependencies.hooks.ts	70.0	100.0	66.67	14-16	3	10	1/1 6/9
+apps/admin/src/features/library/hooks/use-wired-library.hooks.ts	100.0	87.5	100.0		0	8	7/8 6/6
+apps/admin/src/features/library/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/library/library-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/media/api/media-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/media/hooks/media-dependencies.hooks.ts	96.43	86.67	95.24	70	1	28	26/30 20/21
+apps/admin/src/features/media/hooks/media-import-dependencies.hooks.ts	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/media/hooks/use-media-preview.hooks.ts	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/features/media/hooks/use-media.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/media/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/media/media-grid-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/media/media-i18n.ts	100.0	60.0	100.0		0	9	3/5 5/5
+apps/admin/src/features/media/media-providers-port.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/media/upload-size-copy.ts	100.0	90.0	100.0		0	5	9/10 2/2
+apps/admin/src/features/members/api/members-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/members/hooks/members-controller.hooks.ts	100.0	100.0	100.0		0	8	4/4 6/6
+apps/admin/src/features/members/hooks/members-dependencies.hooks.ts	100.0	100.0	100.0		0	6	1/1 4/4
+apps/admin/src/features/members/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/members/members-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/members/members-screen-props.tsx	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts	100.0	50.0	83.33		0	8	2/4 5/6
+apps/admin/src/features/menus/hooks/use-menus.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/features/menus/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/menus/menu-editor-panel.tsx	100.0	100.0	100.0		0	3	0/0 1/1
+apps/admin/src/features/menus/menus-host-ports.ts	100.0	100.0	100.0		0	11	1/1 9/9
+apps/admin/src/features/menus/menus-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/menus/menus-panel.tsx	100.0	100.0	100.0		0	2	2/2 2/2
+apps/admin/src/features/observability/api/observability-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/observability/hooks/observability-wiring.hooks.ts	100.0	100.0	100.0		0	14	2/2 9/9
+apps/admin/src/features/observability/index.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/features/pages/PageEditor.tsx	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/pages/Pages.tsx	100.0	100.0	100.0		0	7	7/7 4/4
+apps/admin/src/features/pages/ThemePageDetailsModal.tsx	100.0	100.0	100.0		0	15	13/13 8/8
+apps/admin/src/features/pages/ThemePagesTab.tsx	100.0	100.0	100.0		0	31	31/31 17/17
+apps/admin/src/features/pages/api/pages-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts	100.0	100.0	100.0		0	56	39/39 32/32
+apps/admin/src/features/pages/hooks/page-editor-wiring.hooks.ts	100.0	100.0	100.0		0	2	1/1 2/2
+apps/admin/src/features/pages/hooks/pages-dependencies.hooks.ts	100.0	100.0	100.0		0	32	24/24 15/15
+apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts	100.0	100.0	100.0		0	18	10/10 8/8
+apps/admin/src/features/pages/hooks/theme-pages-dependencies.hooks.ts	100.0	100.0	100.0		0	4	2/2 3/3
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts	50.0	0.0	0.0	49	1	2	0/2 0/1
+apps/admin/src/features/pages/hooks/use-pages.hooks.ts	100.0	100.0	100.0		0	6	2/2 5/5
+apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts	100.0	100.0	100.0		0	70	57/57 20/20
+apps/admin/src/features/pages/hooks/use-theme-pages.hooks.ts	100.0	100.0	100.0		0	5	8/8 3/3
+apps/admin/src/features/pages/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/pages/lib/theme-page-publish-state.ts	100.0	100.0	100.0		0	19	31/31 11/11
+apps/admin/src/features/pages/page-editor-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/pages/page-external-change-bindings.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/pages/rules.ts	100.0	100.0	100.0		0	3	0/0 0/0
+apps/admin/src/features/playground/Playground.hooks.ts	100.0	100.0	100.0		0	1	2/2 2/2
+apps/admin/src/features/playground/Playground.tsx	100.0	100.0	100.0		0	4	3/3 1/1
+apps/admin/src/features/playground/hooks/use-playground-canvas.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/features/playground/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/playground/playground-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/plugins/AgentPlugins.tsx	50.0	100.0	0.0	41	1	2	0/0 0/1
+apps/admin/src/features/plugins/Plugins.tsx	25.0	100.0	0.0	35,42,51	3	4	0/0 0/3
+apps/admin/src/features/plugins/admin-token-sources.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/plugins/composer-capabilities.ts	100.0	100.0	100.0		0	5	6/6 4/4
+apps/admin/src/features/plugins/hooks/agent-plugin-install-dependencies.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/plugins/hooks/agent-plugin-memory-dependencies.hooks.ts	100.0	100.0	100.0		0	4	3/3 3/3
+apps/admin/src/features/plugins/hooks/agent-plugin-surfaces-dependencies.hooks.ts	100.0	100.0	100.0		0	5	4/4 4/4
+apps/admin/src/features/plugins/hooks/agent-plugins-dependencies.hooks.ts	83.33	86.67	66.67	13-15	3	18	13/15 6/9
+apps/admin/src/features/plugins/hooks/plugin-install-dependencies.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/plugins/hooks/plugins-dependencies.hooks.ts	95.95	86.59	90.62	18,23-24	3	74	71/82 29/32
+apps/admin/src/features/plugins/hooks/use-agent-plugin-details-modal.hooks.ts	0.0	0.0	0.0	34-36	3	3	0/1 0/2
+apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts	100.0	100.0	100.0		0	2	1/1 2/2
+apps/admin/src/features/plugins/hooks/use-agent-plugins.hooks.ts	100.0	100.0	75.0		0	3	0/0 3/4
+apps/admin/src/features/plugins/hooks/use-host-admin-surface-frame.hooks.ts	100.0	100.0	100.0		0	1	1/1 1/1
+apps/admin/src/features/plugins/hooks/use-plugin-package-files.hooks.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/features/plugins/hooks/use-plugin-provider-settings.hooks.ts	0.0	0.0	0.0	18-20	3	3	0/1 0/3
+apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts	100.0	100.0	100.0		0	5	0/0 2/2
+apps/admin/src/features/plugins/plugins-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/plugins/rules.ts	100.0	100.0	100.0		0	4	0/0 1/1
+apps/admin/src/features/posts/PostEditor.hooks.ts	100.0	100.0	100.0		0	1	1/1 2/2
+apps/admin/src/features/posts/PostEditor.tsx	100.0	100.0	100.0		0	9	9/9 4/4
+apps/admin/src/features/posts/Posts.tsx	66.67	100.0	50.0	24	1	3	0/0 1/2
+apps/admin/src/features/posts/editor/PostEditorBody.tsx	100.0	100.0	100.0		0	3	8/8 3/3
+apps/admin/src/features/posts/editor/PostSavedPanels.tsx	100.0	100.0	100.0		0	1	2/2 1/1
+apps/admin/src/features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx	100.0	100.0	100.0		0	8	1/1 6/6
+apps/admin/src/features/posts/editor/bubble-menu/bubble-menu-state.ts	100.0	100.0	100.0		0	11	3/3 7/7
+apps/admin/src/features/posts/editor/header/PostEditorToolbarEnd.tsx	100.0	100.0	100.0		0	1	2/2 1/1
+apps/admin/src/features/posts/editor/toolbar/Toolbar.tsx	100.0	100.0	100.0		0	4	2/2 2/2
+apps/admin/src/features/posts/editor/toolbar/ToolbarColorGroup.tsx	100.0	100.0	100.0		0	6	4/4 5/5
+apps/admin/src/features/posts/editor/toolbar/ToolbarFormattingGroup.tsx	100.0	100.0	100.0		0	36	0/0 31/31
+apps/admin/src/features/posts/editor/toolbar/ToolbarTypographyGroup.tsx	100.0	100.0	100.0		0	13	6/6 10/10
+apps/admin/src/features/posts/editor/toolbar/insert-controls.tsx	100.0	100.0	100.0		0	7	2/2 5/5
+apps/admin/src/features/posts/editor/toolbar/toolbar-group-props.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/posts/editor/toolbar/toolbar-state.ts	100.0	100.0	100.0		0	36	17/17 32/32
+apps/admin/src/features/posts/hooks/post-cover-host.hooks.ts	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts	100.0	100.0	100.0		0	60	63/63 34/34
+apps/admin/src/features/posts/hooks/post-editor-file-upload.ts	100.0	100.0	100.0		0	21	21/21 9/9
+apps/admin/src/features/posts/hooks/posts-list-dependencies.hooks.ts	100.0	100.0	100.0		0	25	23/23 12/12
+apps/admin/src/features/posts/hooks/use-loaded-post-apply.hooks.ts	96.3	100.0	87.5	82	1	27	19/19 7/8
+apps/admin/src/features/posts/hooks/use-post-editor-screen.hooks.ts	100.0	100.0	100.0		0	20	9/9 12/12
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts	98.34	95.0	98.28	667-670	4	241	114/120 57/58
+apps/admin/src/features/posts/hooks/use-posts.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/features/posts/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/posts/posts-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/posts/posts-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/providers/Providers.tsx	100.0	100.0	100.0		0	6	0/0 5/5
+apps/admin/src/features/providers/hooks/always-allow-dependencies.hooks.ts	100.0	100.0	100.0		0	13	10/10 8/8
+apps/admin/src/features/providers/hooks/use-always-allow.hooks.ts	100.0	100.0	100.0		0	2	0/0 2/2
+apps/admin/src/features/providers/providers-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/publish-content/PublishContentDialog.tsx	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/publish-content/hooks/publish-availability.store.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/publish-content/hooks/publish-content-dependencies.hooks.ts	100.0	100.0	100.0		0	58	74/74 18/18
+apps/admin/src/features/publish-content/hooks/publish-request.store.ts	100.0	100.0	100.0		0	4	0/0 3/3
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts	50.0	100.0	0.0	20	1	2	0/0 0/1
+apps/admin/src/features/publish-content/hooks/use-publish-section-button.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/features/publish-content/publish-section-button-binding.tsx	100.0	100.0	100.0		0	2	2/2 2/2
+apps/admin/src/features/recovery/api/recovery-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	96.43	100.0	93.75	34	1	28	25/25 15/16
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	100.0	100.0	100.0		0	20	21/21 12/12
+apps/admin/src/features/recovery/recovery-panel.tsx	100.0	100.0	100.0		0	5	3/3 3/3
+apps/admin/src/features/roles/api/roles-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts	100.0	100.0	100.0		0	12	9/9 11/11
+apps/admin/src/features/roles/hooks/use-wired-roles.hooks.ts	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/features/roles/index.tsx	100.0	100.0	100.0		0	2	2/2 1/1
+apps/admin/src/features/roles/roles-host-binding.ts	100.0	100.0	100.0		0	5	2/2 4/4
+apps/admin/src/features/routines/index.ts	0.0	0.0	0.0	18-19,21,23-25,28	7	7	0/0 0/7
+apps/admin/src/features/routines/routines-i18n.ts	100.0	50.0	100.0		0	10	1/2 3/3
+apps/admin/src/features/routines/use-conversation-deep-link.ts	100.0	100.0	50.0		0	3	0/0 2/4
+apps/admin/src/features/security/AccessTokensTab.tsx	100.0	100.0	100.0		0	8	2/2 4/4
+apps/admin/src/features/security/RecoveryCodesCard.hooks.ts	70.0	100.0	83.33	19-21	3	10	3/3 5/6
+apps/admin/src/features/security/RecoveryCodesCard.tsx	100.0	100.0	100.0		0	2	2/2 2/2
+apps/admin/src/features/security/Security.tsx	100.0	100.0	100.0		0	7	0/0 6/6
+apps/admin/src/features/security/access-token-copy.ts	100.0	100.0	100.0		0	3	2/2 2/2
+apps/admin/src/features/security/hooks/access-tokens-dependencies.hooks.ts	95.12	96.0	95.12	31,72	2	41	48/50 39/41
+apps/admin/src/features/security/hooks/copy-keys-dependencies.hooks.ts	66.67	50.0	50.0	17	1	3	1/2 1/2
+apps/admin/src/features/security/hooks/other-credentials-dependencies.hooks.ts	100.0	100.0	100.0		0	31	30/30 29/29
+apps/admin/src/features/security/hooks/security-permissions-dependencies.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/features/security/hooks/site-key-dependencies.hooks.ts	100.0	100.0	90.91		0	15	8/8 10/11
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	50.0	100.0	0.0	27	1	2	0/0 0/1
+apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/security/other-credential-stores.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/security/rules.ts	100.0	100.0	100.0		0	4	0/0 0/0
+apps/admin/src/features/security/security-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/settings/AdminAppearance.tsx	100.0	96.67	100.0		0	25	29/30 7/7
+apps/admin/src/features/settings/ExternalMcpSettingsPanel.hooks.tsx	100.0	100.0	100.0		0	2	0/0 2/2
+apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx	100.0	100.0	100.0		0	4	0/0 0/0
+apps/admin/src/features/settings/SettingsUi.tsx	100.0	100.0	100.0		0	9	6/6 4/4
+apps/admin/src/features/settings/ai-agent-presentation.ts	100.0	100.0	100.0		0	3	4/4 2/2
+apps/admin/src/features/settings/hooks/use-admin-appearance-settings.hooks.ts	100.0	100.0	100.0		0	4	5/5 1/1
+apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts	85.71	100.0	80.0	28	1	7	0/0 4/5
+apps/admin/src/features/settings/hooks/use-external-mcp-tool-picker.hooks.ts	100.0	100.0	100.0		0	5	1/1 3/3
+apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/settings/hooks/use-settings-ui.hooks.ts	80.0	100.0	40.0	117,121,139	3	15	0/0 2/5
+apps/admin/src/features/settings/hooks/use-user-interface-tab.hooks.ts	100.0	100.0	100.0		0	5	2/2 3/3
+apps/admin/src/features/settings/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/sites/CreateSiteOnboarding.tsx	100.0	100.0	100.0		0	16	11/11 12/12
+apps/admin/src/features/sites/CredentialWarnings.tsx	100.0	88.89	100.0		0	17	16/18 6/6
+apps/admin/src/features/sites/SiteExportTab.tsx	100.0	97.62	100.0		0	58	82/84 33/33
+apps/admin/src/features/sites/SiteImportTab.tsx	98.53	98.02	96.88	232	1	68	99/101 31/32
+apps/admin/src/features/sites/Sites.hooks.tsx	100.0	100.0	100.0		0	90	168/168 42/42
+apps/admin/src/features/sites/Sites.tsx	100.0	95.24	100.0		0	28	40/42 13/13
+apps/admin/src/features/sites/SitesHomeSetting.tsx	18.52	17.24	14.29	16,34,38-39,46-48,60,65-66,70,78-79,90,93,103,113,123,129,133,136,156	22	27	5/29 3/21
+apps/admin/src/features/sites/StaticExportPicker.tsx	95.0	100.0	90.91	28	1	20	28/28 10/11
+apps/admin/src/features/sites/api/sites-api.ts	100.0	100.0	100.0		0	19	9/9 15/15
+apps/admin/src/features/sites/api/sites-api.types.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/sites/hooks/site-export-actions.ts	100.0	92.31	100.0		0	42	36/39 10/10
+apps/admin/src/features/sites/hooks/site-import-actions.ts	100.0	100.0	100.0		0	33	25/25 4/4
+apps/admin/src/features/sites/hooks/site-import-controller.ts	100.0	100.0	100.0		0	9	14/14 5/5
+apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts	95.92	95.08	94.29	164,210	2	49	58/61 33/35
+apps/admin/src/features/sites/hooks/site-transfer-rules.ts	100.0	92.59	100.0		0	20	25/27 7/7
+apps/admin/src/features/sites/hooks/sites-dependencies.hooks.ts	90.0	94.12	86.67	58,100	2	20	16/17 13/15
+apps/admin/src/features/sites/hooks/use-create-site-plugin-tokens.hooks.ts	100.0	100.0	100.0		0	10	8/8 11/11
+apps/admin/src/features/sites/hooks/use-desktop-import.hooks.ts	100.0	91.67	100.0		0	19	11/12 2/2
+apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts	100.0	82.35	84.62		0	44	28/34 11/13
+apps/admin/src/features/sites/hooks/use-share-credential-gate.hooks.ts	100.0	81.58	100.0		0	42	31/38 16/16
+apps/admin/src/features/sites/hooks/use-share-expiry.hooks.ts	100.0	90.0	100.0		0	12	9/10 7/7
+apps/admin/src/features/sites/hooks/use-site-export-state.hooks.ts	100.0	94.12	100.0		0	21	16/17 10/10
+apps/admin/src/features/sites/hooks/use-site-import-state.hooks.ts	100.0	98.36	100.0		0	76	60/61 19/19
+apps/admin/src/features/sites/hooks/use-site-list-prefs.hooks.ts	50.0	0.0	0.0	19-20,27	3	6	0/1 0/4
+apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts	100.0	100.0	100.0		0	17	12/12 8/8
+apps/admin/src/features/sites/hooks/use-sites.hooks.ts	95.12	100.0	88.89	209,350-352	4	82	33/33 24/27
+apps/admin/src/features/sites/hooks/use-static-export-selection.hooks.ts	100.0	90.32	100.0		0	21	28/31 17/17
+apps/admin/src/features/sites/import-handoff-port.ts	100.0	88.89	100.0		0	2	8/9 1/1
+apps/admin/src/features/sites/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/sites/rules.ts	100.0	100.0	100.0		0	43	58/58 12/12
+apps/admin/src/features/sites/site-export-error.ts	100.0	95.24	100.0		0	9	20/21 3/3
+apps/admin/src/features/sites/site-publish-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/sites/site-transfer-i18n.ts	100.0	50.0	100.0		0	46	6/12 6/6
+apps/admin/src/features/sites/site-transfer-rules.ts	100.0	100.0	100.0		0	23	42/42 11/11
+apps/admin/src/features/sites/sites-i18n.ts	100.0	100.0	100.0		0	26	0/0 0/0
+apps/admin/src/features/sites/sites-list-tabs.tsx	100.0	100.0	100.0		0	6	1/1 2/2
+apps/admin/src/features/sites/sites-settings-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/skills/SkillsPage.tsx	100.0	100.0	100.0		0	3	6/6 1/1
+apps/admin/src/features/skills/api.ts	100.0	100.0	100.0		0	11	0/0 4/4
+apps/admin/src/features/skills/skill-failure-host.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/skills/skill-install-confirmation-host.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/skills/skills-host.hooks.ts	100.0	100.0	100.0		0	10	6/6 8/8
+apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	100.0	100.0	100.0		0	18	14/14 16/16
+apps/admin/src/features/source-control/source-control-host-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/source-control/source-control-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/source-control/source-control-panel.tsx	100.0	100.0	100.0		0	5	3/3 4/4
+apps/admin/src/features/storage/Storage.tsx	81.82	100.0	50.0	26,38	2	11	1/1 2/4
+apps/admin/src/features/storage/api/screenshot-cleanup-api.ts	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/features/storage/api/storage-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/storage/storage-i18n.ts	100.0	66.67	100.0		0	8	2/3 3/3
+apps/admin/src/features/taxonomy/TaxonomyScreen.tsx	100.0	100.0	100.0		0	1	2/2 1/1
+apps/admin/src/features/taxonomy/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/taxonomy/taxonomy-host-ports.ts	100.0	100.0	100.0		0	10	1/1 4/4
+apps/admin/src/features/taxonomy/taxonomy-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/taxonomy/taxonomy-wired.hooks.ts	100.0	100.0	100.0		0	13	0/0 7/7
+apps/admin/src/features/themes/HeldBackThemes.tsx	100.0	95.31	100.0		0	40	61/64 17/17
+apps/admin/src/features/themes/ThemeExplore.hooks.tsx	100.0	100.0	100.0		0	22	16/16 8/8
+apps/admin/src/features/themes/ThemeExplore.tsx	100.0	99.22	100.0		0	117	128/129 60/60
+apps/admin/src/features/themes/ThemePreviewReloadButton.tsx	100.0	100.0	100.0		0	2	5/5 1/1
+apps/admin/src/features/themes/Themes.tsx	100.0	98.81	100.0		0	55	83/84 29/29
+apps/admin/src/features/themes/api/held-back-themes-api.ts	100.0	100.0	100.0		0	7	6/6 5/5
+apps/admin/src/features/themes/api/themes-api.ts	100.0	100.0	100.0		0	14	17/17 13/13
+apps/admin/src/features/themes/api/themes-api.types.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/themes/held-back-themes-failure.ts	100.0	100.0	100.0		0	12	21/21 5/5
+apps/admin/src/features/themes/hooks/held-back-themes-dependencies.hooks.ts	95.24	96.55	92.86	13	1	21	28/29 13/14
+apps/admin/src/features/themes/hooks/held-back-themes-port.hooks.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/themes/hooks/theme-explore-dependencies.hooks.ts	100.0	100.0	100.0		0	49	46/46 25/25
+apps/admin/src/features/themes/hooks/theme-explore-open-file.hooks.ts	100.0	100.0	100.0		0	4	8/8 3/3
+apps/admin/src/features/themes/hooks/theme-explore-port.hooks.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/themes/hooks/theme-explore-url.hooks.ts	100.0	100.0	100.0		0	19	24/24 6/6
+apps/admin/src/features/themes/hooks/themes-dependencies.hooks.ts	100.0	100.0	100.0		0	26	19/19 13/13
+apps/admin/src/features/themes/hooks/themes-port.hooks.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/themes/hooks/use-held-back-themes.hooks.ts	96.3	90.0	90.48	189,195	2	54	27/30 19/21
+apps/admin/src/features/themes/hooks/use-theme-card-preview.hooks.ts	100.0	100.0	100.0		0	9	15/15 2/2
+apps/admin/src/features/themes/hooks/use-theme-delete-request.hooks.ts	100.0	100.0	100.0		0	11	7/7 3/3
+apps/admin/src/features/themes/hooks/use-theme-explore-file-groups.hooks.ts	100.0	96.97	100.0		0	31	32/33 12/12
+apps/admin/src/features/themes/hooks/use-theme-explore-preview.hooks.ts	100.0	100.0	100.0		0	18	27/27 5/5
+apps/admin/src/features/themes/hooks/use-theme-explore-theme.hooks.ts	100.0	100.0	100.0		0	15	22/22 8/8
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts	100.0	99.35	100.0		0	440	305/307 128/128
+apps/admin/src/features/themes/hooks/use-theme-preview-refresh.hooks.ts	100.0	100.0	100.0		0	16	24/24 10/10
+apps/admin/src/features/themes/hooks/use-themes.hooks.ts	100.0	100.0	100.0		0	95	43/43 31/31
+apps/admin/src/features/themes/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/themes/rules.ts	100.0	100.0	100.0		0	25	29/29 18/18
+apps/admin/src/features/themes/theme-card-menu.ts	100.0	100.0	100.0		0	13	16/16 5/5
+apps/admin/src/features/themes/theme-preview-refresh.ts	100.0	95.0	100.0		0	23	19/20 8/8
+apps/admin/src/features/themes/themes-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/trash/Trash.tsx	100.0	100.0	100.0		0	1	3/3 1/1
+apps/admin/src/features/trash/api/trash-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/trash/hooks/trash-dependencies.hooks.ts	100.0	100.0	100.0		0	25	21/21 12/12
+apps/admin/src/features/trash/hooks/use-trash.hooks.ts	100.0	100.0	100.0		0	3	0/0 1/1
+apps/admin/src/features/trash/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/trash/rules.ts	100.0	100.0	100.0		0	3	5/5 1/1
+apps/admin/src/features/trash/trash-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/features/users/api/users-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/users/hooks/use-wired-users.hooks.ts	100.0	50.0	75.0		0	4	2/4 3/4
+apps/admin/src/features/users/index.tsx	100.0	100.0	100.0		0	2	2/2 2/2
+apps/admin/src/features/users/users-host-binding.ts	100.0	100.0	100.0		0	14	12/12 12/12
+apps/admin/src/features/voice-input/PushToTalkMicButton.tsx	100.0	100.0	100.0		0	9	8/8 1/1
+apps/admin/src/features/voice-input/VoiceInputPlaceholder.tsx	100.0	100.0	100.0		0	3	2/2 1/1
+apps/admin/src/features/voice-input/hooks/use-composer-voice-input.hooks.ts	100.0	100.0	100.0		0	4	0/0 2/2
+apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts	100.0	97.83	100.0		0	69	45/46 27/27
+apps/admin/src/features/voice-input/hooks/use-space-hold-to-talk.hooks.ts	100.0	100.0	100.0		0	46	27/27 9/9
+apps/admin/src/features/voice-input/voice-input-port.ts	100.0	100.0	100.0		0	2	9/9 1/1
+apps/admin/src/features/webmcp/browser-agent-settings.hooks.ts	100.0	100.0	100.0		0	4	2/2 1/1
+apps/admin/src/features/widgets/widgets-host-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/widgets/widgets-i18n.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/features/workspace/Workspace.tsx	100.0	100.0	100.0		0	2	3/3 1/1
+apps/admin/src/features/workspace/WorkspaceRedirect.tsx	100.0	100.0	100.0		0	2	2/2 1/1
+apps/admin/src/features/workspace/api/workspace-api.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/features/workspace/hooks/use-workspace-redirect.hooks.ts	100.0	100.0	100.0		0	2	0/0 2/2
+apps/admin/src/features/workspace/hooks/workspace-dependencies.hooks.ts	75.0	100.0	71.43	47,55-56	3	12	4/4 5/7
+apps/admin/src/features/workspace/index.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/features/workspace/rules.ts	100.0	100.0	100.0		0	5	11/11 1/1
+apps/admin/src/features/workspace/workspace-i18n.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/hooks/admin-execution-credential-dependencies.hooks.ts	100.0	100.0	100.0		0	3	1/1 2/2
+apps/admin/src/hooks/admin-locale-dependencies.hooks.ts	100.0	100.0	100.0		0	17	10/10 10/10
+apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts	90.62	92.86	78.12	55-56,248-251	6	64	39/42 25/32
+apps/admin/src/hooks/use-admin-appearance-snapshot.hooks.ts	100.0	100.0	100.0		0	1	1/1 1/1
+apps/admin/src/hooks/use-admin-appearance.hooks.ts	100.0	100.0	100.0		0	3	0/0 2/2
+apps/admin/src/hooks/use-admin-execution-credential.hooks.ts	96.0	93.33	94.44	108	1	25	14/15 17/18
+apps/admin/src/hooks/use-admin-locale.hooks.ts	100.0	100.0	100.0		0	2	1/1 2/2
+apps/admin/src/hooks/use-assistant-chats.hooks.ts	100.0	80.0	100.0		0	7	4/5 6/6
+apps/admin/src/hooks/use-interface-preferences.hooks.ts	100.0	100.0	100.0		0	4	6/6 3/3
+apps/admin/src/hooks/use-settings-slice.hooks.ts	100.0	100.0	100.0		0	9	6/6 7/7
+apps/admin/src/hooks/use-standing-draft-autosave.hooks.ts	100.0	100.0	100.0		0	9	7/7 6/6
+apps/admin/src/hooks/use-tovu-execution-adapters.hooks.ts	100.0	100.0	100.0		0	26	20/20 12/12
+apps/admin/src/hooks/use-tovu-execution-policy.hooks.ts	100.0	100.0	100.0		0	17	18/18 7/7
+apps/admin/src/integrations/chart-providers/ChartRegistryProvider.tsx	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/integrations/chart-providers/chart-registry-context.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/integrations/chart-providers/chart-registry-dependencies.hooks.ts	100.0	100.0	100.0		0	3	1/1 3/3
+apps/admin/src/integrations/chart-providers/chart-registry-port.hooks.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/integrations/chart-providers/use-chart-registry.hooks.ts	100.0	100.0	100.0		0	19	10/10 11/11
+apps/admin/src/integrations/jini-admin/AdminModulesProvider.tsx	100.0	100.0	100.0		0	3	4/4 1/1
+apps/admin/src/integrations/jini-admin/ModulePanel.tsx	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/integrations/jini-admin/analytics-module.hooks.ts	100.0	100.0	100.0		0	5	3/3 3/3
+apps/admin/src/integrations/jini-admin/analytics-page.ts	0.0	0.0	0.0	12	1	1	0/2 0/1
+apps/admin/src/integrations/jini-admin/comments-module.hooks.ts	100.0	100.0	100.0		0	8	1/1 4/4
+apps/admin/src/integrations/jini-admin/comments-ports.ts	100.0	100.0	100.0		0	14	22/22 8/8
+apps/admin/src/integrations/jini-admin/consent-ports.ts	100.0	100.0	100.0		0	7	5/5 5/5
+apps/admin/src/integrations/jini-admin/consent-screen.tsx	0.0	0.0	0.0	10,15	2	2	0/0 0/1
+apps/admin/src/integrations/jini-admin/embed-policy-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/integrations/jini-admin/forms-catalog-ports.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/integrations/jini-admin/forms-module.hooks.ts	100.0	100.0	100.0		0	8	4/4 4/4
+apps/admin/src/integrations/jini-admin/forms-ports.ts	100.0	100.0	100.0		0	9	12/12 7/7
+apps/admin/src/integrations/jini-admin/kit.ts	100.0	66.67	100.0		0	2	2/3 1/1
+apps/admin/src/integrations/jini-admin/media-ports.ts	100.0	100.0	100.0		0	19	24/24 10/10
+apps/admin/src/integrations/jini-admin/module-context.ts	100.0	100.0	100.0		0	2	4/4 1/1
+apps/admin/src/integrations/jini-admin/modules.hooks.ts	100.0	95.92	100.0		0	47	47/49 15/15
+apps/admin/src/integrations/jini-admin/panel-mounts.ts	100.0	100.0	100.0		0	13	8/8 5/5
+apps/admin/src/integrations/jini-admin/redirects-module.hooks.ts	100.0	100.0	100.0		0	9	3/3 5/5
+apps/admin/src/integrations/jini-admin/redirects-ports.ts	100.0	100.0	100.0		0	18	19/19 7/7
+apps/admin/src/integrations/jini-admin/security-module.hooks.ts	88.24	100.0	50.0	34-35	2	17	5/5 6/12
+apps/admin/src/integrations/jini-admin/security-ports.ts	95.0	85.71	90.91	91	1	20	18/21 10/11
+apps/admin/src/integrations/jini-admin/security-visuals.tsx	100.0	100.0	100.0		0	5	5/5 5/5
+apps/admin/src/integrations/jini-admin/seo-module.hooks.ts	100.0	100.0	100.0		0	11	4/4 7/7
+apps/admin/src/integrations/jini-admin/seo-ports.ts	100.0	100.0	100.0		0	11	16/16 9/9
+apps/admin/src/integrations/jini-admin/settings-execution-copy.ts	100.0	100.0	100.0		0	2	1/1 1/1
+apps/admin/src/integrations/jini-admin/settings-external-mcp-copy.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/integrations/jini-admin/settings-external-mcp-oauth-connect.hooks.ts	80.0	85.71	66.67	21	1	5	6/7 2/3
+apps/admin/src/integrations/jini-admin/settings-external-mcp-shared-choice.hooks.ts	75.0	66.67	83.33	13-14	2	8	4/6 5/6
+apps/admin/src/integrations/jini-admin/settings-locale-sync.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/integrations/jini-admin/site-update-notice.hooks.ts	91.67	100.0	80.0	28	1	12	7/7 4/5
+apps/admin/src/integrations/jini-admin/site-update-notice.tsx	100.0	61.54	83.33		0	11	8/13 5/6
+apps/admin/src/integrations/jini-admin/widgets-module.hooks.ts	100.0	100.0	100.0		0	16	3/3 9/9
+apps/admin/src/integrations/jini-admin/widgets-ports.ts	100.0	100.0	100.0		0	7	7/7 6/6
+apps/admin/src/integrations/jini-kits.ts	100.0	83.33	100.0		0	6	5/6 2/2
+apps/admin/src/integrations/jini-surfaces.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/lib/addons-routes.ts	100.0	100.0	100.0		0	3	0/0 0/0
+apps/admin/src/lib/admin-dev-origin.ts	100.0	100.0	100.0		0	2	2/2 1/1
+apps/admin/src/lib/admin-failure-channel.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/lib/admin-http/request.ts	100.0	100.0	100.0		0	45	28/28 23/23
+apps/admin/src/lib/admin-http/settings-api.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/lib/admin-nav-i18n.ts	100.0	50.0	100.0		0	4	1/2 1/1
+apps/admin/src/lib/agent-navigation-entities.ts	66.67	64.29	57.14	22-23,26-27,30-31	6	18	9/14 4/7
+apps/admin/src/lib/agent-pages.ts	100.0	100.0	100.0		0	8	7/7 5/5
+apps/admin/src/lib/agent-screenshot.ts	100.0	100.0	100.0		0	1	0/0 1/1
+apps/admin/src/lib/app-version.ts	100.0	100.0	100.0		0	2	0/0 0/0
+apps/admin/src/lib/assistant-chats.ts	77.27	78.95	71.43	115,118,123,128,133	5	22	15/19 10/14
+apps/admin/src/lib/assistant-transport-ag-ui.ts	95.77	76.79	94.44	224,227,234	3	71	43/56 34/36
+apps/admin/src/lib/assistant-transport.ts	100.0	80.77	100.0		0	26	21/26 20/20
+apps/admin/src/lib/block-atom-insert.ts	100.0	100.0	100.0		0	17	12/12 3/3
+apps/admin/src/lib/browser-telemetry.ts	71.43	66.67	66.67	29-30	2	7	2/3 4/6
+apps/admin/src/lib/chat-attachment-liveness.ts	100.0	66.67	100.0		0	5	2/3 3/3
+apps/admin/src/lib/chat-fab-storage-key.ts	100.0	100.0	100.0		0	1	0/0 0/0
+apps/admin/src/lib/credential-copy.ts	100.0	100.0	100.0		0	4	9/9 5/5
+apps/admin/src/lib/durable-run-subscription.ts	100.0	100.0	100.0		0	4	6/6 5/5
+apps/admin/src/lib/execution-settings.ts	100.0	100.0	100.0		0	27	13/13 19/19
+apps/admin/src/lib/fetch-query/provider.tsx	100.0	100.0	100.0		0	10	5/5 7/7
+apps/admin/src/lib/i18n-common.ts	100.0	100.0	100.0		0	9	0/0 1/1
+apps/admin/src/lib/ledger-slice.ts	100.0	100.0	100.0		0	8	7/7 8/8
+apps/admin/src/lib/media-embed-extension.hooks.ts	100.0	100.0	100.0		0	2	0/0 1/1
+apps/admin/src/lib/media-embed-extension.tsx	100.0	100.0	100.0		0	13	16/16 9/9
+apps/admin/src/lib/media-image-extension.tsx	100.0	90.48	100.0		0	22	19/21 8/8
+apps/admin/src/lib/owner-clients.ts	100.0	100.0	100.0		0	4	0/0 0/0
+apps/admin/src/lib/post-title-extension.ts	100.0	100.0	100.0		0	23	13/13 8/8
+apps/admin/src/lib/retry-unreachable.ts	100.0	100.0	100.0		0	2	3/3 2/2
+apps/admin/src/lib/server-reconnect.ts	100.0	100.0	100.0		0	12	6/6 12/12
+apps/admin/src/lib/settings-events.ts	100.0	100.0	100.0		0	12	13/13 6/6
+apps/admin/src/lib/settings-tabs.ts	94.44	50.0	66.67	66	1	18	1/2 2/3
+apps/admin/src/lib/shell-collaborators.ts	95.45	100.0	88.89	42	1	22	8/8 8/9
+apps/admin/src/lib/shell-notices-wiring.tsx	100.0	85.71	100.0		0	4	6/7 2/2
+apps/admin/src/lib/site-url.ts	100.0	100.0	100.0		0	4	7/7 1/1
+apps/admin/src/lib/tovu-execution-policy.ts	100.0	100.0	100.0		0	4	13/13 3/3
+apps/admin/src/lib/use-addons-redirect.hooks.ts	100.0	100.0	100.0		0	1	1/1 1/1
+apps/admin/src/lib/widget-embed-extension.hooks.ts	100.0	100.0	100.0		0	46	36/36 24/24
+apps/admin/src/lib/widget-embed-extension.tsx	94.59	96.55	91.3	124-125	2	37	28/29 21/23
+apps/admin/src/main.tsx	100.0	87.5	66.67		0	14	7/8 2/3
+apps/admin/src/media-panel.ts	100.0	100.0	100.0		0	6	2/2 4/4
+apps/admin/src/nav.ts	100.0	100.0	100.0		0	3	6/6 3/3
+apps/admin/src/panel-contracts.ts	100.0	100.0	100.0		0	0	0/0 0/0
+apps/admin/src/panel-pages.ts	100.0	100.0	84.15		0	41	0/0 69/82
+apps/admin/src/panels.tsx	98.8	98.73	98.21	165	1	83	78/79 55/56
+apps/admin/src/site-section-availability.hooks.ts	100.0	97.3	100.0		0	23	36/37 14/14

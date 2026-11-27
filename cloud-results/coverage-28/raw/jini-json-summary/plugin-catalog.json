@@ -1,0 +1,3 @@
+{"total": {"lines":{"total":117,"covered":101,"skipped":0,"pct":86.32},"statements":{"total":117,"covered":101,"skipped":0,"pct":86.32},"functions":{"total":11,"covered":10,"skipped":0,"pct":90.9},"branches":{"total":70,"covered":67,"skipped":0,"pct":95.71},"branchesTrue":{"total":0,"covered":0,"skipped":0,"pct":"Unknown"}}
+,"/home/user/Jini/packages/plugin-catalog/scripts/generate.ts": {"lines":{"total":117,"covered":101,"skipped":0,"pct":86.32},"functions":{"total":11,"covered":10,"skipped":0,"pct":90.9},"statements":{"total":117,"covered":101,"skipped":0,"pct":86.32},"branches":{"total":70,"covered":67,"skipped":0,"pct":95.71}}
+}

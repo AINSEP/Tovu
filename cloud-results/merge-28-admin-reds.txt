@@ -1,0 +1,359 @@
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes announces an accepted plugin install even when refreshing the roster fails
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes keeps recovery read errors in the query and clears them without duplicating the restore point
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes preserves a successful skill remove and lets the query recover independently
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes preserves a successful skill toggle and lets the query recover independently
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes reports a failed plugin remove refresh separately from the accepted write
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes reports a failed plugin toggle refresh separately from the accepted write
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: accepted writes with failed refreshes settles an accepted skill install on Skills even when its roster refresh fails
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: fq action completion clears a failed recovery action on retry and remains creating until the refreshed list settles
+apps/admin/src/__tests__/fqfix-actions.unit.test.tsx :: fq action completion clears a failed skill action on retry and holds busy until the authoritative list arrives
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /access-tokens renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /email renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /pages/about-us renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /plugins renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /posts renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /providers renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /settings renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited a direct link to /settings?tab=interface renders the matching page without loading unrelated routes
+apps/admin/src/__tests__/unit/admin-route-lazy-loading.unit.test.tsx :: admin routes load only the page being visited opening navigation evaluates only the thin adapters and required Forms bridge
+apps/admin/src/__tests__/unit/chat-settings-tip-phone-css.unit.test.ts :: keeps the invisible 44px hit area on .jini-chat-settings-legend .info-tip-icon::before at phone width, not only on coarse pointers
+apps/admin/src/__tests__/unit/chat-settings-tip-phone-css.unit.test.ts :: lifts the 44px phone floor off .jini-dialog .jini-chat-settings-label-row > .info-tip .info-tip-icon[role="button"]
+apps/admin/src/__tests__/unit/chat-settings-tip-phone-css.unit.test.ts :: lifts the 44px phone floor off .jini-dialog .jini-chat-settings-legend .info-tip-icon[role="button"]
+apps/admin/src/__tests__/unit/focus-ring-css.unit.test.ts :: admin focus ring uses bare :focus only on text fields, the skip link and the two landmarks — never on buttons or rows
+apps/admin/src/__tests__/unit/list-table-detail-card-css.unit.test.ts :: list-table phone card detail line keeps the checkbox-title rule off the detail row
+apps/admin/src/__tests__/unit/locale-hook-required-props.source-pin.unit.test.ts :: shared locale mounts keep a required hook prop features/auth/Login.tsx has no defaulted or directly imported live locale hook
+apps/admin/src/__tests__/unit/locale-hook-required-props.source-pin.unit.test.ts :: shared locale mounts keep a required hook prop panels.tsx has no defaulted or directly imported live locale hook
+apps/admin/src/__tests__/unit/narrow-content-column-css.unit.test.ts :: narrow-content-column layout fixes keeps .status pills on one line (same bug as .tier, shared across ~15 list screens)
+apps/admin/src/__tests__/unit/narrow-content-column-css.unit.test.ts :: narrow-content-column layout fixes lets .editor-actions wrap instead of bleeding its input/button row past the parent card (Taxonomy's NewTermForm at narrow widths)
+apps/admin/src/components/AssistantDock/__tests__/DockSettingsMenu.unit.test.tsx :: sections describes only a section that has a tooltip, beside its heading
+apps/admin/src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx :: Agent plugins section dialog: one ⓘ after the title, none per option; tapping it changes nothing; choosing writes the mode
+apps/admin/src/components/AssistantDock/__tests__/agent-plugins-setting.unit.test.tsx :: Agent plugins section gear: one ⓘ after the title, none per option; tapping it changes nothing; choosing writes the mode
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: Reply length has one info tooltip beside its heading; tapping it leaves the selection and menu unchanged
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: dialog setting help 'Done line' keeps its own ⓘ; tap opens it without toggling or closing
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: dialog setting help 'Thinking' keeps its own ⓘ; tap opens it without toggling or closing
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: dialog setting help Tool calls has ONE ⓘ beside its title that lists Show, Collapsed and Hidden; tapping it changes nothing
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: gear setting help 'Done line' keeps its own ⓘ; tap opens it without toggling or closing
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: gear setting help 'Thinking' keeps its own ⓘ; tap opens it without toggling or closing
+apps/admin/src/components/AssistantDock/__tests__/chat-settings-tooltips.unit.test.tsx :: gear setting help Tool calls has ONE ⓘ beside its title that lists Show, Collapsed and Hidden; tapping it changes nothing
+apps/admin/src/components/AssistantDock/__tests__/dock-header.unit.test.tsx :: DockHeaderTip opens on focus, keeps the tip for other keys, and dismisses on Escape or blur
+apps/admin/src/components/AssistantDock/__tests__/dock-header.unit.test.tsx :: DockHeaderTip shows the white bubble under the button on hover and hides it on leave and on click
+apps/admin/src/components/AssistantDock/__tests__/dock-header.unit.test.tsx :: DockHeaderTip uses the injected tooltip controller with bottom placement
+apps/admin/src/components/__tests__/AssistantDock.hooks.unit.test.tsx :: useExecutionConfig hasStoredAdminKey falls back to false and logs, rather than throwing, when the credential load rejects
+apps/admin/src/components/__tests__/EmbedInsertControl.hooks.unit.test.tsx :: useEmbedInsertControl — formControl / menuControl are independent pinned useWidgetAddControl instances an editor that rejects the widget command surfaces 'not placed' in that control's error slot, not a silent success
+apps/admin/src/components/__tests__/Select.unit.test.tsx :: Select Tab closes the panel without moving focus when the trigger can no longer be found among the focusable nodes
+apps/admin/src/components/__tests__/Select.unit.test.tsx :: Select keeps the panel open and repositions it on scroll when the trigger is still visible
+apps/admin/src/components/__tests__/Select.unit.test.tsx :: Select repositions on scroll via the viewport-edge check alone when document.elementFromPoint is unavailable
+apps/admin/src/components/__tests__/Select.unit.test.tsx :: resolveSelectTriggerLabel falls back to the caller's placeholder, with the placeholder class, when nothing is selected
+apps/admin/src/components/__tests__/Select.unit.test.tsx :: resolveSelectTriggerLabel falls back to the default placeholder text when the caller supplies none
+apps/admin/src/components/__tests__/Select.unit.test.tsx :: resolveSelectTriggerLabel shows the selected option's label with no placeholder class when a value is selected
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx :: useExistingInstances / useWidgetPickerDialog / useWidgetAddControl — injected port (no fetch stub) a parent picker starts open and can retry creation at its selected type after placement fails
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx :: useExistingInstances / useWidgetPickerDialog / useWidgetAddControl — injected port (no fetch stub) a placement failure after a successful create says the widget WAS created and where to find it, not that creation failed
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx :: useExistingInstances / useWidgetPickerDialog / useWidgetAddControl — injected port (no fetch stub) handleUseExisting reports a placement failure instead of rejecting into a caller that discards the promise
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx :: useExistingInstances / useWidgetPickerDialog / useWidgetAddControl — injected port (no fetch stub) useWidgetAddControl's handleCreateNew surfaces the injected port's create error
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx :: useExistingInstances surfaces a describable error and leaves instances null when the fetch rejects
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx :: useWidgetPickerDialog canceling an existing selection creates nothing and reopening restores the draft
+apps/admin/src/components/__tests__/WidgetSelectionDialog.unit.test.tsx :: native widget selection a created widget remains available for reuse when the editor rejects placement
+apps/admin/src/components/__tests__/shared-components-i18n.unit.test.ts :: SHARED_COMPONENTS_DICT: cross-locale key parity covers literal t() keys read from the components and hooks that use this dictionary
+apps/admin/src/features/ai-assistant/__tests__/AdminSubagents.unit.test.tsx :: owner subagent setting a failed save reports the real error and leaves both checkbox and dock at server truth
+apps/admin/src/features/ai-assistant/__tests__/dock-agent-permissions.hooks.unit.test.tsx :: dock permission port reports failed persistence without turning the permission off optimistically
+apps/admin/src/features/ai-assistant/__tests__/rules.unit.test.ts :: assistant error copy delegates unrelated API, ordinary Error and non-Error failures
+apps/admin/src/features/ai-assistant/__tests__/use-admin-subagents.hooks.unit.test.tsx :: dock agent permissions shows the load error ahead of an earlier save error
+apps/admin/src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts :: useVisitorCredentialForm — hydration stays loading until the saved settings read settles, then exposes the actual read error
+apps/admin/src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts :: visitor credential form with an injected probe transport keeps edited settings and the saved row when the settings write fails
+apps/admin/src/features/collections/__tests__/rules.unit.test.ts :: describeEditFieldsError uses a plain Error's own message rather than the fallback
+apps/admin/src/features/collections/__tests__/use-collection-entries.unit.test.tsx :: useCollectionEntries rejects an entry read with the configured error even when matching entries exist
+apps/admin/src/features/collections/__tests__/use-collection-entries.unit.test.tsx :: useCollectionEntries sets the fallback error when the injected port rejects
+apps/admin/src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx :: injected port (useWiredX conversion coverage) a failed save during Publish does not publish
+apps/admin/src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx :: injected port (useWiredX conversion coverage) sets the fallback error when the injected port's save call rejects
+apps/admin/src/features/collections/__tests__/use-edit-fields-dialog.unit.test.tsx :: injected port (useWiredX conversion coverage) maps a rejected injected port call through describeEditFieldsError (plain Error: its own message)
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: Recently updated accordion (owner 2026-10-13) renders collapsed by default, expands on click, and keeps the All posts link
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: a single failing endpoint shows its own reason and stops reading '…', without blanking the cards fed by endpoints that succeeded comments failing
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: a single failing endpoint shows its own reason and stops reading '…', without blanking the cards fed by endpoints that succeeded media failing
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: a single failing endpoint shows its own reason and stops reading '…', without blanking the cards fed by endpoints that succeeded pages failing
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: a single failing endpoint shows its own reason and stops reading '…', without blanking the cards fed by endpoints that succeeded posts failing
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: a single failing endpoint shows its own reason and stops reading '…', without blanking the cards fed by endpoints that succeeded presentation failing shows an alert on the Appearance panel without marking any stat card as failed
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: both posts and pages failing — the activity panel's own error state shows an alert instead of 'Loading…' forever, while unrelated cards keep their real values
+apps/admin/src/features/dashboard/__tests__/Dashboard.unit.test.tsx :: shows an independent error reason on every card when all 5 fetches fail simultaneously
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx :: injected port (2026-08-14, Orc-BASH pass) surfaces a plan failure from the fake port's rejected planMigrateForward
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx :: re-reads what a migration changes a rejected execute still re-reads both
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx :: reset clears a populated confirm mutation error on reset
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx :: reset clears a populated execute mutation error on reset
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx :: reset clears a populated plan mutation error on reset
+apps/admin/src/features/database/__tests__/use-timeline-section.unit.test.tsx :: injected port (2026-08-14, Orc-BASH pass) surfaces a load failure from the fake port's rejected getDatabaseTimeline
+apps/admin/src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx :: StaticSiteTab — Publish waits for a credential switch to land (terra #1) a promotion the server refused says so in the row, and the picker goes back to the token that still publishes
+apps/admin/src/features/deployment/hooks/__tests__/use-deployment-overview.unit.test.tsx :: useDeploymentOverview — injected port surfaces a rejected port as a translated, formatted error message rather than throwing
+apps/admin/src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx :: useDockerfileSource — load surfaces a rejected port as a translated, formatted error message
+apps/admin/src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx :: useDockerfileSource — save surfaces a rejected write as a translated, formatted SAVE error — distinct from the load error — and leaves the draft untouched so the operator's edit isn't discarded
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx :: usePublishCredentials — a credential change must be observable until it settles (terra #1) a rejected promotion resolves, puts the exact error on that row, and leaves the old default showing
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx :: usePublishCredentials — initial load surfaces a rejected initial read as a translated load error, rows/executionMode stay undefined
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx :: usePublishCredentials — save, error handling a rejected save surfaces a translated, per-row error and leaves that row's draft fields intact
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx :: usePublishCredentials — verify (the 'hit verify on the token' button the assistant's own guidance assumed existed) a rejected first verify surfaces a translated, per-row verifyError without inventing a verification result
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx :: usePublishCredentials — verify (the 'hit verify on the token' button the assistant's own guidance assumed existed) a rejected re-verify retains the previous verification result alongside the transport error
+apps/admin/src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx :: useStaticExport — initial load surfaces a rejected initial read as a translated, formatted load error
+apps/admin/src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx :: useStaticExport — poll loop REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Build button — not retried forever behind a stuck spinner
+apps/admin/src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx :: useStaticExport — trigger surfaces a rejected trigger (e.g. 409 already running) as a translated trigger error, leaving run untouched
+apps/admin/src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx :: useStaticPublish — field state reports '' and nothing selected while the list loads, and a translated error when it fails
+apps/admin/src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx :: useStaticPublish — initial load surfaces a rejected initial read as a translated load error
+apps/admin/src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx :: useStaticPublish — preview surfaces a rejected preview as a translated preview error
+apps/admin/src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx :: useStaticPublish — publish trigger and poll REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Publish button — not retried forever behind a stuck spinner
+apps/admin/src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx :: useStaticPublish — publish trigger and poll surfaces a rejected publish (e.g. 409 already running) as a translated publish error
+apps/admin/src/features/import-export/__tests__/GitBackupCard.unit.test.tsx :: GitBackupCard reports a push that throws
+apps/admin/src/features/integrations/__tests__/rules.unit.test.ts :: visibleIntegrationsError prioritizes a delete failure over an initial load failure
+apps/admin/src/features/integrations/__tests__/rules.unit.test.ts :: visibleIntegrationsError prioritizes a toggle failure over delete and initial load failures
+apps/admin/src/features/integrations/__tests__/rules.unit.test.ts :: visibleIntegrationsError shows an initial load failure when no subscriptions have loaded
+apps/admin/src/features/integrations/__tests__/use-integration-deliveries.unit.test.tsx :: useIntegrationDeliveries — injected port surfaces a rejected port call's message on the error channel
+apps/admin/src/features/integrations/__tests__/use-integrations.unit.test.tsx :: useIntegrations — injected port keeps a failed create draft in the form rather than reporting a page-level error
+apps/admin/src/features/library/__tests__/Library.unit.test.tsx :: Library upload shows a server refusal on that file's row
+apps/admin/src/features/library/__tests__/use-library.hooks.unit.test.tsx :: useLibrary Trash shows the refusal and clears the in-flight row when Trash fails
+apps/admin/src/features/library/__tests__/use-library.hooks.unit.test.tsx :: useLibrary list, uploaders and refresh reports a list failure
+apps/admin/src/features/library/__tests__/use-library.hooks.unit.test.tsx :: useLibrary previews shows the port's failure on the preview
+apps/admin/src/features/library/__tests__/use-library.hooks.unit.test.tsx :: useLibrary rename keeps the row in edit mode and shows the refusal when the rename fails
+apps/admin/src/features/media/__tests__/media-i18n.unit.test.ts :: Media copy reaches the active locale es: localizes file-read failures without starting an upload (null)
+apps/admin/src/features/media/__tests__/media-i18n.unit.test.ts :: Media copy reaches the active locale es: preserves an upload service's specific Error diagnostic
+apps/admin/src/features/media/__tests__/media-i18n.unit.test.ts :: Media copy reaches the active locale ja: localizes file-read failures without starting an upload (null)
+apps/admin/src/features/media/__tests__/media-i18n.unit.test.ts :: Media copy reaches the active locale ja: preserves an upload service's specific Error diagnostic
+apps/admin/src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx :: useEditMediaPanel — injected port (no fetch stub) surfaces a save failure via error, and does not call onSaved
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx :: media error presentation prioritizes trash over purge and list failures even after media has loaded
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx :: media error presentation shows a restore failure (fallback when empty) ahead of a loaded list's refresh error
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx :: media error presentation shows an initial list failure but keeps a background refresh failure off loaded media
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx :: media error presentation uses the supplied fallback for empty API errors and non-Error failures
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx :: useMedia — injected port (no fetch stub) releases the Upload guard after a failed POST so the same file can be retried
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx :: useMedia — injected port (no fetch stub) shows a file that could not be read as an upload error without calling the port
+apps/admin/src/features/observability/__tests__/use-observability-status.hooks.unit.test.ts :: the injected test action exposes pending, accepted, failure and refreshed delivery state
+apps/admin/src/features/observability/__tests__/use-observability-status.hooks.unit.test.ts :: useObservabilityStatus — injected port (no fetch stub, no api spy) surfaces a rejected load as `error`, leaving `status` null
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx :: doc-format pages and production logging writes the interactive-phase debug line only in development builds
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts :: usePageEditor — pending-html preview debounce (2026-09-09) re-submits into a NEWLY attached form when nothing else changed — a remounted iframe starts empty
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts :: usePageEditor — pending-html preview debounce (2026-09-09) re-submits when only the TEMPLATE changes, against the newly chosen template's URL
+apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts :: usePageEditor — pending-html preview debounce (2026-09-09) submits an untouched DRAFT's pending html on returning to Preview — the widened branch that replaced the raw fallback
+apps/admin/src/features/plugins/__tests__/AgentPluginDetailsModal.unit.test.tsx :: AgentPluginDetailsModal details-hook injection shows the maturity pill in the package inspector
+apps/admin/src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx :: a Soon plugin's switch is disabled on the remove-or-enable tab, and a padlock tip says why to keyboard and touch
+apps/admin/src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx :: a Soon plugin's switch is disabled on the toggle tab, and a padlock tip says why to keyboard and touch
+apps/admin/src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx :: hover or focus explains the padlock with the shared tooltip
+apps/admin/src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx :: renders the soon pill beside the version with a warning that stays open after a tap
+apps/admin/src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx :: renders the untested pill beside the version with a warning that stays open after a tap
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins Downloaded's Enable button names the disabled plugin it would enable
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins Downloaded's row shows Remove/Enable, not a switch
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins Installed's row keeps the switch, with no Remove action
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins Manage button opens the inspector on the plugin's listed admin screens
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins calls the controller with the row's own id when the expander is activated
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins calls the controller with the row's own plugin when Downloaded's Enable button is activated
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog Cancel closes the dialog without ever calling the controller
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog Cancel on Downloaded's Turn off dialog closes it without ever calling the controller
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog Downloaded's Turn off opens a matching confirm dialog and calls the controller once confirmed
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog Escape closes the dialog without calling the controller
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog calls the controller only once Confirm is pressed, then closes the dialog
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog does not open a confirm dialog when enabling a disabled plugin — only disabling asks first
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins disable-confirm dialog opens a confirm dialog naming the plugin instead of calling the controller when disabling an enabled plugin
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins guards invalid URL tab null with Installed
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins guards invalid URL tab undefined with Installed
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins guards invalid URL tab unknown with Installed
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins inspector (stateful) closes on the true backdrop while interior clicks keep the package inspector open
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins inspector (stateful) closes the package inspector with Escape
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins inspector (stateful) opens the read-only package inspector for the clicked plugin and closes it
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins keeps Marketplace explicitly future-only, with no listing and no install control
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins keeps a tab button keyboard reachable
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins keeps the switch on the server-confirmed position when a toggle failed, and says so
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins lists a switched-off bundled plugin on Installed with its switch off, so it can be turned on right there
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins marks Downloaded's Remove/Enable button busy while its own toggle is in flight, leaving other rows untouched
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins marks Installed's switch busy while its own toggle is in flight
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins moves components behind the row's own expander and leaves keywords out
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins offers an uninstall affordance that is honestly disabled, with the reason in the accessibility tree
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins opens the URL add tab and follows subsequent URL tab changes
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins puts the full description in a hover tooltip on the row's clamped summary line
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins renders no description line, tooltip, or expanded paragraph for a plugin whose manifest carries none
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins renders the first horizontal tab as Installed, ahead of Downloaded and Marketplace, listing every installed plugin
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins reports Installed's switch state with aria-checked AND a word, never colour alone
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins says what enabling actually does, and still offers no install or run action
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins shows Installed's empty state only when nothing is installed at all
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins shows a loading note while agentPlugins has not yet loaded, and no rows
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins shows the load error instead of any row when the port rejects
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: AgentPlugins — real wired hook and HTTP adapter confirms the switch then PATCHes the selected plugin with the enabled boolean
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx :: assistant admin navigation regression handles "bring up the agentic plugin for ui ux design" then "no can you open it for me" with navigation and a published details click
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin Choose a folder zips the picked folder and installs it as <folder>.zip
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin accepts one dropped .zip and refuses a drop of several files
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin choosing a different archive revokes the previous Replace choice
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin installs a chosen .zip with its SHA-256, adds the row, and says it stays off
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin offers a .zip upload with Install off until a file is chosen, and a disabled Coming soon URL option
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin refuses a non-.zip or empty file before uploading anything
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin refuses an empty picked folder before uploading anything
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin requires explicit Replace for an upgrade and clears it for the next archive
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin says so when the same package was already installed
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin shows a server refusal in plain words and keeps the file for another try
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: AgentPlugins — Add a plugin the working Add a plugin tab is untagged and opens
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx :: tags every Agent Plugins add-tab control, including the disabled URL option
+apps/admin/src/features/plugins/__tests__/Plugins.unit.test.tsx :: REQ-15/AC-23: loading and error states shows an error notice instead of any tab when the initial fetch rejects, with no partial/stale data
+apps/admin/src/features/plugins/__tests__/agent-plugin-update.unit.test.tsx :: Agent Plugin rows — compatibility and Update only an operator-installed row with its digest offers Update; bundled rows never do
+apps/admin/src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts :: useAgentPlugins — injected port (no fetch stub, no api spy) surfaces a rejected load as `error`, leaving `agentPlugins` null
+apps/admin/src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts :: useAgentPlugins — onToggleEnabled keeps the server-confirmed position when the toggle is refused, and reports it separately from a load failure
+apps/admin/src/features/plugins/__tests__/use-plugin-package-files.hooks.unit.test.ts :: usePluginPackageFiles a failed load sets no caps notice
+apps/admin/src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts :: usePlugins — expanders, single-flight toggles and failed refreshes keeps an accepted removal when the list re-read after it fails, and exposes that failure
+apps/admin/src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts :: usePlugins — expanders, single-flight toggles and failed refreshes swallows a failed refresh-bus reload, leaving the read error to the query
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states autosave recovery banner
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states autosave stale-basis banner
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states delete confirm dialog open (saved post)
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states delete confirm dialog open (unsaved local copy says Discard)
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states dirty after a title edit, with a save message and error
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states loaded draft
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states loaded published post (no Publish button, Save is primary)
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states new post (local working copy, no id)
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states outside-change banner suppresses the stale-basis banner
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states save message and save error render beside the buttons
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states settings dialog open via the gear
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states slug collision warning
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states template picker with templates, one chosen
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states template source modal gate
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states unchanged-save confirm dialog open
+apps/admin/src/features/posts/__tests__/PostEditor.dom.characterization.unit.test.tsx :: PostEditor DOM — states version conflict banner
+apps/admin/src/features/posts/__tests__/PostUrlDialog.chromecheck.unit.test.tsx :: binds the real YouTube parser and defers cleanup before final editor focus
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: New Post action calls createPost when clicked
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: New Post action disables the button and shows 'Creating…' while creating is true
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: New Post opens the unsaved editor without persisting an Untitled post
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Publish section button (plan-publish-sections-2026-09-25.md §2 S3) renders the section's own Publish posts button
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Title/Slug/Status column sort (2026-09-02) an unsorted column's header still reads as clickable via its own aria-label, before any click
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Title/Slug/Status column sort (2026-09-02) clicking Slug after Title cancels Title's active sort — only one column active at a time
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Title/Slug/Status column sort (2026-09-02) clicking Slug sorts ascending by slug
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Title/Slug/Status column sort (2026-09-02) clicking Status sorts draft before published (ascending)
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Title/Slug/Status column sort (2026-09-02) clicking Title again toggles to descending
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Title/Slug/Status column sort (2026-09-02) clicking Title sorts ascending and cancels the default Updated sort
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Updated column sort (2026-08-10) clicking the header toggles to oldest-first
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Updated column sort (2026-08-10) clicking twice returns to newest-first
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Updated column sort (2026-08-10) defaults to newest-first even though the input array arrives oldest-first
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: Updated column sort (2026-08-10) the header button's accessible name states the current direction, not just a glyph
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: delete confirmation dialog canceling calls setPendingDelete(null) rather than removePost
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: delete confirmation dialog confirming calls removePost (the hook reads pendingDelete itself, not an argument)
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: delete confirmation dialog is not pending when rowSavingId belongs to a different row
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: delete confirmation dialog is pending only when rowSavingId matches the pendingDelete row's id
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: delete confirmation dialog opens with copy naming only the observable consequence — no 'permanently' claim, no 'cannot be undone' claim
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: delete confirmation dialog stays closed when pendingDelete is null
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: empty state renders the empty-state card instead of a bare table when there are no posts
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: loading and error-before-load states shows an inline banner ABOVE the table, not a blank screen, once posts have loaded and a later error occurs
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: populated table renders title, slug, status, and formatted-updated columns for each row
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: row menu — Publish/Unpublish visibility mirrors postRowMenuItems Delete calls setPendingDelete with the row rather than deleting immediately
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: row menu — Publish/Unpublish visibility mirrors postRowMenuItems Edit navigates to the Posts editor at /posts/{slug}
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: row menu — Publish/Unpublish visibility mirrors postRowMenuItems Publish calls togglePostPublish with the row, for a draft post
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: row menu — Publish/Unpublish visibility mirrors postRowMenuItems Unpublish calls togglePostPublish with the row
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: row menu — Publish/Unpublish visibility mirrors postRowMenuItems offers Publish for a draft post — the item flips rather than being omitted
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx :: row menu — Publish/Unpublish visibility mirrors postRowMenuItems offers Unpublish for a published post
+apps/admin/src/features/posts/__tests__/posts-agent-drive.unit.test.tsx :: driving the Posts RowMenu through page.* verbs opens each post's editor through its scoped title-link handle
+apps/admin/src/features/posts/__tests__/posts-agent-drive.unit.test.tsx :: driving the Posts RowMenu through page.* verbs publishes a distinct, clickable handle per row; the dropdown item stays outside the production-scoped root
+apps/admin/src/features/posts/__tests__/posts-agent-drive.unit.test.tsx :: driving the Posts RowMenu through page.* verbs recomputes row-menu handles when the posts list changes across a re-render, not just on first render
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts :: Posts screens in es translates the list publish failure reached through the screen
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts :: Posts screens in es translates the list remove failure reached through the screen
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts :: Posts screens in es translates the list unpublish failure reached through the screen
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts :: Posts screens in ja translates the list publish failure reached through the screen
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts :: Posts screens in ja translates the list remove failure reached through the screen
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts :: Posts screens in ja translates the list unpublish failure reached through the screen
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — a failure's own words reach the operator renders an EGRESS_REFUSED message verbatim, devHostAllowlist instruction and all
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — destination reads and incomplete connections reports a destination-check failure and sends no plan
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — destination reads and incomplete connections reports a peer-list failure without offering an unrelated connect action
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — execute is gated on a confirmed plan an execute rejection leaves Publishing, shows the error, and allows retry or Cancel
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — execute is gated on a confirmed plan never executes when confirm fails, and says why
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — narrowed confirmation and stale work a failed narrowing request reports the error and never confirms the original full plan
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — the rest of the surface reports a failed connect without stranding the dialog, and lets the operator retry
+apps/admin/src/features/publish-content/__tests__/PublishContentDialog.unit.test.tsx :: PublishContentDialog — the rest of the surface surfaces a failed plan without stranding the dialog
+apps/admin/src/features/publish-content/hooks/__tests__/use-publish-content-confirm-T4-03.characterization.unit.test.ts :: T4-03 destination offer characterization shows a destination-read error without offering connection
+apps/admin/src/features/publish-content/hooks/__tests__/use-publish-content-confirm-T4-03.characterization.unit.test.ts :: T4-03 destination offer characterization shows a peer-read error without offering connection or discovering a destination
+apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts :: createRestorePoint — injected port (2026-08-14 Orc-BASH pass convention) surfaces a create failure from the fake port's rejected createRestorePoint
+apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts :: injected port (2026-08-14, Orc-BASH pass) surfaces a load failure from the fake port's rejected calls
+apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts :: useRecovery — content refresh bus retains a previous load error during retry and clears it after a successful read
+apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts :: injected port (2026-08-14, Orc-BASH pass) a fake's confirmError reports its message and retains the last successful ceremony step
+apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts :: injected port (2026-08-14, Orc-BASH pass) a fake's executeError reports its message and retains the last successful ceremony step
+apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts :: injected port (2026-08-14, Orc-BASH pass) a fake's planError reports its message and retains the last successful ceremony step
+apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts :: injected port (2026-08-14, Orc-BASH pass) surfaces a disclosure failure from the fake port's rejected computeRecoveryDisclosure
+apps/admin/src/features/roles/__tests__/Roles.unit.test.tsx :: permission removal is confirmed first (real hook, fake port) reports the current policy's failed permission load and allows a later open to retry
+apps/admin/src/features/roles/__tests__/roles-api-error.unit.test.ts :: describeApiError defers to the shared default translation for a plain Error
+apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx :: injected port (useX(dependencies) / useWiredX() conversion coverage) onCreatePolicy keeps both fields and reports a failed create
+apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx :: injected port (useX(dependencies) / useWiredX() conversion coverage) onRemovePermission sets rowError from the injected port's configured failure and keeps the row
+apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx :: injected port (useX(dependencies) / useWiredX() conversion coverage) onSavePolicy keeps the edit row and both drafts on failure
+apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx :: injected port (useX(dependencies) / useWiredX() conversion coverage) onWritePermission sets rowError from the injected port's configured failure
+apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx :: injected port (useX(dependencies) / useWiredX() conversion coverage) pendingPermissionRemove / onConfirmRemovePermission (C1) a failed confirmed removal closes the confirmation and surfaces the exact error, keeping the row
+apps/admin/src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx :: AccessTokensTab — default hook resolution settles the real other hook's load failure in the page
+apps/admin/src/features/security/__tests__/AccessTokensTab.credential-flows.unit.test.tsx :: AccessTokensTab — loading and error states shows the access-tokens load error and renders nothing else
+apps/admin/src/features/security/__tests__/AccessTokensTab.unit.test.tsx :: AccessTokensTab project copy entry, when re-enabled renders the entry and opens the copy dialog, which lists the copy sources
+apps/admin/src/features/security/__tests__/site-key-generate-error.unit.test.ts :: classifySiteKeyGenerateError a non-ApiError → 'generic'
+apps/admin/src/features/security/__tests__/use-site-key-recovery.unit.test.ts :: useSiteKeyRecovery — Start fresh clears an earlier preview and shows the shared error when a new preview fails
+apps/admin/src/features/security/__tests__/use-site-key-recovery.unit.test.ts :: useSiteKeyRecovery — Start fresh loads the preview first, confirms only on the exact phrase, then names the affected webhooks
+apps/admin/src/features/security/__tests__/use-site-key.unit.test.tsx :: useSiteKey a failed refresh reports the load failure and keeps the earlier revealed key
+apps/admin/src/features/security/__tests__/use-site-key.unit.test.tsx :: useSiteKey reports status and reveal failures without staying busy or exposing a key
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: custom project-key attachments keeps the usage facts on a failed write and permits a retry
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: custom project-key attachments reports a failed metadata refresh after the attachment was saved
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens — content refresh bus a background reload keeps the publish and source-control inventories it could not re-read, while applying the custom one
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens — content refresh bus a rejected background reload surfaces a visible load error instead of failing silently
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: createCustomCredential a rejected create surfaces the save-error message and returns false
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: createToken a rejected create with a plain Error surfaces the generic save-error message (accessTokenSubmitErrorMessage's generic branch)
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: initial load errors — accessTokensLoadError's publish/source-control/custom priority surfaces a rejected CUSTOM list as the load error when the other two stores succeed
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: initial load errors — accessTokensLoadError's publish/source-control/custom priority surfaces a rejected PUBLISH list as the load error on first load
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: initial load errors — accessTokensLoadError's publish/source-control/custom priority surfaces a rejected SOURCE-CONTROL list as the load error when publish succeeds
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: makeDefault a rejected update surfaces a visible per-row error instead of failing silently
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: reloadAllStores hardening (2026-09-05 Gemini audit) clears a stale initial-load error once a background reload succeeds, instead of masking the success forever (claim a)
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: reloadAllStores hardening (2026-09-05 Gemini audit) keeps the other two stores' fresh reload data when only one store's reload rejects, instead of Promise.all discarding all three (claim b)
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: removeToken a rejected remove surfaces a visible per-row error instead of failing silently
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: replaceCustomCredential — duplicate name and rejection a rejected custom update surfaces the save-error message on that row
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx :: useAccessTokens: replaceToken on a PUBLISH/SOURCE-CONTROL row (non-custom) a rejected replace surfaces the save-error message on that row (accessTokenSubmitErrorMessage via replaceToken's catch)
+apps/admin/src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx :: useOtherCredentials — reading all four stores a rejected store read reports its own loadError with the exact banner text, without blocking the other three stores
+apps/admin/src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx :: useOtherCredentials — reading all four stores shows a failed remove on a row with no draft using a blank token
+apps/admin/src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx :: useOtherCredentials — remove: per-store dispatch (writeRemove), all four stores a rejected remove surfaces the exact error text and preserves whatever draft token already existed
+apps/admin/src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx :: useOtherCredentials — replace: per-store dispatch (writeReplace) a rejected write surfaces the exact save-error text and preserves the typed (untrimmed-source) token
+apps/admin/src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx :: ExternalMcpSettingsPanel — add form order, access token, autofill and Cancel a hosted server with an API key / access token shows the Access token field but no env-var name for it
+apps/admin/src/features/settings/__tests__/ExternalMcpSettingsPanel.unit.test.tsx :: ExternalMcpSettingsPanel — add form order, access token, autofill and Cancel puts Credentials third, right under Connection type, and Access token fourth, right under Credentials
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp-admissions.unit.test.tsx :: a rejected restart reports its error without starting a watch
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts :: useExternalMcp — addSource a rejected save surfaces describeApiError's message, defaulting when the error carries none
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts :: useExternalMcp — saved-server verification keeps a successful remote save when its post-save probe fails
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts :: useExternalMcp — testSource (D-5: wired to the probe route) surfaces describeApiError's message on a rejected probe (e.g. an unreachable server)
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts :: useExternalMcp — updateSource a rejected update preserves the prior row with the failure message without throwing
+apps/admin/src/features/sites/__tests__/SiteExportTab.static.unit.test.tsx :: disables export during roster loading or failure and explains the problem inside the picker
+apps/admin/src/features/sites/__tests__/Sites.unit.test.tsx :: Sites — load and error states renders the read failure rather than an empty grid
+apps/admin/src/features/sites/__tests__/create-site-admin-password.unit.test.tsx :: new-site admin credentials shows the default-login note as a tooltip when the info icon is hovered or focused
+apps/admin/src/features/skills/__tests__/use-skill-install.hooks.unit.test.ts :: a file selection error is shown and a new proposal clears it
+apps/admin/src/features/skills/__tests__/use-skill-install.hooks.unit.test.ts :: keeps file-read cause privately and redacts the displayed failure
+apps/admin/src/features/skills/__tests__/use-skills.unit.test.ts :: useSkills clears a cancelled file selection without proposing an install
+apps/admin/src/features/skills/__tests__/use-skills.unit.test.ts :: useSkills closes accepted removal confirmation even when refreshing the remaining list fails
+apps/admin/src/features/skills/__tests__/use-skills.unit.test.ts :: useSkills finishes an accepted install and returns to Skills even when refreshing the list fails
+apps/admin/src/features/skills/__tests__/use-skills.unit.test.ts :: useSkills retains loaded rows on reload failure and removes its refresh listener on unmount
+apps/admin/src/features/source-control/__tests__/SourceControl.unit.test.tsx :: the real panel keeps an unlisted saved provider connected with its hint and no form
+apps/admin/src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx :: useSourceControlCredentials save() surfaces Error: server exploded as the row error and clears saving
+apps/admin/src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx :: useSourceControlCredentials sets a load error when listCredentials rejects, without throwing
+apps/admin/src/features/taxonomy/__tests__/rules.unit.test.ts :: describeTrashError surfaces a plain Error's own message unconditionally — describeApiError never substitutes the fallback for a non-ApiError
+apps/admin/src/features/taxonomy/__tests__/rules.unit.test.ts :: visibleTaxonomyError ignores blocked deletes (shown in their own slot) and falls through to the list error, else nothing
+apps/admin/src/features/taxonomy/__tests__/rules.unit.test.ts :: visibleTaxonomyError prefers a term delete failure over the taxonomy one and the list read
+apps/admin/src/features/taxonomy/__tests__/rules.unit.test.ts :: visibleTaxonomyError skips a term delete that has no message (no error, or already gone) and shows the taxonomy delete failure
+apps/admin/src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx :: useMergeTermSection — injected port keeps the plan available when the fake rejects confirmation
+apps/admin/src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx :: useMergeTermSection — injected port retains the confirmed ceremony without reporting a merge when the fake rejects execution
+apps/admin/src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx :: useMergeTermSection — injected port surfaces a rejected planMergeTerm call's message on the error channel
+apps/admin/src/features/taxonomy/__tests__/use-new-taxonomy-form.unit.test.tsx :: useNewTaxonomyForm — injected port surfaces a rejected createTaxonomy call's message on the error channel
+apps/admin/src/features/taxonomy/__tests__/use-new-term-form.unit.test.tsx :: useNewTermForm — injected port surfaces a rejected createTerm call's message on the error channel
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: adding a term by name a failed create is reported on that taxonomy only, keeps the typed name, and ticks nothing
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: adding a term by name keeps the first created term ticked when the second name fails
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: loading the entry's terms a failed read is reported with its own message
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: save on failure, reports the error and keeps the ticked set
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: the taxonomy list and the tagged content a failed save is reported in place of an earlier failed list read
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: the taxonomy list and the tagged content a failed taxonomy list read is reported with its own message
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx :: the taxonomy list and the tagged content when both reads fail, the content's own terms read is the one reported
+apps/admin/src/features/themes/__tests__/ThemeExplore.unit.test.tsx :: publish toggle — the selected page's publish state publish info tooltip is replaced by the page's own reason for a LOCKED page (404) — still exactly one ⓘ in the row
+apps/admin/src/features/trash/__tests__/use-trash.unit.test.tsx :: useTrash — Load more paging (2026-09-21) reports a current page failure, releases the load lock, and permits retrying that cursor
+apps/admin/src/features/workspace/__tests__/rules.unit.test.ts :: describeApiError a non-ApiError value falls through to the shared default
+apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts :: content-refresh coverage (staleness-bug guard) features/plugins/hooks/use-agent-plugins.hooks.ts contains an executable content-refresh subscription call
+apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts :: content-refresh coverage (staleness-bug guard) features/plugins/hooks/use-plugins.hooks.ts contains an executable content-refresh subscription call
+apps/admin/src/hooks/__tests__/use-admin-execution-credential.hooks.test.ts :: useAdminExecutionCredential — host error copy preserves or supplies the operator message for Error: credential storage unavailable
+apps/admin/src/integrations/jini-admin/__tests__/security-panel.test.tsx :: Security host panel an unknown tab falls back to Access Tokens
+apps/admin/src/integrations/jini-admin/__tests__/security-panel.test.tsx :: Security host panel denied page: a scope without the session grant shows the denied notice
+apps/admin/src/integrations/jini-admin/__tests__/security-panel.test.tsx :: Security host panel owner controls render in order TOTP, recovery codes, passkeys, and recovery issues ten codes
+apps/admin/src/integrations/jini-admin/__tests__/security-panel.test.tsx :: Security host panel signed in, grants loading: Access Tokens and owner controls render, no site-key tab, ?tab=site-key lands on Access Tokens
+apps/admin/src/integrations/jini-admin/__tests__/security-panel.test.tsx :: Security host panel signed in, site-key denied after load: the same fallback
+apps/admin/src/integrations/jini-admin/__tests__/security-panel.test.tsx :: Security host panel site-key granted: ?tab=site-key opens the root-key tab and a tab change writes ?tab=site-key with replace
+apps/admin/src/integrations/jini-admin/__tests__/security-ports.test.ts :: security host ports describes a credential failure from the server message, never a submitted secret
+apps/admin/src/integrations/jini-admin/__tests__/seo-ports.unit.test.ts :: SEO host ports retains host error identity and the original empty-message fallback
+apps/admin/src/lib/__tests__/admin-literal-copy.unit.test.ts :: production admin features and shared components add no untranslated JSX copy
+apps/admin/src/lib/__tests__/api-request-onok-and-null-body.unit.test.ts :: onOk is not invoked on a non-2xx response
+apps/admin/src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts :: handleAgUiEvent — event dispatch RUN_ERROR reports via onError without calling finish
+apps/admin/src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts :: startAgUiRun — SSE frame streaming end to end RUN_ERROR mid-stream reports via onError without ending the run early
+apps/admin/src/lib/__tests__/credential-input-autocomplete.unit.test.ts :: admin credential inputs scans a non-trivial set (a detector that finds nothing proves nothing)
+apps/admin/src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts :: apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N every locale dictionary is consumed only through its own translator
+apps/admin/src/lib/__tests__/untranslated-copy.unit.test.ts :: admin dictionaries: no copy left in English app-i18n.ts t has no untranslated copy
+apps/admin/src/lib/__tests__/untranslated-copy.unit.test.ts :: admin dictionaries: no copy left in English features/routines/routines-i18n.ts t has no untranslated copy
+apps/admin/src/lib/__tests__/untranslated-copy.unit.test.ts :: admin dictionaries: no copy left in English features/storage/storage-i18n.ts STORAGE_DICT has no untranslated copy
+apps/admin/src/lib/__tests__/widget-embed-extension.hooks.unit.test.ts :: useWidgetEmbedNodeView — Change dialog and Remove a failed onCreateNew alerts the describable error and leaves the node and dialog untouched
+apps/admin/src/lib/__tests__/widget-embed-extension.unit.test.tsx :: WidgetEmbedNodeView a failed create-new in the Change dialog alerts the describable error rather than updating anything
+apps/admin/src/styles/__tests__/content-editor-header-css.unit.test.ts :: desktop pane: the slug box is as wide as the slug keeps the content-sized slug input (capped at 16rem) instead of a fixed 16rem box
+apps/admin/src/styles/__tests__/content-editor-header-css.unit.test.ts :: phone pane: the settings gear stays on the action row puts the Saved / error message on its own line above the buttons so it never splits the group from the gear
+apps/admin/src/styles/__tests__/content-editor-header-css.unit.test.ts :: phone: the view tabs and the device icons share one row (bug 11-01, Edit page header at 375px) declares phone paddings and gaps that bring tabs + devices under the 351px row
