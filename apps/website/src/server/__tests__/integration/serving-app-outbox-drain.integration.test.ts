@@ -127,6 +127,7 @@ test("a background taxonomy subscriber span is a descendant of the producing req
   }
   // Command path: the change-set write that co-persists its event, inside a producing span.
   const command = port.trackRequest({ method: "POST", path: "/command-path" });
+  assert.ok(command.run, "the recording request tracker must scope work (RequestTracker.run is optional on the port)");
   const actor = { id: "command-operator", kind: "user" } as const;
   const commandEvent = { ...testEvent({ name: "test.command-path", workspaceId: deps.workspaceId }), actor, actorId: actor.id };
   const { changeSets } = deps;

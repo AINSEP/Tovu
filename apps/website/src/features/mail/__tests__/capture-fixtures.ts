@@ -1,5 +1,6 @@
 import { sql } from "kysely";
-import { createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerRepo, purgeExpiredMail } from "@jini-ai/platform/mail/sql";
+import { createMailAttemptObserver, createMailCaptureRepo, createMailSendLedgerRepo } from "@jini-ai/platform/mail/sql";
+import type { ContentKernel } from "#src/platform/db/content-kernel";
 
 /**
  * @file Shared mail fixtures for the captured-test-email tests (`capture-clear-retention.dialects.test.ts`
@@ -11,7 +12,7 @@ export const NOW = Date.parse("2026-11-24T12:00:00Z");
 export const iso = (n: number) => new Date(n).toISOString();
 export const msg = (workspaceId: string) => ({ workspaceId, to: { email: "qa@example.com" }, from: { email: "s@example.com" }, subject: "Test", text: "body" });
 
-export type Db = Parameters<typeof purgeExpiredMail>[0]["db"];
+export type Db = ContentKernel;
 export const MAIL_TABLES = ["mail_activity_attempts", "mail_send_ledger", "mail_capture", "mail_suppression", "mail_feedback_inbox", "workspaces"];
 
 /** Captures one test email of `workspaceId` at `at` without the ledger rows. */

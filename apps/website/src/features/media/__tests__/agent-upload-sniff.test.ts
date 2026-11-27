@@ -10,11 +10,11 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
-  InMemoryMediaRepo,
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
 } from "../index.js";
 import { InMemoryMediaContentTypeStore } from "@jini-ai/cms/media/site/content-type-store";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -52,7 +52,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function fakeRouteDeps() {
-  const mediaRepo = new InMemoryMediaRepo({});
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
   const blobStore = new InMemoryBlobStore();

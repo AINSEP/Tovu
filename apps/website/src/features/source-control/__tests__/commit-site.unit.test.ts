@@ -21,6 +21,7 @@ import {
   type CommitSiteInput,
   commitExportDir,
   type SourceControlCommitAdapter,
+  type ExportSiteBoundFn,
 } from "../commit-site.js";
 import { toCommitFile } from "@jini-ai/devops/source-control";
 import { validateCommitTarget } from "@jini-ai/devops/source-control/site/commit-target";
@@ -356,7 +357,9 @@ test("commitSiteToSourceControl: GitHub receives the predecessor manifest with t
 
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
   const deps = await withExampleGitCredential(testRouteDeps());
-  const originalExport = deps.exportSiteBound;
+  // `deps.exportSiteBound` is an intersection of every consumer's port (one of them, devops' tool port, returns the
+  // narrower `ExportRunReportLike`); the commit path consumes it as `ExportSiteBoundFn`, which yields the full report.
+  const originalExport: ExportSiteBoundFn = deps.exportSiteBound;
   let exported: ExportReport | undefined;
   deps.exportSiteBound = async (options) => { const report = await originalExport(options); exported = report; return report; };
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };

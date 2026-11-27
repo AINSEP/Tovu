@@ -445,7 +445,7 @@ test("server shutdown abandons every parked visitor and admin approval once", { 
   // The serving process's shutdown path: createApp hands each process-local release to its host.
   const serving = createServingApp(deps);
   t.after(async () => {
-    for (const handle of [serving.outboxDrainer, serving.trashSweeper, serving.themeWatcher, serving.formPullTrigger, serving.postGoLiveSweep, serving.webhookDeliveryWorker, serving.domainBindingSweeper, serving.siteSearchMaintenance]) {
+    for (const handle of [serving.outboxDrainer, { stop: () => serving.trashSweeper.stop({}) }, serving.themeWatcher, serving.formPullTrigger, serving.postGoLiveSweep, serving.webhookDeliveryWorker, serving.domainBindingSweeper, serving.siteSearchMaintenance]) {
       await handle.stop();
     }
     await Promise.allSettled(serving.bootWork);
