@@ -2383,3 +2383,9 @@ Fixed unless marked OPEN.
 - **OPEN (tests):** user-management `package-entries` / `user-management-rename` contract tests predate the slices' new
   entries; identity owner-enable, members magic-link, newsletter delivery launch-gate tests red (slice-authored, untested);
   cms publish/content tool-registration tests need the new `gateway` dep.
+
+## merge-28 (2026-11-27) — verify + coverage after the Codex 6.2 test-quality round
+- **FIXED (test, Codex):** Jini admin `y5-page-editor` picked the "Theme default" sentinel after a real template was chosen; the picker renders that option only while it is current, so the interaction was impossible (test now asserts the documented contract). **Owner check:** once a page has a real template, the picker offers no way back to "Theme default" except picking the shell filename — confirm intended.
+- **FIXED (test, Codex):** Tovu admin `folder-zip-port` wiring assertion rendered `useWiredPlugins` without the AdminKit provider tree.
+- **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
+- **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
