@@ -139,8 +139,10 @@ test('a failed decision adds localized status and only a second click retries it
     receive = toolConfirmation.receive;
     return { ...widget, toolConfirmation };
   }
+  // The widget's props parameter is optional, so createElement cannot infer `P extends {}` from it; name P.
+  type WidgetProps = NonNullable<Parameters<typeof SiteAssistantWidget>[0]>;
   await act(async () => root.render(React.createElement(ChatSurfacesProvider, {
-    surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget, { useSiteAssistantWidgetHook: useWidgetWithConfirmation }),
+    surfaces: chatSurfaces, children: React.createElement<WidgetProps>(SiteAssistantWidget, { useSiteAssistantWidgetHook: useWidgetWithConfirmation }),
   })));
   act(() => receive({ directive: { kind: 'tool_confirmation', challengeId: 'b'.repeat(22), title: '¿Permitir la búsqueda?', summary: 'Buscar entradas.' } }));
   const proposal = () => container.querySelector('[role="group"][aria-label="¿Permitir la búsqueda?"]');
