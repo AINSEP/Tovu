@@ -1,0 +1,61 @@
+# Admin coverage gap fill — mutation plan
+
+Source mutations below are hypothetical and were not applied or run.
+
+- hooks/use-admin-execution-credential.hooks.ts:uses the English stored-key message → replace default `t` with `() => ''`.
+- hooks/use-admin-execution-credential.hooks.ts:translates the warning → pass the untranslated `STORED_KEY_OTHER_PROVIDER_COPY` into the footer rule.
+- integrations/jini-admin/security-ports.ts:publishes a credential change → publish `media` instead of `access-tokens` (or skip publish).
+- integrations/jini-admin/security-ports.ts:leaves an unknown security copy key readable → replace the final `?? key` with `?? ''`.
+- integrations/jini-admin/site-update-notice.hooks.ts:leaves a failed background check quiet → remove the rejection handler (an unhandled rejection) or publish an available status after a failed check.
+- integrations/jini-admin/site-update-notice.tsx:does not check status before sign-in → remove the `!user` guard.
+- integrations/jini-admin/site-update-notice.tsx:reads the encoded workspace [both rows] → remove `encodeURIComponent(workspaceId)`. In the supplied-signal row, dropping the signal also fails.
+- integrations/jini-admin/site-update-notice.tsx:rejects a non-JSON success page → remove `requireJson: true`.
+- integrations/jini-admin/kit.ts:publishes a control [select / button] → stop remapping `select` / force every control's role to `field`.
+- lib/admin-nav-i18n.ts:renders the Storage navigation label [es / ja / en / zz] → drop the host override for es / ja, add a wrong override for en, or return an empty label on an unknown locale.
+- lib/shell-collaborators.ts:decides tooltip ownership [sites / posts / null] → always return false / match every href / return true when href is missing.
+- integrations/jini-admin/security-module.hooks.ts:resets the desktop owner password → omit the inner `useOwnerPasswordReset` binding.
+- integrations/jini-admin/security-module.hooks.ts:shows a loading status → remove the locale binding from the fallback element (already red by inspection).
+- integrations/jini-admin/modules.hooks.ts:keeps the same loading component mounted → remove the cached return, or key only by Loading and reuse the English hook for Spanish.
+- lib/browser-telemetry.ts:posts only the settled pageview → no-op `clearTimer` or omit `keepalive: true`.
+- lib/settings-tabs.ts:emits the saved grant → change the event name or construct the event without its detail.
+- lib/settings-tabs.ts:still emits a withdrawal if storage is blocked → bypass the browser fallback path or replace `CustomEvent` with `Event`.
+- lib/chat-attachment-liveness.ts:uses the browser fetch → replace the fallback fetch with a permanent 404.
+- lib/assistant-transport.ts:fails explicitly when Jini invokes the old port [all five rows] → optional-call that callback without the missing-dependency error.
+- integrations/jini-admin/analytics-page.ts + panel-pages.ts:shows the authenticated recent hit → omit `useWiredAnalytics` or select the wrong lazy default export.
+- integrations/jini-admin/consent-screen.tsx + panel-pages.ts:loads this workspace's saved config → omit `tabId`, omit the RuleFields binding, or use the wrong lazy export.
+- integrations/jini-admin/settings-external-mcp-shared-choice.hooks.ts:grants the requested saved connection → substitute a different credential for `credentialId`.
+- integrations/jini-admin/settings-external-mcp-shared-choice.hooks.ts:preserves the status, code, body and message → rethrow the host error or drop `code` / `body` during translation.
+- integrations/jini-admin/settings-external-mcp-shared-choice.hooks.ts:does not turn a transport exception into API copy → wrap unknown errors in `AdminApiError`.
+- integrations/jini-admin/settings-external-mcp-shared-choice.hooks.ts:clears the shared selection [stop / choose local] → swap the two DELETE adapters.
+- integrations/jini-admin/settings-external-mcp-oauth-connect.hooks.ts:forwards the shared destination and completes device sign-in → drop options from connect, or bind poll to connect.
+- integrations/jini-admin/settings-external-mcp-oauth-connect.hooks.ts:uses the host fallback error → omit `fallbackError` when binding the hook.
+- hooks/use-assistant-chats.hooks.ts:retries a network rejection → classify every thrown error with a `status` property as an HttpError.
+- lib/assistant-transport-ag-ui.ts:stops the accepted canonical run [204 / 404 / 503] → drop or redirect accepted cancel / remove the 404 exemption / swallow a 503.
+- lib/assistant-chats.ts:returns the saved pin [both rows] → return the requested `pinned` instead of decoding `conversation.pinned`.
+- lib/assistant-chats.ts:previews a cutoff without deleting and applies only the confirmed preview → swap preview/apply paths, drop `before` or drop `confirm: true`.
+- lib/assistant-chats.ts:propagates the expired preview conflict → catch the 409 and return an empty result, or drop the error code.
+- lib/assistant-chats.ts:deletes only selected chats → post an empty id list or route selection through the age cleanup endpoint.
+- lib/agent-navigation-entities.ts:resolves an entity using the canonical id [post / menu / widget] → map the input ID or returned slug instead of the record's canonical ID.
+- lib/agent-navigation-entities.ts:propagates a denied menu read → catch the HTTP failure and guess the menu path.
+- lib/agent-navigation-entities.ts:does not resolve inherited property names → replace `Object.hasOwn` with `type in lookups`.
+- lib/widget-embed-extension.tsx:saves edited media content → no-op the `setCustom` bridge or drop the new content in `setContent`.
+- site-section-availability.hooks.ts:waits for availability when the browser denies access → remove `defaultSitesRowStorage`'s catch or return available when opening storage throws.
+- lib/shell-notices-wiring.tsx:renders the live connection banner as an empty slot → replace online copy `null` with a visible label.
+- panels.tsx + panel-pages.ts:renders the enabled Routines panel → hardcode `releaseEnabled={false}` or select the wrong lazy default.
+- main.tsx:reports the missing admin mount point → remove the root guard so React produces a different error.
+- lib/shell-notices-wiring.tsx:renders an English dismiss action without a document locale → remove the no-document guard.
+- integrations/jini-kits.ts:uses the custom translator → always bind the default hooks.
+- integrations/jini-kits.ts:keeps the default switcher [null / only a view hook / only a translator] → drop the null check or the corresponding required-field check.
+- lib/media-image-extension.tsx:preserves the old URL if only a transform name survived → treat a transform without an asset ID as a complete ref.
+- panel-pages.ts:publishes and retires the assistant canvas through the lazy Playground route → return the wrong component from the Playground loader.
+- panel-pages.ts:opens Theme Explore rather than the theme list → select the `Themes` export from the same lazy chunk in place of `ThemeExplore`.
+- lib/admin-nav-i18n.ts:adds a non-empty Storage translation without losing shared labels → drop any locale's Storage overlay or discard `entries` when merging.
+- integrations/jini-admin/security-ports.ts:uses loaded permissions by default → default `grantsReady` to false or grant unrelated writes.
+- integrations/jini-admin/modules.hooks.ts:rebuilds a scope when grants become known → always use the list-only scope key.
+- lib/assistant-transport-ag-ui.ts:reports actionable copy → remove the missing-reply error.
+- lib/assistant-transport-ag-ui.ts:does not turn an intentional Stop into a missing-reply error → remove the `intentionalStop()` check.
+- lib/assistant-transport-ag-ui.ts:accepts a canonical final reply → remove the check for nonempty final events.
+- lib/assistant-transport-ag-ui.ts:does not duplicate the first error → remove the duplicate-error guard or always emit fallback error on empty completion.
+- integrations/jini-admin/site-update-notice.tsx:shows translated versions and release notes → remove either placeholder substitution, pass the wrong principal/workspace to the hook, or use English release-note copy.
+- lib/settings-tabs.ts:saves consent without event or storage globals → replace the guarded browser lookup with a direct window reference or return a non-browser substitute.
+- panel-pages.ts:the lazy Storage route names its tab and distinguishes categories → substitute another route, so the category labels and Storage tab title do not appear (existing test strengthened).

@@ -1,0 +1,48 @@
+# Desktop coverage gap fill
+
+Mutation notes are static author checks. Do not run tests or mutations in this clone.
+
+- `renderer/use-site-list-prefs.hooks.test.ts`: the unseeded preferences port loads the raw saved choices and reads back later saves → make the port's `load` return null instead of reading storage.
+- `renderer/use-start-imported.hooks.test.ts`: the import handler shows a toast only for a failed start and applies the refreshed record on retry → remove `showToast(failed)` from the hook.
+- `renderer/use-tab-close-ask.hooks.render.test.ts`: a stale preload cannot hold a site, and a tab missing from inventory closes without prompting → make the missing keep-alive method return without setting the error, or remove the immediate close for missing inventory.
+- `renderer/use-tab-close-ask.hooks.render.test.ts`: Keep running surfaces a non-Error refusal and accepts a retry for the same site → use a fixed fallback instead of `String(failure)`.
+- `renderer/use-update-check.hooks.bridge.render.test.ts`: the default preload binding checks for updates and closes the settings menu after it answers → default `bridge` to undefined.
+- `renderer/imported-hooks.hooks.test.ts`: default Storage settings use the preload and keep a picker result visible when discovery fails → defer `setFolders(next)` until after the rescan.
+- `renderer/use-site-workspace.hooks.render.test.ts`: the default workspace bridge hands the public surface of the current site to the OS browser → replace the default bridge lookup with one that returns undefined.
+- `renderer/use-zoom.hooks.render.test.ts`: the default preload command zooms the visible guest and persists to window storage → default `bridge` to undefined or drop the Tovu key prefix.
+- `renderer/use-site-preview.hooks.render.test.ts`: the preload preview follows capture versions, ignoring a late reply and clearing when the capture is removed → pass `previewVersion: null` unconditionally from the host binding.
+- `renderer/App.hooks.render.test.ts`: workspace chat uses preload for run commands and file staging, and releases its listener on unmount → pass a bridge lookup that always returns undefined.
+- `site-child-registry.test.ts`: agent discovery shares the current launch's stem but is not a site-process registry → return the same `.json` suffix as a site row file.
+- `tracked-sites.boundaries.test.ts`: a remove-only writer refuses newly introduced folders without publishing any part of the change → replace the `ADDS_NO_ROWS` throw with a no-op.
+- `update-check-now.test.ts`: the IPC handler registers the contract channel and resolves after the check (existing test now exercises the host binding) → change the host registration channel to `runner:app:updates`.
+- `update-check-now.test.ts`: a non-Error update refusal retains its text in copyable details, not in the recovery instructions → omit `cause: error` in `checkFailedDetails`.
+- `site-archive-import.test.ts`: a child with no stdin that exits without a valid result still reports the Rescan recovery → replace the optional stdin write with an unconditional write.
+- `startup-env.test.ts`: an incomplete startup default without a marker list fails with a diagnostic instead of guessing → remove the missing-list guard and let the join throw.
+- `storage/storage-report-cli.test.ts`: a successful capabilities probe uses the CLI wire and keeps the advertised actions → send the report command instead of capabilities.
+- `storage/storage-report-cli.test.ts`: a report child that cannot be spawned returns failed, not a rejection → let a synchronous spawn error escape the Promise executor.
+- `storage/storage-report-cli.test.ts`: capabilities reject non-string operations and reports reject malformed class amounts independently → omit the `isCount(amount.files)` validation.
+- `storage/storage-sheet-ipc.test.ts`: a folder changed after confirmation is reported as kept and its confirmation cannot be replayed → return done regardless of the trash result.
+- `storage/storage-sheet-ipc.test.ts`: a dismissed folder stays on disk when the OS refuses to trash it → return trashed from the catch.
+- `storage/storage-sheet-ipc.test.ts`: a folder above a protected root is kept even when dismissed and stopped → drop the `within(dir, root)` guard.
+- `storage/storage-item-ids.test.ts`: item IDs and confirmations expire at the deadline, not a tick later → change `now() < expiresAt` to `now() <= expiresAt`.
+- `storage/storage-item-ids.test.ts`: relisting replaces only that sender's item IDs and outstanding confirmations → replace the confirmation eviction loop with `confirmations.clear()`.
+- `storage/storage-item-ids.test.ts`: an item is kind-bound and a confirmation tried by the wrong sender cannot be replayed → move deletion below the sender validation.
+- `storage/storage-sheet-actions.test.ts`: Compact disappears at apply when the current CLI no longer advertises it → omit the apply-time capabilities check.
+- `storage/storage-sheet-actions.test.ts`: overlapping owner confirmations cannot start two Compact jobs for the same site → on a fixed implementation, reserve the site only after awaiting confirmation (the current code already has this bug).
+- `site-retirement.test.ts`: the add-site writer invalidates only the re-added folder's pending sign-in retirement → pass the unstripped `persist:` name to ledger invalidation.
+- `site-theme-preview.test.ts`: a stream from the previous lifecycle cannot advance the revision before the watcher is resynced → omit the live target lifecycle comparison in the frame callback.
+- `desktop-mcp-http.test.ts`: a reveal aborted while queued never reaches the shell and does not block later calls → check cancellation on intake instead of inside the queued task.
+- `smoke-bridge.test.ts`: the packaged resolver must attest desktop HTTP even when both bridge commands are valid → accept entries without requiring `desktopHttp === true`.
+- `stage-payload-run.test.ts`: a staging run with already executable PTY helpers does not report repairs → unconditionally write the execute-bit repair summary.
+- `stage-payload-lib.test.ts`: pruning tolerates a vanished native prebuild without removing a usable sibling → use `statSync` instead of `lstatSync` in `diskBytes`, which would abort on the dangling entry.
+- `site-dir-store.test.ts`: initializing an empty folder without a repository root is refused before any spawn or write → remove the missing-root guard and fall back to the current directory.
+- `shared-sites-home.test.ts`: discovery follows a moved in-site database folder without requiring Locate → block all automatic relocation, including in-site layouts.
+- `site-directory-identity.test.ts`: a copied directory gets its own site identity without losing its explicit key identity → write the old site ID instead of preserving an explicit `siteKeyId`.
+- `tovu-server.test.ts`: an accepted idle stop followed by a normal exit is not mistaken for confirmed sleep → treat exit code 0 like the reserved sleep exit code.
+- `tovu-server.output.test.ts`: readiness diagnostics distinguish a signal from an unknown exit and keep only the last five log lines → drop the signal fallback or let unredacted output reach the tail.
+- `site-archive-import.test.ts`: startup tidy finds a staged import on disk and sends a cleanup-only request → default the directory reader to an empty listing.
+- `site-archive-import.test.ts`: quit still drains its wait when an import child reports an error rather than an exit → drop the rejection handler in `stop`'s `ended.then`.
+- `renderer/workspace-chat-transport.test.ts`: malformed text and image blocks do not erase valid sibling attachments from the same tool result → remove the image data string check.
+- `storage/storage-sheet-ipc.test.ts`: an inconsistent registry entry cannot turn a listed website into a Trash target → drop the resolved target's `kind === "folder"` check and route any target with a directory to Trash.
+- `update-check-now.test.ts`: an update error without diagnostics still gives retry guidance without an empty details section → remove the default for `errorDetails` so it appends undefined.
+- `renderer/use-site-workspace.hooks.render.test.ts`: a parked route applies its saved scroll and reports an unexpected guest failure once → omit the host-provided restore diagnostic callback.

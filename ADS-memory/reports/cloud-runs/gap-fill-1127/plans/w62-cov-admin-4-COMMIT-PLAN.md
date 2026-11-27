@@ -1,0 +1,120 @@
+# Admin coverage gap fill
+
+Mutations below are static Author Checklist checks only. No tests or mutations were executed.
+
+- menus/html-rules.ts: quotes an apostrophe -> remove the apostrophe replacement.
+- menus/html-rules.ts: starts a completely empty menu -> return an empty string for zero items.
+- menus/html-rules.ts: keeps flat links unwrapped -> use "#" instead of lastKnownHref, or stop escaping link attributes.
+- menus/html-rules.ts: preserves sibling order and emits theme depth hooks -> recurse at the same depth.
+- menus/html-rules.ts: saves html over items -> omit the HTML body; saves items over html -> omit the explicit mode; saves items over items/undefined -> send HTML or force a mode.
+- menus/hooks/menu-tree.ts: uses browser UUIDs -> always use the fallback ID.
+- menus/hooks/menu-tree.ts: combines clock and entropy -> omit the random suffix, or require an existing randomUUID method.
+- menus/hooks/menu-tree.ts: changes only the selected nested leaf -> apply the transform one level too early.
+- menus/hooks/menu-tree.ts: removes a nested leaf -> remove the parent instead of recursing.
+- menus/hooks/menu-tree.ts: appends a root or child -> replace existing children rather than appending.
+- menus/hooks/menu-tree.ts: moves within a sibling group -> reorder root siblings for a nested move or allow an index past the end.
+- menus/hooks/menu-tree.ts: does not map or remove for empty selection -> treat [] as index 0.
+- menus/api/menus-api.ts: posts a menu -> drop options.html or serialize default mode on plain creation.
+- observability/api/observability-api.ts: reads workspace status and gaps -> use GET for the test signal or point the gaps read at status.
+- observability/api/observability-api.ts: leaves unfiltered URL bare -> filter out numeric zero or serialize an undefined filter.
+- media/api/media-api.ts: targets live catalog, plain grid, cursor and exact item -> omit the itemId param or use the credentials route for catalog reads.
+- media/api/media-api.ts: serves original from admin and delegates rendition -> use a relative rendition URL or stop encoding the id.
+- media/api/media-api.ts: reads sniffed type (200 typed / 200 missing / 404 typed) -> return no type for a valid header / return raw null for a missing header / trust the error page's type.
+- media/api/media-api.ts: uses browser fetch by default -> use GET or swallow the transport rejection.
+- media/api/media-api.ts: keeps the mutation endpoints distinct -> use DELETE for trash or omit the null width from the patch.
+- media/api/media-api.ts: isolates private documents and forwards offsets -> omit kind=document or omit the continuation offset.
+- media/media-providers-port.ts: retains valid cards -> stop filtering, drop card fields, or reverse the host order.
+- media/media-providers-port.ts: does not treat malformed or missing catalog -> return [] for a malformed body.
+- media/media-providers-port.ts: distinguishes unreachable host from authoritative empty catalog -> normalize successful empty [] to null.
+- media/pinned-media-providers.ts: pins only the self-hosted option -> remove or replace custom-image.
+- media/rules.ts: localizes specific attribute hints -> route the named reason to the generic message (each row), or substitute a string replacement that interprets $& in malformed text.
+- media/rules.ts: uses native sizing only for blank input -> parse empty/whitespace as zero, or return null for numeric text.
+- media/rules.ts: reads a payload from browser result -> keep the data URL prefix, discard a bare payload, or stringify null directly, respectively.
+- media/rules.ts: rejects the browser's file error -> replace its own error with the fallback or remove the fallback.
+- media/rules.ts: counts and filters asset families -> include trashed rows on All, exact-match types, or publish zero counts before loading finishes.
+- media/rules.ts: warns only on tabs that hide untyped active rows -> count trashed rows or treat octet-stream as undetected.
+- media/rules.ts: sorts by title or date -> use ascending ID on timestamp ties or omit case folding.
+- media/rules.ts: provides accessible fallbacks -> prefer title over alt.
+- media/rules.ts: labels uploads by family -> use the mixed label for either filtered family (or a single-family label on All/Trash).
+- media/rules.ts: fills within landscape bounds -> change either inclusive edge to exclusive, or remove the relevant bound for an outside row.
+- media/rules.ts: distinguishes long images -> include a 3:1 image as long, skip duration rounding, or show a long-image badge on video.
+- media/rules.ts: keeps purge and restore errors distinct -> classify restore as a delete or prioritize list failure.
+- media/rules.ts: delivers the row action -> dispatch purge to onTrash or omit the selected row from onSelect.
+- media/rules.ts: resolves editors and lightboxes -> mistake index zero for closed or return undefined for a missing editor.
+- media/MediaGridOrEmpty.tsx: shows each tab's own empty guidance -> swap that tab's copy or render All for the filtered/Trash tab.
+- media/{Media.tsx,MediaLibraryPanel.tsx,MediaGridOrEmpty.tsx}: preserves server counts and scoped notices -> count only loaded rows, suppress a missing item, show untyped notice on All, or drop the conversion status.
+- media/{MediaLibraryPanel.tsx,MediaToolbar.tsx,MediaGridOrEmpty.tsx}: delivers Load more and updates order/size -> disconnect loadMore or stop applying selected grid size to the grid.
+- media/{Media.tsx,MediaGridOrEmpty.tsx,MediaLibraryPanel.tsx,MediaLightbox.tsx,MediaPreview.tsx}: opens selected asset and resets on Next -> use a constant expand index, remove the item key or mount the grid-style still in the lightbox.
+- media/{MediaCards.tsx,Media.tsx,use-media-preview.hooks.ts}: renders loaded shape, bytes and viewer-local date -> drop loaded size, ignore the viewer zone or render an empty metadata paragraph.
+- media/{MediaCards.tsx,MediaLibraryPanel.tsx,MediaPurgeDialog.tsx}: targets purge and clears on Cancel -> forward the wrong item, bypass confirmation, disable on unrelated row save or leave the dialog open.
+- media/{MediaCards.tsx,MediaPurgeDialog.tsx}: disables the pending row -> omit rowSavingId from Restore or confirmation pending.
+- media/MediaToolbar.tsx: video picker, alt and submit -> send image accepts for Videos, discard alt edits or disconnect the form submit.
+- media/MediaToolbar.tsx: locks controls during upload -> leave file input enabled, emit ordinary Upload copy or always render an alert.
+- media/MediaPreview.tsx: opens a muted still and keeps Edit/download after failure -> add native controls to the grid video, render the blur on video, or drop edit/download from the fallback.
+- media/{MediaEditChildren.tsx,MediaEditPanel.tsx,MediaEditFields.tsx}: reuses dialog and reseeds draft -> remove the panel's item key or pass the old item ID to save.
+- media/{MediaEditFields.tsx,MediaEditPanel.tsx,hooks/use-edit-media-panel.hooks.ts}: each field and retry -> swap caption/credit setters, disable Save on the advisory hint, suppress the server error or clear the draft on failure.
+- media/{MediaEditFields.tsx,hooks/use-edit-media-panel.hooks.ts}: copies read-only rows -> bind embed to hash copy or disregard the copied feedback.
+- media/MediaEditChildren.tsx: routes native cancel and backdrop -> remove either event binding or attach the dismiss handler to inner form controls.
+- media/hooks/use-media-item-link.hooks.ts: encodes one item -> interpolate its raw ID into the URL.
+- media/hooks/use-media-item-link.hooks.ts: opens bookmark and replaces changes -> push history, only sync on mount, or omit the no-ID replacement.
+- media/hooks/use-media-item-link.hooks.ts: reports missing only when loaded -> equate null list with empty or skip checking for missing IDs.
+- media/hooks/use-media-card-details.hooks.ts: browser with no matchMedia -> call missing matchMedia unconditionally.
+- media/hooks/use-media-card-details.hooks.ts: initial phone match -> read only an injected matchMedia, or defer the browser's match until a change.
+- media/hooks/use-edit-media-panel.hooks.ts: no-op and explicit clears -> write an empty patch or send literal whitespace for a nullable override.
+- media/hooks/use-edit-media-panel.hooks.ts: missing URL and denied clipboard -> remove null guard or set copied before awaiting success.
+- media/hooks/use-edit-media-panel.hooks.ts: expires independent acknowledgements -> remove a reset timer, use 1499 ms, or reset all flags from a single timer.
+- library/hooks/use-library.hooks.ts: publishes permissions and refreshes sorted documents -> treat unknown permissions as allowed, skip the named media invalidation, or return upload order.
+- library/hooks/use-library.hooks.ts: surfaces list failure and absent permissions -> swallow list error or grant rename when identity has no permissions.
+- library/hooks/use-library.hooks.ts: validates and drains one at a time -> enqueue invalid files, remove running guard, lose appended queued files or clear pending rows.
+- library/hooks/use-library.hooks.ts: recovers after unreadable file -> leave the drain locked in finally or upload despite read failure.
+- library/hooks/use-library.hooks.ts: renames trimmed stem and retries -> submit the raw/invalid draft, remove pending guard or discard the edit on failure.
+- library/hooks/use-library.hooks.ts: trashes only one row and closes its preview -> remove the pending guard, close a different item's preview, or omit list invalidation.
+- library/hooks/use-library.hooks.ts: distinguishes Markdown/text/Office/error -> render text as Markdown, fetch a download-only row, or suppress errors.
+- library/hooks/use-library.hooks.ts: ignores older or closed preview results -> remove the ticket comparison or the close-time increment.
+- library/hooks/use-library.hooks.ts: owns PDF URLs and releases them -> create a URL before the ticket check, omit PDF MIME typing, or remove URL revocation.
+- menus/{Menus.tsx,hooks/use-menus.hooks.ts}: loads then shows empty guidance -> render zero menus before load or omit the host's new-menu href.
+- menus/{Menus.tsx,hooks/use-menus.hooks.ts}: original and fallback list errors -> hide failures behind loading, or omit the non-Error normalization.
+- menus/{Menus.tsx,hooks/use-menus.hooks.ts}: links by slug and trashes only confirmed ID -> link using ID, trash the clicked row without confirmation or send slug instead of ID.
+- menus/{Menus.tsx,hooks/use-menus.hooks.ts}: displays each trash failure -> use generic text for version conflict, other ApiError or Error, or display the non-Error rejection verbatim instead of fallback.
+- menus/hooks/use-menus.hooks.ts: quietly refreshes a 404 trash -> report the 404 as a banner or omit list invalidation.
+- menus/hooks/use-menus.hooks.ts: pending state belongs to confirmed row -> unconditionally clear pendingTrash when an older write settles.
+- menus/hooks/menus-dependencies.hooks.ts: persists authored menus under both keys -> omit HTML or remove the slug fallback.
+- menus/hooks/menus-dependencies.hooks.ts: keeps HTML through items edit and rejects nonexistent IDs -> replace omitted HTML with undefined or let writes target an unknown menu.
+- menus/hooks/use-menu-editor-writes.hooks.ts: creates authored menu once -> lose the create mode/body, remove synchronous re-entry guard or omit navigation to the returned slug.
+- menus/hooks/{use-menu-editor.hooks.ts,use-menu-editor-state.hooks.ts}: loads pages only for links, seeds and preserves HTML -> always request pages, skip catalog paths, drop add/remove wiring, or reinitialize HTML on every switch.
+- menus/hooks/use-menu-editor.hooks.ts: normalizes each failed read -> use the generic fallback regardless of Error or stringify the non-Error response.
+- menus/hooks/use-menu-editor-writes.hooks.ts: exposes each non-conflict save failure -> return conflict/generic text for an Error or stringify a non-Error.
+- menus/hooks/use-menu-editor-writes.hooks.ts: copies saved slug and keeps refusal local -> use draft slug or publish even a clipboard refusal.
+- menus/hooks/use-menu-editor.hooks.ts: ignores an old read (resolved/rejected) -> remove the cancellation guard on successful hydration or on error respectively.
+- menus/page-link-rules.ts: updates nested legacy selection -> skip recursion or classify an explicit post as a page.
+- menus/{MenuEditor.tsx,MenuModeTabs.tsx}: changes editor mode by keyboard and click -> disconnect the keyboard adapter, or send the same tab ID on every click.
+- menus/{MenuItemRow.tsx,MenuPageLinkFields.tsx}: renders page picker and dispatches nested actions -> render a generic ID input or truncate the path sent to page/move/remove callbacks.
+- menus/{MenuItemFields.tsx,MenuItemRow.tsx}: keeps label editable for unknown wire target -> render a URL input or replace the target while changing the label.
+- observability/Observability.tsx: distinguishes checking/failure/disabled -> show checking after error, misstate OFF as ON, or omit product-name substitution.
+- observability/Observability.tsx: provider evidence and diagnostic/refresh clicks -> label failed exports as successful, omit HTTP status, or omit the send/refresh callbacks.
+- observability/Observability.tsx: pending/empty/absent-sender diagnostics -> allow parallel clicks or render the Send button without a host callback.
+- observability/Observability.tsx: mounts selected tab and forwards navigation -> omit or eagerly mount Recent errors/Tool gaps, or drop nextTabId.
+- observability/Observability.tsx: default Queries panel is lazy and read-only -> drop readOnly, or eagerly mount the cache panel.
+- observability/Observability.tsx: host Queries panel -> disregard the override, invert readOnly, or drop the bound translator.
+- media/{Media.tsx,MediaLibraryPanel.tsx}: separates initial failure from stale data -> render the grid while loading or hide existing rows on error.
+- media/{MediaCards.tsx,MediaPreview.tsx,hooks/use-media-preview.hooks.ts}: phone title and valid decoder dimensions -> send a different row to edit, accept zero dimensions or omit the duration on a loaded video.
+- media/hooks/use-media.hooks.ts: fileless submit, Cancel and successful conversion -> read without a file, clear draft on Cancel, ignore the conversion notice or fail to reset filename/alt on success.
+- media/hooks/use-media.hooks.ts: failed reads and typed refusal stay local -> swallow read failure, reset the wrong error state, skip the typed copy or leak it onto the page.
+- media/hooks/use-media.hooks.ts: switches editor and closes on save -> always open on repeat or leave the editor open after save.
+- menus/hooks/use-menu-editor.hooks.ts: keeps new route loading -> remove cancelled check in the previous load's finally.
+- menus/hooks/use-menu-editor-writes.hooks.ts: suppresses a different route's save settlement (resolved/rejected) -> remove active route comparison before commit or before reporting an error, respectively.
+- menus/hooks/use-menu-editor-writes.hooks.ts: suppresses a different route's copy settlement (resolved/rejected) -> remove the active route check before copied feedback or in the catch, respectively.
+- menus/MenuEditor.tsx: independent title/slug and nested row callbacks -> swap input setters or map nested row callback to a root path.
+- media/api/media-api.ts: reads markers and preserves omitted write options -> use catalog URL for marker read or replace a default empty patch with a field clear.
+- menus/api/menus-api.ts: tree-only write -> omit expectedVersion, fill in default authoring or splice the raw ID into the URL.
+- menus/hooks/menu-tree.ts: does not redirect nonexistent descendants -> drop the empty-child fallback or apply actions to the nearest existing ancestor.
+- menus/MenuItemFields.tsx: advanced presentation edits -> write Link rel into the icon slot, ignore the checkbox or discard the target/other attrs.
+- media/{MediaCards.tsx,MediaLibraryPanel.tsx,MediaEditChildren.tsx}: card editor Cancel and Save -> omit the selected asset or disconnect setEditingId(null) or onMetadataSaved.
+- menus/hooks/use-menu-editor-writes.hooks.ts: cannot save or copy a still-loading menu -> attempt to use the absent saved menu before it has loaded.
+
+## Static coverage exceptions for cloud review
+
+- menus/html-rules.ts:13 — the replacement callback receives only the five characters its exhaustive regex and table share.
+- menus/hooks/menu-tree.ts:67 — the zero default is for typing and cannot apply to the nonempty dense paths constructed by the UI.
+- menus/hooks/use-menu-editor.hooks.ts:102,114 — the load effect never invokes the loader in create mode, and the page query is disabled without a listPages port.
+- media/rules.ts:264 — separate valid assets have distinct IDs, so the ID sort tie-break does not produce equality.
