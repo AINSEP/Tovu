@@ -1,6 +1,10 @@
 import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import type { ChatDeleteSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-surface-exchanges';
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -12,6 +16,10 @@ import type { MailProviderControl } from "@jini-ai/platform/mail";
 import { currentLanesDetail, mailProviderDerivedRisk, readCurrentLanes, asToolInputError } from "@jini-ai/user-management/mail/status/provider-tool-registrations";
 import { buildMailProviderRegistrations, contributeMailProviderTools, type MailProviderToolDeps } from "../provider-tool-registrations.js";
 import { buildMailStatusRegistrations } from "../tool-registrations.js";
+import { agentPluginActivations } from "../../agent-plugins/activation-effects.js";
+import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../agent-plugins/lifecycle.js";
+import { forceRemove } from "../../agent-plugins/__tests__/fixtures/force-remove.js";
 
 /**
  * @file The provider configuration tools (`mail_list_providers`, `mail_configure_provider`) and
@@ -158,4 +166,41 @@ test("system_get_mail_status passes refresh through only when it is true", async
   await f.call("system_get_mail_status", { refresh: true });
   await f.call("system_get_mail_status", { refresh: "yes" });
   assert.deepEqual(seen, [{ refresh: false }, { refresh: true }, { refresh: false }]);
+});
+
+test("mail discovery lists disabled mail plugins in the mounted workspace without requiring a description", async t => {
+  const root = await mkdtemp(path.join(tmpdir(), "mail-provider-discovery-"));
+  t.after(() => forceRemove(root));
+  const workspaceId = "77777777-7777-4777-8777-777777777777";
+  const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
+  for (const [name, capability] of [["fixture-mail", "outbound-mail"], ["fixture-search", "site-search"]] as const) {
+    const archive = Buffer.from(`fixture for ${name}`);
+    const entries = [
+      ["plugin.json", JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name, version: "1.0.0",
+        extensions: { jini: { id: `jini/${name}`, provides: [capability] } } })],
+      [`skills/${name}/SKILL.md`, `---\nname: ${name}\n---\n# ${name}\nFixture instructions.`],
+    ] as const;
+    const result = await installAgentPlugin({
+      archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), layout, workspaceId,
+      archiveReader: { async *entries({ archive: supplied }): AsyncGenerator<AgentPluginArchiveEntry> {
+        assert.deepEqual(Buffer.from(supplied), archive);
+        for (const [entryPath, text] of entries) {
+          const bytes = Buffer.from(text);
+          yield { entryPath, kind: "file", declaredSize: bytes.byteLength, executable: false,
+            async *openReadStream() { yield bytes; } };
+        }
+      } },
+    });
+    assert.equal(result.pluginId, name);
+  }
+  const workspaceRoot = layout.forWorkspace({ workspaceId }).root;
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-mail", enabled: false, actor: "owner" });
+  const mounted = providerTools({ workspaceId, agentPluginLayout: layout });
+
+  const result = await mounted.call("mail_list_providers");
+  assert.deepEqual(result, {
+    ...report([PROVIDER]), availablePlugins: [{ pluginId: "fixture-mail", description: "", enabled: false, mcpServers: [] }],
+  });
+  const other = providerTools({ workspaceId: "88888888-8888-4888-8888-888888888888", agentPluginLayout: layout });
+  assert.deepEqual(await other.call("mail_list_providers"), { ...report([PROVIDER]), availablePlugins: [] });
 });

@@ -139,6 +139,7 @@ test("every command re-checks access with the actor and a denial is a plain refu
 
 test("non-ready availability refuses with the stable reason and plain sentence", async () => {
   const expected: Array<[RoutineAvailability, string, string]> = [
+    ["starting", "ROUTINES_STARTING", "Routines are still starting. Try again in a moment."],
     ["desktop-only", "ROUTINES_UNAVAILABLE", "Routines run only while the desktop app is open."],
     ["assistant-off", "ROUTINES_ASSISTANT_OFF", "Turn on the AI assistant to run routines."],
     ["other-window", "ROUTINES_LEASE_HELD", "Routines for this site are running in another Tovu window."],

@@ -149,3 +149,49 @@ test("a beacon write failure logs a diagnostic, never throws, and leaves the pre
   assert.deepEqual(JSON.parse(readFileSync(beacon, "utf8")), { v: 1, enabled: 1, updatedAt: 1 });
   assert.equal(existsSync(`${beacon}.tmp`), false, "the temp file is cleaned up");
 });
+
+test("a sidecar close failure after failed migration preserves degraded availability and diagnoses both failures", async () => {
+  const migrationError = new Error("schema history mismatch");
+  const closeError = new Error("connection could not close");
+  const events: unknown[] = [];
+  const opened = await openRoutineSidecar({
+    contentDbPath: "/site/content.db",
+    openSqlite: () => ({ pragma: () => {}, close: () => { throw closeError; } }) as never,
+    runMigrations: {},
+    migrate: async () => { throw migrationError; },
+    scope: "ws-1", holderId: "boot-1", now: () => 1000, newId: () => "r1",
+  }, {
+    mkdir: () => {},
+    kernelOf: () => ({}),
+    createStore: () => assert.fail("an unmigrated sidecar must not leave a usable store"),
+    log: entry => { events.push(entry); },
+  });
+
+  assert.equal(opened.ok, false);
+  if (opened.ok) assert.fail("the sidecar should be unavailable");
+  assert.equal(opened.availability, "error");
+  assert.deepEqual(events, [
+    { event: "routine-sidecar-open-failed", error: migrationError },
+    { event: "routine-sidecar-close-failed", error: closeError },
+  ]);
+});
+
+test("the default beacon filesystem writes a readable beacon and removes its temp file on a failed replacement", async (t) => {
+  const root = tempSite(t);
+  const beacon = path.join(root, "ops", "routines-beacon.json");
+  assert.deepEqual(await writeRoutineBeacon({ path: beacon, enabled: 3, now: () => 731 }), { ok: true });
+  assert.deepEqual(parseRoutineBeacon({ text: readFileSync(beacon, "utf8") }), { v: 1, enabled: 3, updatedAt: 731 });
+  assert.equal(existsSync(`${beacon}.tmp`), false);
+
+  const occupied = path.join(root, "ops", "occupied");
+  mkdirSync(occupied);
+  const child = path.join(occupied, "keep.txt");
+  writeFileSync(child, "untouched");
+  const logs: string[] = [];
+  assert.deepEqual(await writeRoutineBeacon({ path: occupied, enabled: 0, now: () => 732 }, {
+    log: ({ event }) => { logs.push(event); },
+  }), { ok: false });
+  assert.deepEqual(logs, ["routine-beacon-write-failed"]);
+  assert.equal(readFileSync(child, "utf8"), "untouched");
+  assert.equal(existsSync(`${occupied}.tmp`), false);
+});

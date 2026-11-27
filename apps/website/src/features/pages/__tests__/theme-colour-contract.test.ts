@@ -4,7 +4,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { pagesAgentToolCatalog } from "#src/features/pages/tool-host";
-import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
+import { scanHtmlRegions } from "@jini-ai/vibecoding/html/node";
+import { DEFAULT_PAGE_SKELETON, PAGE_SKELETON_REGIONS } from "../skeleton.js";
 
 /**
  * Regression (demo video V1, 2026-10-05): the page-writing contract said "style with theme tokens"
@@ -65,4 +66,15 @@ test("the starter skeleton only uses token names the shipped themes define, and 
   const used = [...DEFAULT_PAGE_SKELETON.matchAll(/var\((--[a-z0-9-]+)/g)].map((match) => match[1]);
   assert.deepEqual(used.filter((name) => !shared.has(name)), []);
   assert.doesNotMatch(DEFAULT_PAGE_SKELETON, /\.page-(hero h1|body)\s*\{[^}]*\bcolor:/);
+});
+
+test("the starter fragment provides the advertised unique, editable regions without site chrome", () => {
+  const scan = scanHtmlRegions({ html: DEFAULT_PAGE_SKELETON });
+  const handles = ["page-hero", "page-body", "page-cta"];
+  assert.deepEqual(scan.parseErrorReasons, []);
+  assert.deepEqual(PAGE_SKELETON_REGIONS, handles);
+  assert.deepEqual(scan.regions.map(({ handle, tag, role, problem }) => ({ handle, tag, role, problem })),
+    handles.map(handle => ({ handle, tag: "section", role: "region", problem: undefined })));
+  assert.deepEqual(scan.topLevel.map(({ tag }) => tag), ["section", "section", "section", "style"]);
+  assert.doesNotMatch(DEFAULT_PAGE_SKELETON, /<\/?(?:html|head|body|nav|footer)(?:\s|>)/i);
 });

@@ -28,3 +28,17 @@ test('picked-folder relative, absolute and home-relative paths resolve to the sa
     assert.throws(() => resolveSiteFileRequest({ routeDeps, root: 'custom', relativePath: 'escape/private.txt' }), /symbolic link/);
   }
 });
+
+test('an absolute selection of the picked directory itself lists its root, not an empty path', t => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'picked-root-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const site = path.join(base, 'site');
+  const picked = path.join(base, 'picked');
+  fs.mkdirSync(site);
+  fs.mkdirSync(picked);
+  const routeDeps = { workspaceId: 'ws', siteBinding: { dir: site }, resolveRoots: () => ({ site, custom: picked, repo: base }) };
+
+  assert.deepEqual(resolveSiteFileRequest({ routeDeps, root: 'custom', relativePath: picked }), {
+    rootPath: fs.realpathSync(picked), relativePath: '.',
+  });
+});

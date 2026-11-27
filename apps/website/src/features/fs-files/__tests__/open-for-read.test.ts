@@ -161,3 +161,35 @@ for (const maxBytes of [0, -1, 1.5, NaN, Infinity]) {
     assert.equal(streamSpy.mock.callCount(), 0);
   });
 }
+
+test("guarded stream rejects growth after length is advertised, even below the caller's cap", async (t) => {
+  const { rootPath } = fixture(t);
+  const target = path.join(rootPath, "clip.mp4");
+  fs.writeFileSync(target, Buffer.from([0, 255, 19, 128]));
+
+  await assert.rejects(files.withLocalStream({
+    rootPath, relativePath: "clip.mp4", maxBytes: 20,
+    consume: async ({ length, chunks }) => {
+      assert.equal(length, 4);
+      fs.appendFileSync(target, Buffer.from([9]));
+      for await (const chunk of chunks) {
+        assert.fail(`unexpected delivery of ${chunk.byteLength} bytes after descriptor growth`);
+      }
+    },
+  }), refused("file 'clip.mp4' grew beyond its 4-byte descriptor length"));
+});
+
+test("an abort during a guarded stream reaches the consumer as the original abort reason", async (t) => {
+  const { rootPath } = fixture(t);
+  fs.writeFileSync(path.join(rootPath, "clip.mp4"), Buffer.from([0, 255]));
+  const controller = new AbortController();
+  const reason = new Error("upload cancelled");
+
+  await assert.rejects(files.withLocalStream({
+    rootPath, relativePath: "clip.mp4", maxBytes: 4,
+    consume: async ({ chunks }) => {
+      controller.abort(reason);
+      for await (const chunk of chunks) assert.fail(`cancelled read delivered ${chunk.byteLength} bytes`);
+    },
+  }, { signal: controller.signal }), (error: unknown) => error === reason);
+});

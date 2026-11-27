@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, ToolInputError } from "@jini-ai/core";
+import type { HumanConfirmSpec } from "@jini-ai/core/contracts/site/human-confirm";
 import type { RoutineActor, RoutineAvailability } from "@tovu/contracts/routines";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../../../assistant/mcp-ui-tool-calls.js";
@@ -41,8 +42,9 @@ function rig(overrides: Overrides = {}) {
     delete: async () => { events.push("delete"); if (overrides.writeError) throw overrides.writeError; return { ok: true as const }; },
   };
   const cards: string[] = [];
-  const confirm = async ({ spec }: { spec: { toolId: string } }) => {
-    events.push("card"); cards.push(spec.toolId);
+  const cardSpecs: HumanConfirmSpec[] = [];
+  const confirm = async ({ spec }: { spec: HumanConfirmSpec }) => {
+    events.push("card"); cards.push(spec.toolId); cardSpecs.push(spec);
     return typeof overrides.confirm === "function" ? overrides.confirm() : overrides.confirm ?? { confirmed: true as const };
   };
   const host = {
@@ -54,9 +56,9 @@ function rig(overrides: Overrides = {}) {
   };
   const contributor = contributeRoutineTools({ ...host, requireHumanConfirm: confirm as never });
   const registrations = contributor.build({ workspaceId: "ws-1", authorize: async () => ({ allowed: true }) } as never, {} as never);
-  const call = (id: string, input: unknown) => registrations.find(r => r.descriptor.id === id)!.handler(
-    { input, principal: { id: "owner-1" }, signal: new AbortController().signal } as never, { emitSurface: () => {} } as never) as Promise<Record<string, unknown>>;
-  return { events, cards, call, registrations, contributor, host };
+  const call = (id: string, input: unknown, principalId: string | null = OWNER.principalId) => registrations.find(r => r.descriptor.id === id)!.handler(
+    { input, principal: principalId === null ? undefined : { id: principalId }, signal: new AbortController().signal } as never, { emitSurface: () => {} } as never) as Promise<Record<string, unknown>>;
+  return { events, cards, cardSpecs, call, registrations, contributor, host };
 }
 
 const CREATE_INPUT = { name: "Digest", prompt: "Summarise", schedule: { kind: "hourly", minute: 5 } };
@@ -218,4 +220,81 @@ test("the BYOK surface hides all four ids from an unbound, visitor or not-ready 
   }
   const owner = withoutHiddenTools({ catalog: base, hidden: await hidden(true) }) as { search: (i: unknown) => { id: string }[] };
   assert.equal(owner.search({}).length, 3);
+});
+
+test("unsigned routine list requests fail before disclosing state", async () => {
+  const { call, events } = rig();
+  await assert.rejects(() => call("routine_list", {}, null), (error: unknown) =>
+    error instanceof ToolInputError && error.message === "routine_list: no signed-in principal.");
+  assert.deepEqual(events, []);
+});
+
+test("missing write coordinates are refused before reading a row or opening a card", async () => {
+  const { call, events } = rig({ owners: Array.from({ length: 7 }, () => OWNER) });
+  for (const input of [{ ...CREATE_INPUT, name: " " }, { ...CREATE_INPUT, prompt: 19 }]) {
+    assert.deepEqual(await call("routine_create", input), { created: false, error: "A routine needs a name and a prompt." });
+  }
+  for (const input of [
+    { id: "", enabled: false, revision: 3 }, { id: "r1", enabled: false, revision: "3" }, { id: "r1", enabled: "false", revision: 3 },
+  ]) {
+    assert.deepEqual(await call("routine_set_enabled", input), {
+      changed: false, error: "Pass the routine id, enabled and the revision from routine_list.",
+    });
+  }
+  for (const input of [{ id: null, revision: 3 }, { id: "r1" }]) {
+    assert.deepEqual(await call("routine_delete", input), {
+      deleted: false, error: "Pass the routine id and the revision from routine_list.",
+    });
+  }
+  assert.deepEqual(events, []);
+});
+
+test("create confirms the actual schedule, prompt, agent and model", async () => {
+  for (const [schedule, expected] of [
+    [{ kind: "hourly", minute: 7 }, "Every hour at 07 minutes past"],
+    [{ kind: "daily", time: "09:25", timezone: "America/Los_Angeles" }, "every day at 09:25 (America/Los_Angeles)"],
+    [{ kind: "weekdays", time: "09:25", timezone: "America/Los_Angeles" }, "weekdays at 09:25 (America/Los_Angeles)"],
+    [{ kind: "weekly", weekday: "monday", time: "09:25", timezone: "America/Los_Angeles" }, "every monday at 09:25 (America/Los_Angeles)"],
+  ] as const) {
+    const { call, cardSpecs } = rig();
+    const result = await call("routine_create", { name: "Daily notes", prompt: "Review the queue", schedule, agentId: "claude", model: "sonnet" });
+    assert.equal(result.created, true);
+    assert.deepEqual(cardSpecs.map(({ title, confirmLabel, danger, description, details }) =>
+      ({ title, confirmLabel, danger, description, details })), [{
+      title: "Create routine", confirmLabel: "Create routine", danger: false,
+      description: "Daily notes\nThis routine runs only while Tovu is open and your computer is awake",
+      details: [
+        { label: "Schedule", value: expected }, { label: "Prompt", value: "Review the queue" },
+        { label: "Agent", value: "claude" }, { label: "Model", value: "sonnet" },
+      ],
+    }]);
+  }
+});
+
+test("pause, resume and delete show distinct actions for the reviewed row", async () => {
+  for (const [tool, input, title, danger] of [
+    ["routine_set_enabled", { id: "r1", enabled: false, revision: 3 }, "Pause routine", false],
+    ["routine_set_enabled", { id: "r1", enabled: true, revision: 3 }, "Resume routine", false],
+    ["routine_delete", { id: "r1", revision: 3 }, "Delete routine", true],
+  ] as const) {
+    const { call, cardSpecs } = rig();
+    await call(tool, input);
+    assert.deepEqual(cardSpecs.map(spec => [spec.toolId, spec.title, spec.confirmLabel, spec.danger]),
+      [[tool, title, title, danger]]);
+    assert.deepEqual(cardSpecs[0]?.details, [
+      { label: "Schedule", value: "Every hour at 05 minutes past" }, { label: "Prompt", value: "Summarise" },
+      { label: "Agent", value: "Default" }, { label: "Model", value: "Default" },
+    ]);
+  }
+});
+
+test("unexpected confirmation and storage errors reach the caller instead of becoming routine refusals", async () => {
+  const cardError = new Error("approval service disconnected");
+  const card = rig({ confirm: async () => { throw cardError; } });
+  await assert.rejects(() => card.call("routine_create", CREATE_INPUT), (error: unknown) => error === cardError);
+  assert.deepEqual(card.events, ["card"]);
+  const storeError = new Error("commit unavailable");
+  const write = rig({ writeError: storeError });
+  await assert.rejects(() => write.call("routine_delete", { id: "r1", revision: 3 }), (error: unknown) => error === storeError);
+  assert.deepEqual(write.events, ["get", "card", "delete"]);
 });

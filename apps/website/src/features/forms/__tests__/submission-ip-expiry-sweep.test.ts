@@ -144,3 +144,24 @@ test("without onError, failures are warned with their message (or string form); 
     assert.throws(() => startSubmissionIpExpirySweep({ kernel, sweep: async () => 0 }, { intervalMs }), { name: "RangeError", message: "submission IP sweep interval must be positive" });
   }
 });
+
+test("an unavailable package remains disabled even if reporting the reason throws", async t => {
+  const get = Reflect.get;
+  t.mock.method(Reflect, "get", (target: object, key: PropertyKey) =>
+    key === "sweepExpiredSubmissionIps" ? undefined : get(target, key));
+  t.mock.method(globalThis, "setInterval", () => assert.fail("a disabled sweep must not schedule a timer"));
+  const errors: unknown[] = [];
+
+  const stop = startSubmissionIpExpirySweep({ kernel }, {
+    onError({ error }) {
+      errors.push(error);
+      throw new Error("logger offline");
+    },
+  });
+  await stop();
+  await stop();
+
+  assert.equal(errors.length, 1);
+  assert.ok(errors[0] instanceof Error);
+  assert.equal(errors[0].message, "disabled: published @jini-ai/cms-forms has no sweepExpiredSubmissionIps export; release/install Jini retention support");
+});

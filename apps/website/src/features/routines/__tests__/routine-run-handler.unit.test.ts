@@ -240,3 +240,26 @@ test("a refused acceptance is never tracked", async () => {
   await assert.rejects(async () => start(), /could not start this routine run/);
   assert.deepEqual(tracked, []);
 });
+
+test("an accepted run whose settlement cannot be read completes with the safe failure message", async () => {
+  const h = harness();
+  const failure = new Error("internal settlement store offline");
+  h.deps.runStarter.watchSettlement = async () => { throw failure; };
+  const handle = await h.handler(fire());
+  await handle.prepare!(h.row());
+  await handle.start!();
+
+  assert.equal(handle.agentRunId, "agent-run-1");
+  assert.deepEqual(await handle.completion, {
+    status: "failed", error: "Tovu could not read the result of this routine run.",
+  });
+});
+
+test("a canceled assistant run settles as canceled and retains its partial summary", async () => {
+  const h = harness({ settle: { status: "canceled", text: "Stopped\n by owner" } });
+  const handle = await h.handler(fire());
+  await handle.prepare!(h.row());
+  await handle.start!();
+
+  assert.deepEqual(await handle.completion, { status: "canceled", summary: "Stopped by owner" });
+});

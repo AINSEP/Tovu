@@ -95,3 +95,31 @@ test("an executable install needs server/index.mjs and a tier-3 declaration", ()
   assert.throws(() => checkInstall({ manifest, files: new Map([["tovu.plugin.json", Buffer.from("{}")]]) }), /server\/index\.mjs is required/);
   assert.throws(() => checkInstall({ manifest: { ...manifest, tier: "tier-2" }, files: withEntry }), /must declare tier-3/);
 });
+
+test("loading admits a trusted built-in or an unverified site tier, not a site claiming a verified tier", () => {
+  for (const [source, tier, allowed] of [
+    ["built-in", "tier-2", true], ["site", "tier-3", true], ["site", "tier-2", false],
+    ["site", "tier-1", false],
+  ] as const) {
+    const record: Parameters<typeof pluginHostBinding.tierPolicy.allowLoad>[0]["record"] = {
+      source, id: manifest.id, name: manifest.name, version: manifest.version, tier, status: "valid", errors: [],
+    };
+    assert.equal(pluginHostBinding.tierPolicy.allowLoad({ record, manifest: { ...manifest, tier } }), allowed, `${source}/${tier}`);
+  }
+});
+
+test("declarative packages may include nested data and images but not SVG", () => {
+  const declarative = { ...manifest, tier: "tier-1" as const };
+  const files = new Map([
+    ["tovu.plugin.json", Buffer.from("{}")],
+    ["data/entries.json", Buffer.from("[]")],
+    ["assets/cover.webp", Buffer.from([1])],
+    ["docs/LICENSE", Buffer.from("fixture")],
+  ]);
+  assert.doesNotThrow(() => pluginHostBinding.tierPolicy.checkInstall({ manifest: declarative, files }));
+  files.set("assets/interactive.svg", Buffer.from("<svg/>"));
+  assert.throws(() => pluginHostBinding.tierPolicy.checkInstall({ manifest: declarative, files }), {
+    name: "PluginInstallError", code: "PLUGIN_MANIFEST_INVALID",
+    message: "A declarative (tier-1) plugin must not ship code: assets/interactive.svg",
+  });
+});

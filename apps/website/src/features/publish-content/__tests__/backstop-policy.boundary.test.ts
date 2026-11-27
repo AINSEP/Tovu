@@ -53,3 +53,14 @@ describe("publish backstop hard boundaries", () => {
     assert.equal(gapLabelFor({ item: { entityType: "raw-file", relPath: "snippets/footer/custom.html" } }), "folder:snippets/footer");
   });
 });
+
+it("private-setting detection recognizes persisted secret flag encodings without blocking ordinary values", () => {
+  for (const secret of [true, "1"]) {
+    assert.equal(checkRawValues({ table: "SETTING_VALUES_WORKSPACE", values: { secret, key: "site.appearance", value: "ink" } }),
+      "Secret settings are never sent.");
+  }
+  for (const secret of [false, 0, "0"]) {
+    assert.equal(checkRawValues({ table: "SETTING_VALUES_WORKSPACE", values: { secret, key: "site.appearance", value: "ink" } }),
+      null);
+  }
+});

@@ -12,7 +12,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID, FS_WRITE_FILES_TOOL_ID } from "@jini-ai/cms/fs-files/agent-tools";
 import { MAX_FS_FILE_BYTES } from "../fs-files.js";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS, type FsRootId } from "../layout.js";
-import { buildFsFilesRegistrations, getHostFsFilesAgentToolCatalog, type FsFilesToolDeps, contributeFsFilesTools, preparePickedFolderBatch } from "../tool-registrations.js";
+import { buildFsFilesRegistrations, getHostFsFilesAgentToolCatalog, type FsFilesToolDeps, contributeFsFilesTools, preparePickedFolderBatch, resolvePickedFolder } from "../tool-registrations.js";
 import { fsFilesDerivedRisk } from "@jini-ai/cms/fs-files/tool-registrations";
 
 /**
@@ -445,4 +445,21 @@ test("picked-folder-escapes-root is refused before reading any file", t => {
   }
   assert.equal(reads, 0);
   assert.deepEqual(fs.readdirSync(custom), []);
+});
+
+test("direct picked-folder resolution follows a live workspace selection and refuses a cleared choice", t => {
+  const { roots } = makeFixtureRoots();
+  t.after(() => fs.rmSync(path.dirname(roots.site), { recursive: true, force: true }));
+  fs.mkdirSync(roots.custom);
+  const selection = { ...roots, custom: roots.custom as string | undefined };
+  const routeDeps: FsFilesToolDeps = {
+    workspaceId: "folder-workspace", siteBinding: { dir: roots.site },
+    authorize: async () => assert.fail("folder resolution does not authorize a tool call"),
+    resolveRoots: () => selection,
+  };
+  assert.equal(resolvePickedFolder({ routeDeps }), fs.realpathSync(roots.custom));
+  selection.custom = undefined;
+  assert.throws(() => resolvePickedFolder({ routeDeps }), {
+    message: "No folder is picked — ask the person to pick one with the composer's folder button",
+  });
 });

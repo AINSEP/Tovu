@@ -24,3 +24,31 @@ test("the Tovu binding redacts credential-shaped text from a failed send before 
   const saved = String(records.get("send-r")?.details.error);
   assert.ok(!saved.includes("hunter2hunter2"), saved);
 });
+
+test("the audit ledger shows pending during work, then distinguishes a preview from a sent run", async () => {
+  const records = new Map<string, BackstopAuditRecord>();
+  const audit: BackstopAuditPort = {
+    ready: async () => true, save: async ({ record }) => { records.set(`${record.workspaceId}/${record.id}`, record); },
+    get: async ({ workspaceId, id }) => records.get(`${workspaceId}/${id}`) ?? null, gaps: async () => [],
+  };
+  for (const [id, successResult, runId] of [
+    ["preview", "planned", null], ["send", undefined, "remote-run-7"],
+  ] as const) {
+    const record: BackstopAuditRecord = {
+      id, workspaceId: "ws", direction: "source", actorId: "owner", destination: "live.example",
+      reason: "Emergency footer fix", at: "2026-10-04T00:00:00.000Z", items: [], gapLabels: [],
+      result: "pending", runId: null, details: {}, inverses: [],
+    };
+    assert.equal(await audit.get({ workspaceId: "ws", id }), null);
+    const outcome = runId === null ? { selected: 3 } : { selected: 3, runId };
+    assert.deepEqual(await runAuditedBackstop({
+      audit, record, ...(successResult === undefined ? {} : { successResult }), work: async () => {
+        assert.deepEqual(await audit.get({ workspaceId: "ws", id }), record);
+        return outcome;
+      },
+    }), outcome);
+    assert.deepEqual(await audit.get({ workspaceId: "ws", id }), {
+      ...record, result: successResult ?? "success", details: outcome, runId,
+    });
+  }
+});

@@ -69,3 +69,25 @@ test("failed shared-key reads keep class and code while withholding secret messa
     assert.doesNotMatch(line, /boom|SECRETSECRETSECRETSECRET/);
   }
 });
+
+test("a failed grant inventory hides existing keys and reports only the fixed recovery diagnostic", async (t) => {
+  const vault = new InMemoryVaultRepo({});
+  const attachments = fakeAttachments();
+  await vault.put({ record: vaultRow(), expectedRevision: null });
+  await attachments.attach({ siteId: "site-a", siteName: "A", keyId: "key-a" });
+  const view = attachedOnlyVault({ vault, siteId: "site-a", attachments, policy: attachedVaultPolicy });
+  assert.deepEqual((await view.list(query)).map(row => row.id), ["key-a"]);
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
+  const requestedSites: string[] = [];
+  t.mock.method(attachments, "keysFor", async ({ siteId }: { siteId: string }) => {
+    requestedSites.push(siteId);
+    throw new Error("private credential attachment detail");
+  });
+
+  assert.deepEqual(await view.list(query), []);
+  assert.deepEqual(requestedSites, ["site-a"]);
+  assert.deepEqual(warnings, [[
+    "[shared-keys] Grants could not be read. Retry Shared Keys. Details: P25_GRANTS_READ_FAILED; secret values omitted.",
+  ]]);
+});

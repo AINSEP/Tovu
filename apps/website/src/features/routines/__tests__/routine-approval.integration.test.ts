@@ -6,7 +6,7 @@ import { createInMemoryRoutineStore } from "@jini-ai/daemon";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
 import { type HumanConfirmSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
-import { createRoutineApprovalObserver } from "../routine-approval-observer.js";
+import { createRoutineApprovalObserver, type ReadRunEvents } from "../routine-approval-observer.js";
 
 /**
  * @file P3-T3.T end to end in one process: the REAL Jini surface exchange (leased emitter), the REAL
@@ -19,7 +19,9 @@ const OWNER = "owner";
 const TRACKED = { routineRunId: "rr-1", agentRunId: "run-1", messageId: "m-1", principalId: OWNER, workspaceId: "ws-1" };
 const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setImmediate(resolve)); };
 
-function harness({ leased = true, tracked = true, toolId = "routine_delete" }: { leased?: boolean; tracked?: boolean; toolId?: string } = {}) {
+function harness({ leased = true, tracked = true, toolId = "routine_delete", readRunEvents = async () => [], maxTracked }: {
+  leased?: boolean; tracked?: boolean; toolId?: string; readRunEvents?: ReadRunEvents; maxTracked?: number;
+} = {}) {
   let nextId = 0;
   const exchanges = createSurfaceExchangeStore({ scheduler: { schedule: () => () => {} }, clock: { nowMs: () => 0 },
     idGenerator: { newId: () => `card-${++nextId}` }, defaultChannel: "mcp-ui" });
@@ -29,8 +31,8 @@ function harness({ leased = true, tracked = true, toolId = "routine_delete" }: {
   const routines = createInMemoryRoutineStore({});
   routines.recordRun({ run: { id: "rr-1", routineId: "r1", status: "running", startedAt: 0, approvalState: "none", approvalRef: null, approvalSince: null } as never });
   const logged: unknown[] = [];
-  const observer = createRoutineApprovalObserver({ persistence: routines, now: () => 1000, readRunEvents: async () => [], policy: { workspaceId: "ws-1" } },
-    { log: (entry) => { logged.push(entry); } });
+  const observer = createRoutineApprovalObserver({ persistence: routines, now: () => 1000, readRunEvents, policy: { workspaceId: "ws-1" } },
+    { log: (entry) => { logged.push(entry); }, ...(maxTracked === undefined ? {} : { maxTracked }) });
   if (tracked) observer.track(TRACKED);
   const abort = new AbortController();
   const cards: SurfaceEmission[] = [];
@@ -229,4 +231,59 @@ test("a projection failure is logged on the observer side and never reaches the 
   await flush();
   assert.equal(h.effects(), 1);
   assert.ok(h.logged.length >= 1);
+});
+
+test("the replay cursor advances over all events but only bound approval receipts update the stored row", async () => {
+  const reads: unknown[] = [];
+  const h = harness({
+    readRunEvents: async input => {
+      reads.push(input);
+      assert.deepEqual(input, { runId: "run-1", cursor: 7 });
+      return [{ kind: "tool-result" }, { kind: "open", exchangeId: "card-replayed" }];
+    },
+  });
+  const run = { runId: "run-1", messageId: "m-1", principalId: OWNER, workspaceId: "ws-1" };
+  assert.equal((await h.row()).approvalState, "none");
+  assert.deepEqual(await h.observer.observe({ ...run, runId: "unknown", cursor: 7 }), { cursor: 7 });
+  assert.deepEqual(reads, []);
+  assert.deepEqual(await h.observer.observe({ ...run, cursor: 7 }), { cursor: 9 });
+  assert.deepEqual(reads, [{ runId: "run-1", cursor: 7 }]);
+  const waiting = await h.row();
+  assert.deepEqual([waiting.approvalState, waiting.approvalRef, waiting.approvalSince], ["waiting", "card-replayed", 1000]);
+
+  const events = [{ kind: "answered", exchangeId: "card-replayed", confirmed: true }];
+  assert.deepEqual(await h.observer.observe({ ...run, workspaceId: "other-site", events, cursor: 9 }), { cursor: 10 });
+  assert.equal((await h.row()).approvalState, "waiting");
+  assert.deepEqual(await h.observer.observe({ ...run, events, cursor: 9 }), { cursor: 10 });
+  assert.equal((await h.row()).approvalState, "approved");
+  assert.deepEqual(reads, [{ runId: "run-1", cursor: 7 }]);
+});
+
+test("a foreign registration cannot displace the local waiting run from a full observer", async () => {
+  const h = harness({ maxTracked: 1 });
+  const run = { runId: "run-1", messageId: "m-1", principalId: OWNER, workspaceId: "ws-1" };
+  await h.observer.observe({ ...run, events: [{ kind: "open", exchangeId: "local-card" }] });
+  assert.equal((await h.row()).approvalRef, "local-card");
+
+  h.observer.track({ ...TRACKED, workspaceId: "other-site", agentRunId: "other-run", messageId: "other-turn" });
+  const binding = (id: string) => h.observer.bindingFor({ ctx: { run: { id }, principal: { id: OWNER } } });
+  assert.equal(binding("other-run"), undefined);
+  assert.equal(binding("run-1")?.restorable, false);
+
+  await h.observer.observe({ ...run, events: [{ kind: "answered", exchangeId: "local-card", confirmed: false }] });
+  assert.equal((await h.row()).approvalState, "declined");
+});
+
+test("evicting the oldest tracked run expires its pending approval and ignores a subsequent open", async () => {
+  const h = harness({ maxTracked: 1 });
+  const run = { runId: "run-1", messageId: "m-1", principalId: OWNER, workspaceId: "ws-1" };
+  await h.observer.observe({ ...run, events: [{ kind: "open", exchangeId: "old-card" }] });
+  const waiting = await h.row();
+  assert.deepEqual([waiting.approvalState, waiting.approvalRef], ["waiting", "old-card"]);
+  h.observer.track({ ...TRACKED, routineRunId: "rr-2", agentRunId: "run-2", messageId: "m-2" });
+
+  assert.deepEqual(await h.observer.observe({ ...run, events: [{ kind: "open", exchangeId: "late" }] }), { cursor: 0 });
+  await flush();
+  assert.equal((await h.row()).approvalState, "expired");
+  assert.equal(h.observer.bindingFor({ ctx: { run: { id: "run-2" }, principal: { id: OWNER } } })?.restorable, false);
 });

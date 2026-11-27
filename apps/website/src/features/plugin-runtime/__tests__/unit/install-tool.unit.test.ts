@@ -255,3 +255,63 @@ test("the contributor registers plugins_install in its own domain with its risk 
   assert.equal(contributor.domain, "plugins-install");
   assert.equal(contributor.risk, derivedRisk);
 });
+
+test("a missing local ZIP is refused with the requested path before installer preview", async t => {
+  const root = await mkdtemp(path.join(tmpdir(), "plugins-install-missing-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const archive = path.join(root, "missing.zip");
+  const installer = fakeInstaller();
+
+  await assert.rejects(() => run(deps({ pluginInstaller: installer.port }), { source: { kind: "zip", path: archive } }),
+    (error: unknown) => error instanceof ToolInputError && error.message === `No readable ZIP at ${archive}.`);
+  assert.deepEqual(installer.previews, []);
+  assert.deepEqual(installer.installs, []);
+});
+
+test("the contributor supplies the owner-scoped attachment reader to its registered installer", async () => {
+  const installer = fakeInstaller();
+  const archive = Buffer.from("reviewed attachment bytes");
+  const calls: unknown[] = [];
+  const contributor = contributePluginsInstallTools({
+    readInstallAttachment: async (input, options) => {
+      calls.push({ input, options });
+      return { ok: true, bytes: archive };
+    },
+  });
+  const registrations = contributor.build(deps({ pluginInstaller: installer.port }), {});
+  const registration = registrations.find(entry => entry.descriptor.id === "plugins_install");
+  assert.ok(registration);
+
+  const result = await registration.handler(ctx({ source: { kind: "zip", attachmentRef: "attachment:zip12345" }, replace: true }));
+  assert.deepEqual(calls, [{
+    input: { ref: "attachment:zip12345", ownerId: "principal-1", runId: "r1" }, options: { maxBytes: 32 * 1024 * 1024 },
+  }]);
+  assert.deepEqual(installer.previews, [{ archive, replace: true }]);
+  assert.deepEqual(installer.installs, [{ archive, replace: true, expectedDigest: PREVIEW.digest }]);
+  assert.equal((result as { installed: boolean }).installed, true);
+});
+
+test("when no environment port is supplied, a hosted install reads the process opt-in for each call", async t => {
+  const key = "TOVU_PLUGIN_LOCAL_INSTALL";
+  const previous = process.env[key];
+  t.after(() => {
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
+  });
+  const installer = fakeInstaller();
+  const registration = tool(deps({
+    pluginInstaller: installer.port, env: undefined,
+    hostSignals: { ...resolveHostSignals({ env: {} }), hosted: true },
+  }));
+  delete process.env[key];
+  assert.deepEqual(await registration.handler(ctx(FOLDER)), {
+    installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED",
+    note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first.",
+  });
+  assert.deepEqual(installer.previews, []);
+  process.env[key] = "1";
+  const result = await registration.handler(ctx(FOLDER)) as { installed: boolean };
+  assert.equal(result.installed, true);
+  assert.deepEqual(installer.previews, [{ sourceDir: "/tmp/faq-blocks", replace: false }]);
+  assert.deepEqual(installer.installs, [{ sourceDir: "/tmp/faq-blocks", replace: false, expectedDigest: PREVIEW.digest }]);
+});

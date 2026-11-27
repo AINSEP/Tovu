@@ -8,7 +8,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { loadMediaProviderRegistry, parseMediaProvidersFile } from "@jini-ai/cms/media/site-generation/media-provider-registry";
 import { contributeProviders, defineProviderContribution, type ProviderContributionDescriptor } from "@jini-ai/agent-plugins/lifecycle";
 import { MEDIA_PROVIDER_CONTRACT, type MediaProviderContribution } from "@jini-ai/integrations/media-providers";
-import { createHostMediaProviderRegistry, hostMediaProviderRegistryId } from "../host-media-providers.js";
+import { buildNoCredentialError, createHostMediaProviderRegistry, hostMediaProviderRegistryId } from "../host-media-providers.js";
 
 /** Host binding, as in composition `deps.ts`: Tovu names the manifest file and supplies the cross-package seams. */
 const MEDIA_PROVIDERS_FILENAME = "tovu-media-providers.json";
@@ -208,3 +208,15 @@ for (const [name, raw, reason] of [
     assert.deepEqual(parseMediaProvidersFile({ raw }), { ok: false, reason });
   });
 }
+
+test("a credential diagnostic for an unlisted vendor retains the vendor id and invents no environment key", () => {
+  const registry = createHostMediaProviderRegistry();
+  const providerId = "retired-image-vendor";
+  assert.equal(registry.findProvider({ id: providerId }), null);
+
+  assert.equal(buildNoCredentialError({ providerId, registry }).message,
+    "media_generate_asset: no retired-image-vendor media-provider credential is configured for this workspace. " +
+    "Call credential_save with kind media-provider to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
+    "counterpart for generation vendors) then retry this tool once with the same model. " +
+    "this will not resolve without that credential being added.");
+});
