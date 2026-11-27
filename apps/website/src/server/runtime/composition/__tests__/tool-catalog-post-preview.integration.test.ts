@@ -24,7 +24,7 @@ async function composedPreview(adjust: (deps: ReturnType<typeof createRouteDeps>
   contributions.contributors.clear({});
   installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps();
-  routeDeps.authorize = async () => ({ allowed: true });
+  routeDeps.authorize = async () => ({ allowed: true, reason: "test principal may read" });
   adjust(routeDeps);
   const preview = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })
     .find((registration) => registration.descriptor.id === "content_post_preview");
