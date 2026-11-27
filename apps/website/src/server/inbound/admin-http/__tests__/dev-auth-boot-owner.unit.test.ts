@@ -187,9 +187,8 @@ test("boot proof for an owner without an enrolled factor still issues a verifiab
   await deps.identityReady;
   const principalId = await deps.ownerPrincipalId;
   const lookups: unknown[] = [];
-  const store = deps.mfaStore;
-  assert.ok(store, "the in-memory composition wires an MFA store");
-  deps.mfaStore = { ...store,
+  const unexpected = (what: string) => async () => assert.fail(`no factor means no MFA ${what}`);
+  deps.mfaStore = { saveFactor: unexpected("factor write"), pending: unexpected("pending read"), clearPending: unexpected("pending clear"), clear: unexpected("clear"),
     factor: async scope => { lookups.push(scope); return null; },
     savePending: async () => assert.fail("no factor means no pending MFA proof"),
   };
