@@ -120,7 +120,7 @@ test("submitted publish credentials project the declared token field to the chec
   const spec: DeployTargetCredentialSpec = {
     vendorId: "acme", vendorLabel: "Acme", tokenField: "secretKey",
     fields: [{ name: "secretKey", label: "Key", required: true, secret: true },
-      { name: "account", label: "Account", required: true, secret: false }],
+      { name: "account", label: "Account", required: true }],
   };
   const seen: unknown[] = [];
   const load = stubRegistry({
