@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/website/src/features/agent-plugins/card-host-bindings.ts	lines 92.86 br 100.0 fn 100.0	92.86/100.00/100	1
+apps/website/src/features/agent-plugins/connect-card-ui.ts	lines 84.62 br 100.0 fn 100.0	76.92/100.00/75.00	1-3,29-31
+apps/website/src/features/agent-plugins/connect-destination.ts	lines 77.78 br 100.0 fn 100.0	77.78/100.00/100.00	1-3,18
+apps/website/src/features/agent-plugins/connect-sign-in-wait.ts	lines 75.0 br 100.0 fn 50.0	75.00/100.00/100.00	1-3,13
+apps/website/src/features/agent-plugins/customize-tool.ts	lines 84.21 br 100.0 fn 100.0	84.21/100.00/100	1-3
+apps/website/src/features/agent-plugins/enable-access.ts	lines 80.0 br 80.0 fn 75.0	80.00/100.00/100.00	1-5,28
+apps/website/src/features/agent-plugins/executable-tools/approval.ts	lines MISSING br MISSING fn MISSING	100.00/100.00/100.00	
+apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts	lines 100.0 br 92.86 fn 100.0	100.00/92.86/100.00	
+apps/website/src/features/agent-plugins/federate-mcp.ts	lines 82.98 br 100.0 fn 80.0	87.23/100.00/100.00	1-5,47
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts	lines 91.3 br 83.33 fn 81.82	91.30/92.31/81.82	1-3,55
+apps/website/src/features/agent-plugins/host-overlays-dir.ts	lines 94.44 br 75.0 fn 33.33	94.44/100.00/100.00	16
+apps/website/src/features/agent-plugins/host-tool-ports.ts	lines 91.78 br 100.0 fn 93.33	91.78/100.00/100.00	1-6
+apps/website/src/features/agent-plugins/identity-read-policy.ts	lines 100.0 br 66.67 fn 33.33	46.67/100.00/100	3-10
+apps/website/src/features/agent-plugins/import-access-token.ts	lines 90.0 br 100.0 fn 87.5	90.00/100.00/100.00	1-4,49
+apps/website/src/features/agent-plugins/install-tool.ts	lines 100.0 br 100.0 fn 60.0	100.00/100.00/100.00	
+apps/website/src/features/agent-plugins/install-upload.ts	lines 100.0 br 100.0 fn 87.5	100.00/100.00/87.50	
+apps/website/src/features/agent-plugins/layout.ts	lines 100.0 br 100.0 fn 42.86	95.00/100.00/100.00	26
+apps/website/src/features/agent-plugins/lifecycle.ts	lines 97.43 br 94.02 fn 94.29	24.00/50.00/100	68-72,74-93,95-99,101-102,104-106,108-138,140-165,167-194,196-218,220-230,232-257,259-298,300-318,320-322,324-326,328-329,331-345,347-350
+apps/website/src/features/agent-plugins/mcp-host-bindings.ts	lines 95.74 br 100.0 fn 100.0	95.74/100.00/100.00	1,48
+apps/website/src/features/agent-plugins/memory-tools.ts	lines 81.82 br 100.0 fn 100.0	81.82/100.00/100.00	1-2
+apps/website/src/features/agent-plugins/memory.ts	lines 100.0 br 85.71 fn 83.33	100.00/100.00/100.00	
+apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts	lines 97.56 br 90.91 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/agent-plugins/provider-plugin-link.ts	lines 100.0 br 85.71 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/agent-plugins/switch-on-saved-token.ts	lines 86.49 br 100.0 fn 100.0	86.49/100.00/100.00	1-4,47
+apps/website/src/features/agent-plugins/token-sign-in.ts	lines 86.96 br 100.0 fn 100.0	86.96/100.00/100.00	1-2,20
+apps/website/src/features/agent-plugins/tool-registrations.ts	lines 98.73 br 90.91 fn 94.44	98.73/90.48/94.44	145,167
+apps/website/src/features/agent-plugins/uninstall-confirmation-ui.ts	lines 98.15 br 66.67 fn 100.0	98.15/100.00/100.00	39
+apps/website/src/features/agent-plugins/write-note-tool.ts	lines 90.91 br 100.0 fn 100.0	86.36/100.00/100.00	1-2,19
+apps/website/src/features/analytics/salt-context.ts	lines 33.33 br 100.0 fn 100.0	33.33/100.00/100	1-5,8-12
+apps/website/src/features/analytics/warn.ts	lines 29.17 br 100.0 fn 0.0	37.50/100.00/100.00	1-7,11-16,24-25
+apps/website/src/features/api-connections/browser-binding.ts	lines 85.94 br 100.0 fn 87.5	90.63/100.00/100.00	1-5,63
+apps/website/src/features/api-connections/byo-client.ts	lines 96.43 br 90.91 fn 100.0	96.43/100.00/100.00	33
+apps/website/src/features/api-connections/connect.ts	lines 90.0 br 100.0 fn 100.0	90.00/100.00/100.00	13
+apps/website/src/features/api-connections/contribution.ts	lines 96.0 br 100.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/api-connections/host-bindings.ts	lines 96.36 br 100.0 fn 90.0	100.00/93.33/100.00	
+apps/website/src/features/api-connections/oauth-bindings.ts	lines 94.44 br 100.0 fn 100.0	94.44/100.00/100	1
+apps/website/src/features/api-connections/plugin-state-bindings.ts	lines 91.67 br 100.0 fn 100.0	91.67/100.00/100.00	1
+apps/website/src/features/api-connections/shared-owner.ts	lines 96.0 br 100.0 fn 57.14	96.00/90.91/100.00	22
+apps/website/src/features/api-connections/surface-connection-bindings.ts	lines 78.79 br 84.62 fn 76.92	100.00/100.00/100.00	
+apps/website/src/features/api-connections/surface-connections.ts	lines 90.91 br 100.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/api-connections/vault-store-binding.ts	lines 98.61 br 100.0 fn 100.0	95.83/100.00/76.92	83-85
+apps/website/src/features/asset-transfer/asset-sources.ts	lines 51.52 br 100.0 fn 0.0	95.45/100.00/100.00	1-3
+apps/website/src/features/comments/index.ts	lines 77.78 br 100.0 fn 100.0	77.78/100.00/100.00	1-12
+apps/website/src/features/consent/host-bindings.ts	lines 100.0 br 85.71 fn 41.67	90.70/100.00/100.00	1-4
+apps/website/src/features/consent/privacy-defaults-reporter.ts	lines 94.12 br 100.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/content-duplication/copy-naming-policy.ts	lines 96.15 br 100.0 fn 100.0	96.15/100.00/100.00	21
+apps/website/src/features/content-types/write-service.ts	lines 100.0 br 80.0 fn 50.0	65.22/100.00/100.00	1-8
+apps/website/src/features/custom-credentials/extract-s8-c2p1-ports.type-pin.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/features/custom-credentials/index.ts	lines 89.74 br 100.0 fn 100.0	89.74/100.00/100	1-4
+apps/website/src/features/custom-credentials/plugin-credential-card.ts	lines 75.0 br 100.0 fn 100.0	75.00/100.00/100.00	4
+apps/website/src/features/custom-credentials/repository-target.ts	lines 83.33 br 100.0 fn 100.0	83.33/100.00/100.00	5
+apps/website/src/features/custom-credentials/tool-registrations.copy.ts	lines 100.0 br 92.31 fn 77.78	100.00/92.86/88.89	
+apps/website/src/features/custom-credentials/tool-registrations.ts	lines 100.0 br 95.56 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/custom-credentials/tovu-credential-card-identity.ts	lines 74.07 br 100.0 fn 100.0	74.07/100.00/100	1-7
+apps/website/src/features/custom-credentials/tovu-credential-sets.ts	lines 100.0 br 100.0 fn 94.12	100.00/100.00/94.12	
+apps/website/src/features/custom-credentials/types.ts	lines 70.67 br 100.0 fn 100.0	70.67/100.00/100.00	4-11,67,71-83
+apps/website/src/features/database-transfer/copy-engine.ts	lines 89.47 br 75.0 fn 100.0	94.74/100.00/100.00	1
+apps/website/src/features/database-transfer/destination-store-host.ts	lines 100.0 br 100.0 fn 81.82	100.00/100.00/81.82	
+apps/website/src/features/database-transfer/destination-ui.ts	lines 98.28 br 100.0 fn 100.0	98.28/100.00/100.00	50
+apps/website/src/features/database-transfer/exclusions.ts	lines 87.95 br 100.0 fn 100.0	87.95/100.00/100.00	1-10
+apps/website/src/features/database-transfer/table-catalog.ts	lines 99.16 br 100.0 fn 95.45	99.16/100.00/100.00	123
+apps/website/src/features/database-transfer/tool-registrations.ts	lines 99.02 br 93.33 fn 100.0	98.04/96.55/100.00	1,126
+apps/website/src/features/database/gated-hooks.ts	lines 75.0 br 100.0 fn 100.0	75.00/100.00/100.00	1,7
+apps/website/src/features/deployments/capability-card.ts	lines 96.97 br 100.0 fn 100.0	96.97/100.00/100	1
+apps/website/src/features/deployments/deploy-config-registry.ts	lines 98.51 br 100.0 fn 83.33	98.51/100.00/83.33	65
+apps/website/src/features/deployments/deploy-config.ts	lines 99.58 br 83.33 fn 100.0	99.58/100.00/100.00	236
+apps/website/src/features/deployments/deploy-ops/run-ops.ts	lines 83.72 br 94.12 fn 88.24	97.67/100.00/94.12	73
+apps/website/src/features/deployments/deploy-ops/secrets.ts	lines 100.0 br 100.0 fn 66.67	100.00/100.00/100.00	
+apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts	lines 95.45 br 100.0 fn 100.0	95.45/100.00/100.00	25
+apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts	lines 97.56 br 93.33 fn 80.0	100.00/100.00/100.00	
+apps/website/src/features/deployments/export-run-binding.ts	lines 100.0 br 100.0 fn 0.0	100.00/100.00/100.00	
+apps/website/src/features/deployments/index.ts	lines 46.88 br 100.0 fn 100.0	46.88/100.00/100	1-6,8-11,13-16,30-32
+apps/website/src/features/deployments/publish-agent-tools.ts	lines 100.0 br 100.0 fn 85.71	100.00/100.00/85.71	
+apps/website/src/features/deployments/publish-credentials/store.ts	lines 97.92 br 100.0 fn 100.0	97.92/100.00/100.00	50
+apps/website/src/features/deployments/publish-tool-deps.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/features/deployments/static-publish/adapter.ts	lines 95.24 br 100.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/deployments/static-publish/domain-publish-tool.ts	lines MISSING br MISSING fn MISSING	100.00/100.00/50.00	
+apps/website/src/features/deployments/static-publish/publish-run.ts	lines 82.35 br 100.0 fn 66.67	94.12/100.00/100.00	15
+apps/website/src/features/deployments/static-publish/verify.ts	lines 80.0 br 100.0 fn 66.67	100.00/100.00/100.00	
+apps/website/src/features/entries/unreadable-owner-entries-repair.ts	lines 80.82 br 87.5 fn 81.82	100.00/100.00/100.00	
+apps/website/src/features/external-mcp/contracts.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/features/external-mcp/external-mcp-host-copy.ts	lines 81.82 br 100.0 fn 100.0	81.82/100.00/100.00	1-10
+apps/website/src/features/external-mcp/external-mcp-oauth.ts	lines 98.85 br 87.5 fn 77.27	99.43/96.67/100.00	174
+apps/website/src/features/external-mcp/external-mcp-store.ts	lines 93.1 br 100.0 fn 83.33	100.00/100.00/100.00	
+apps/website/src/features/external-mcp/external-mcp-vault.ts	lines 100.0 br 100.0 fn 80.0	100.00/100.00/80.00	
+apps/website/src/features/external-mcp/tool-registrations.ts	lines 99.01 br 92.86 fn 70.0	100.00/100.00/90.00	
+apps/website/src/features/form-destinations/key-store.ts	lines 98.53 br 100.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/forms/form-file-maintenance.ts	lines 99.28 br 96.26 fn 98.73	99.28/96.26/98.73	1
+apps/website/src/features/forms/form-file-purge.ts	lines 72.73 br 90.0 fn 84.62	100.00/93.55/100.00	
+apps/website/src/features/forms/index.ts	lines 73.33 br 91.3 fn 92.86	73.33/86.96/92.86	1-39,159

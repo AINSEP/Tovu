@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/site-chat/src/SiteAssistantHeader.tsx	lines 47.37 br 100.0 fn 100.0	47.37/100.00/100.00	1-2,4-10,12
+apps/site-chat/src/SiteAssistantWidget.hooks.ts	lines 100.0 br 100.0 fn 86.67	85.90/100.00/78.57	11,60-69
+apps/site-chat/src/SiteAssistantWidget.tsx	lines 48.91 br 85.71 fn 100.0	48.91/100.00/100.00	1-2,4,6-49
+apps/site-chat/src/jini-surfaces.ts	lines 66.67 br 100.0 fn 100.0	66.67/100.00/100	1-6
+apps/site-chat/src/main.tsx	lines 44.0 br 100.0 fn 100.0	44.00/100.00/100.00	1,3-9,11-13,15-29,31-32
+apps/site-chat/src/remixicon-override.ts	lines 13.64 br 100.0 fn 100.0	13.64/100.00/100.00	1-57
+apps/site-chat/src/session-store.ts	lines 100.0 br 96.55 fn 100.0	99.30/95.65/92.86	149
+apps/site-chat/src/site-assistant-errors.ts	lines 75.68 br 72.73 fn 100.0	75.68/100.00/100.00	1-6,8-9,28
+apps/site-chat/src/site-assistant-transport.ts	lines 89.44 br 83.09 fn 83.93	90.16/85.31/86.21	1-28,86-87,402-406,440-450,470-474,547,586,592
+apps/site-chat/src/site-chat-comparison.ts	lines 97.3 br 100.0 fn 100.0	91.89/100.00/100.00	1-2,35
+apps/site-chat/src/site-chat-i18n.ts	lines 97.83 br 93.75 fn 100.0	95.65/100.00/100.00	1,32
+apps/site-chat/src/tool-confirmation.ts	lines 78.12 br 37.5 fn 66.67	100.00/100.00/100.00	
+apps/site-chat/src/vanilla-host.ts	lines 94.67 br 85.71 fn 71.43	89.33/85.71/78.57	49-55,67
+apps/site-chat/src/vanilla-tool-confirmation.ts	lines 98.98 br 97.62 fn 100.0	16.33/80.00/30.00	1,5-11,13,16-50,57,63-99
+apps/site-chat/src/visitor-page-control.ts	lines 100.0 br 68.18 fn 78.05	99.44/85.88/88.10	158
+apps/site-chat/src/visitor-site-path.ts	lines 97.62 br 55.56 fn 100.0	100.00/100.00/100.00	
+apps/website/src/assistant/a2ui-actions-route.ts	lines 98.91 br 100.0 fn 100.0	92.39/100.00/0.00	97-103
+apps/website/src/assistant/admin-ag-ui-approvals.ts	lines 66.12 br 100.0 fn 14.29	95.87/96.15/87.50	58,136-139
+apps/website/src/assistant/admin-frontend-owner.ts	lines 56.0 br 100.0 fn 0.0	100.00/100.00/100.00	
+apps/website/src/assistant/admin-screen-link-tool.ts	lines 100.0 br 94.44 fn 100.0	100.00/94.44/100.00	
+apps/website/src/assistant/agent-daemon-port.ts	lines 76.83 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/assistant/agent-session-preset.ts	lines 87.5 br 100.0 fn 100.0	50.00/100.00/0.00	1,10-11,13-17
+apps/website/src/assistant/agents.ts	lines 95.8 br 97.8 fn 100.0	50.84/60.00/9.09	1-9,81-83,96-109,114,118-123,128,131-141,144,148-175,189-191,218-219,224-234,238-247,252-254,259-260,268-270,272-273,275-276,278-282
+apps/website/src/assistant/ask-choice-custom-answer.ts	lines 97.5 br 75.0 fn 100.0	97.50/100.00/100.00	36
+apps/website/src/assistant/ask-choice-tool.ts	lines 100.0 br 89.06 fn 97.96	71.79/85.42/60.00	259-271,273-276,280-285,290-297,303-310,316-326,333-345,451-452,456-502,507,511-525,531-549,554,556-563
+apps/website/src/assistant/ask-choice-ui-resource.ts	lines 96.97 br 100.0 fn 100.0	96.97/62.50/100.00	31
+apps/website/src/assistant/assistant-vault-compat.ts	lines 100.0 br 94.12 fn 100.0	39.22/100.00/0.00	15-18,24,26-29,33,35-40,43-47,50,52-60
+apps/website/src/assistant/assistant-vault.ts	lines 100.0 br 94.0 fn 66.67	44.44/50.00/14.29	1,33-35,39-40,47-58,63,65-72,78-79,85-99,104,106-115
+apps/website/src/assistant/batch-tool-inputs.ts	lines 100.0 br 95.45 fn 100.0	98.08/100.00/91.67	26-28
+apps/website/src/assistant/byok-credential.ts	lines 73.33 br 100.0 fn 100.0	63.33/100.00/0.00	1-8,33-35
+apps/website/src/assistant/byok-tool-surface.ts	lines 93.54 br 67.72 fn 86.15	98.42/92.90/90.16	765-766,770-772,890-895
+apps/website/src/assistant/cli-permission-layer.ts	lines 94.74 br 100.0 fn 100.0	36.84/100.00/0.00	7,9-13,16,19-23
+apps/website/src/assistant/component-catalog-query.ts	lines 99.09 br 100.0 fn 100.0	99.09/86.96/93.75	94
+apps/website/src/assistant/component-catalog-tool.ts	lines 100.0 br 93.75 fn 100.0	100.00/93.75/100.00	
+apps/website/src/assistant/content-read-tool.ts	lines 98.89 br 91.3 fn 100.0	93.15/86.42/93.55	275-276,299-327,498-499,516-517,527-528
+apps/website/src/assistant/content-target-inputs.ts	lines 100.0 br 98.97 fn 100.0	56.85/96.55/37.50	47-51,54-59,62-65,68-76,79-82,89-94,100,102-117,123-129,147-149,152-153
+apps/website/src/assistant/credential-chat-intake.ts	lines 97.62 br 95.24 fn 100.0	26.19/100.00/0.00	5-10,18-42
+apps/website/src/assistant/credential-guidance.ts	lines 92.86 br 100.0 fn 100.0	92.86/100.00/100	1
+apps/website/src/assistant/credential-store-fields.ts	lines 94.12 br 96.3 fn 50.0	23.53/100.00/0.00	4-8,12-19
+apps/website/src/assistant/daemon-access.ts	lines 97.78 br 86.67 fn 100.0	55.56/100.00/0.00	1,36-39,42-43,52-54,57-58,64-68,70-71,76-84,86-90,92-98
+apps/website/src/assistant/daemon-respawn-policy.ts	lines 63.33 br 100.0 fn 100.0	33.33/100.00/0.00	1-10,25-34
+apps/website/src/assistant/demo-a2ui-tool.ts	lines 55.74 br 100.0 fn 42.86	55.74/100.00/42.86	103-133,135-160,164-210
+apps/website/src/assistant/desktop-mcp-runtime.ts	lines 98.68 br 100.0 fn 90.91	90.79/61.54/54.55	1,20-23,54-55
+apps/website/src/assistant/duplicate-resource-registry.ts	lines 46.15 br 100.0 fn 100.0	38.46/80.00/75.00	1-33,39,53-55,65-67
+apps/website/src/assistant/durable-runs/accept.ts	lines 83.33 br 100.0 fn 100.0	50.00/100.00/0.00	5-7
+apps/website/src/assistant/execution-credential-store.ts	lines 100.0 br 96.23 fn 100.0	53.49/100.00/15.38	102-106,110-120,124-128,132-136,142-147,152-163,166-169,182-193
+apps/website/src/assistant/external-mcp-call-confirmation.ts	lines 70.71 br 96.77 fn 100.0	50.51/33.33/11.11	1-29,66-69,73-81,95-99,105,112
+apps/website/src/assistant/external-mcp-connection-source.ts	lines 90.23 br 77.78 fn 50.0	81.03/69.23/50.00	104-109,124-128,152-154,160-164,176-186,192-194
+apps/website/src/assistant/external-mcp-federation-runtime.ts	lines 100.0 br 50.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/assistant/external-mcp-roster-change.ts	lines 97.56 br 100.0 fn 75.0	97.56/100.00/75.00	43
+apps/website/src/assistant/external-mcp-tool-approval-adapters.ts	lines 100.0 br 100.0 fn 85.71	78.57/100.00/30.77	42-46,49-50,53-54,57-58,62
+apps/website/src/assistant/external-mcp-tool-approval-ports.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/assistant/frontend-control-capabilities.ts	lines 53.2 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/assistant/host-contracts.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/assistant/host-ports.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/assistant/index.ts	lines 83.09 br 100.0 fn 100.0	83.09/100.00/100	1-29,31-36
+apps/website/src/assistant/installed-extension-tools.ts	lines 81.13 br 84.21 fn 100.0	75.47/57.14/25.00	1-20,127-130,133-134
+apps/website/src/assistant/lost-frontend-binding.ts	lines 66.67 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/assistant/mcp-federation/bootstrap.ts	lines 100.0 br 96.3 fn 89.47	100.00/85.00/68.42	
+apps/website/src/assistant/mcp-federation/presets.ts	lines 92.68 br 100.0 fn 85.71	93.90/100.00/42.86	68-72
+apps/website/src/assistant/mcp-federation/registrations.ts	lines 100.0 br 96.0 fn 100.0	85.86/74.07/78.95	158-160,207-214,243-252,282,284-288
+apps/website/src/assistant/mcp-federation/reload-adapter.ts	lines 94.74 br 53.85 fn 54.55	97.37/84.62/54.55	1
+apps/website/src/assistant/mcp-injection.ts	lines 52.05 br 100.0 fn 25.0	71.23/92.31/100.00	1-21
+apps/website/src/assistant/mcp-services.ts	lines 75.0 br 100.0 fn 100.0	75.00/100.00/100	1
+apps/website/src/assistant/mcp-ui.ts	lines 95.0 br 100.0 fn 100.0	95.00/100.00/100.00	21
+apps/website/src/assistant/permanent-delete-settings.ts	lines 93.75 br 88.89 fn 100.0	93.75/85.71/75.00	34-35
+apps/website/src/assistant/persistence/agent-session-store.ts	lines 94.44 br 100.0 fn 100.0	86.11/100.00/50.00	1-2,33-34,37
+apps/website/src/assistant/persistence/chat-expiry-sweep.ts	lines 83.33 br 100.0 fn 66.67	100.00/100.00/100.00	
+apps/website/src/assistant/persistence/chat-history-store.ts	lines 83.33 br 100.0 fn 100.0	83.33/100.00/100.00	6
+apps/website/src/assistant/persistence/conversation-tool-approval-store.ts	lines 91.3 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/assistant/persistence/run-ledger.ts	lines 92.0 br 62.5 fn 75.0	64.00/100.00/66.67	17,21-28
+apps/website/src/assistant/persistence/store-factory.ts	lines 100.0 br 100.0 fn 88.89	98.67/100.00/100.00	66
+apps/website/src/assistant/persistence/tenant-scope.ts	lines 98.28 br 100.0 fn 100.0	98.28/75.00/100.00	49
+apps/website/src/assistant/public-assistant-availability.ts	lines 100.0 br 91.67 fn 33.33	33.33/100.00/0.00	14,16-30
+apps/website/src/assistant/public-assistant-settings.ts	lines 100.0 br 95.65 fn 46.15	100.00/100.00/100.00	
+apps/website/src/assistant/read-only-tool-constraint.ts	lines 66.46 br 100.0 fn 100.0	56.52/100.00/50.00	1-53,120-122,135-140,168-175
+apps/website/src/assistant/rewrap-page-navigate-error.ts	lines 27.27 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/assistant/run-active-context.ts	lines 33.33 br 100.0 fn 50.0	NOT-LOADED	
+apps/website/src/assistant/run-page-context.ts	lines 99.4 br 100.0 fn 100.0	50.30/100.00/0.00	58-60,63-65,67-69,71-86,100-115,117-125,136-146,160-163,167-172,176-183,186-189
+apps/website/src/assistant/run-start-context.ts	lines 99.32 br 100.0 fn 100.0	40.41/100.00/0.00	17-22,29-31,37-39,41-51,57-63,66-91,108-109,134,150-177
+apps/website/src/assistant/runtime-preferences.ts	lines 97.78 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/assistant/server-federation-diagnosis.ts	lines 93.33 br 100.0 fn 100.0	93.33/80.00/100.00	1
+apps/website/src/assistant/site-credential-store.memory.ts	lines 100.0 br 77.78 fn 100.0	61.29/100.00/50.00	15-20,24-27,31-32
+apps/website/src/assistant/site-credential-store.ts	lines 98.17 br 91.11 fn 66.67	55.05/100.00/18.18	91-95,99-109,115-118,123-134,137-140,151-163
+apps/website/src/assistant/site-guide-pointer.ts	lines 8.0 br 100.0 fn 100.0	8.00/100.00/100	1-2,5-25
+apps/website/src/assistant/site/capability-card.ts	lines 93.33 br 100.0 fn 100.0	93.33/100.00/100	3
+apps/website/src/assistant/site/capability-registry.ts	lines 99.29 br 100.0 fn 100.0	67.14/100.00/0.00	109-134,153,155-173
+apps/website/src/assistant/site/history.ts	lines 78.72 br 100.0 fn 100.0	45.74/100.00/0.00	1-19,52-56,75-86,88-102
+apps/website/src/assistant/site/mode.ts	lines 70.0 br 100.0 fn 100.0	0.00/100.00/0.00	1-2,10-17
+apps/website/src/assistant/site/public-content.ts	lines 75.0 br 66.67 fn 100.0	82.50/100.00/100.00	5-10,29

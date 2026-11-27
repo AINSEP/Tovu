@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/website/src/platform/db/client/open-site-db-client.ts	lines 97.5 br 86.21 fn 91.67	100.00/92.31/81.82	
+apps/website/src/platform/db/content-database.generated.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/db/content-kernel.ts	lines 100.0 br 87.5 fn 50.0	90.63/100.00/100.00	2-3,35
+apps/website/src/platform/db/keep-stored-revocation.ts	lines 94.12 br 66.67 fn 33.33	82.35/100.00/0.00	15-17
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	lines 100.0 br 87.5 fn 26.67	93.94/100.00/100.00	1,29
+apps/website/src/platform/db/kernel/drivers/pglite-socket.ts	lines 88.89 br 100.0 fn 100.0	77.78/100.00/100.00	1,8
+apps/website/src/platform/db/kernel/drivers/pglite.ts	lines 100.0 br 75.0 fn 50.0	80.00/100.00/100.00	1-2
+apps/website/src/platform/db/kernel/drivers/postgres.ts	lines 88.89 br 100.0 fn 50.0	77.78/100.00/100.00	1,8
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	lines 98.11 br 100.0 fn 55.0	94.34/100.00/100.00	1-2,52
+apps/website/src/platform/db/kernel/index.ts	lines 100.0 br 66.67 fn 10.0	88.89/100.00/100	1
+apps/website/src/platform/db/kernel/ops.ts	lines 97.22 br 100.0 fn 50.0	91.67/100.00/100.00	1-2,35
+apps/website/src/platform/db/kernel/stopped-database.ts	lines 84.62 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/platform/db/key-dependent-data.ts	lines 100.0 br 100.0 fn 63.64	100.00/100.00/100.00	
+apps/website/src/platform/db/migration/manifest.ts	lines 82.64 br 89.74 fn 80.0	91.07/96.43/100.00	1-65,649-653,836
+apps/website/src/platform/db/migrations/0000_legacy_baseline.postgres.ts	lines 100.0 br 66.67 fn 33.33	97.36/100.00/100	1-7
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	lines 100.0 br 92.86 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0001_post_search.ts	lines 100.0 br 88.89 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	lines 100.0 br 76.92 fn 60.0	100.00/81.82/100.00	
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	lines 100.0 br 87.5 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	lines 100.0 br 83.33 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0005_media_createdby.ts	lines 100.0 br 80.0 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	lines 94.59 br 80.0 fn 77.78	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0007_publish_backstop.ts	lines 100.0 br 87.5 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0008_posts_publish_at_featured_media.ts	lines 100.0 br 80.0 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0009_posts_author.ts	lines 100.0 br 87.5 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	lines 100.0 br 80.0 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	lines 100.0 br 96.3 fn 72.73	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	lines 100.0 br 96.15 fn 75.0	36.92/100.00/100.00	1-9,11-36,38-47,49,51-52,54-61,63-78,80-85,87,89-97,99-107,109,111,113,115-124,126,128,130-136,138-151,153,155
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	lines 100.0 br 95.83 fn 85.71	100.00/96.48/100.00	
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	lines 100.0 br 95.0 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0014_media_library.ts	lines 100.0 br 83.33 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	lines 100.0 br 90.0 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0016_publish_destination_history.ts	lines 100.0 br 80.0 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0017_publish_history_kind.ts	lines 100.0 br 80.0 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	lines 100.0 br 80.0 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	lines 100.0 br 83.33 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	lines 97.26 br 76.92 fn 62.5	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	lines 100.0 br 85.71 fn 66.67	94.44/100.00/100.00	1
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	lines 100.0 br 80.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	lines 100.0 br 80.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0027_search_index.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	lines 100.0 br 80.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	lines 100.0 br 96.0 fn 82.61	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	lines 100.0 br 95.45 fn 80.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	lines 100.0 br 90.0 fn 63.64	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	lines 100.0 br 80.0 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	lines 100.0 br 80.0 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0034_member_auth.ts	lines 100.0 br 90.0 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	lines 100.0 br 83.33 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts	lines 100.0 br 87.5 fn 75.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0037_media_source_metadata.ts	lines 100.0 br 88.89 fn 80.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	lines 100.0 br 85.71 fn 62.5	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	lines 100.0 br 90.0 fn 72.73	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	lines 100.0 br 95.45 fn 84.21	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	lines 100.0 br 94.44 fn 80.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	lines 100.0 br 85.71 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0043_webhook_subscription_creator_kind.ts	lines 100.0 br 80.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0044_agent_pause_creator_kind.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0045_media_captions.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0046_media_description.ts	lines 100.0 br 80.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0047_change_set_actor_kind.ts	lines 100.0 br 80.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0048_blob_gc_journal.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/0050_ledger_actor_kind.ts	lines 100.0 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	lines 100.0 br 88.89 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	lines 100.0 br 88.89 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts	lines 100.0 br 91.67 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/chat/0003_active_run_index.ts	lines 100.0 br 88.89 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/chat/0004_chat_pinned.ts	lines 100.0 br 93.75 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/chat/0049_scrub_assistant_chat_titles.ts	lines 100.0 br 81.82 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/checksums.ts	lines 100.0 br 75.0 fn 66.67	81.82/100.00/100	1-14
+apps/website/src/platform/db/migrations/commerce/0000_catalog.ts	lines 100.0 br 83.33 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/db/migrations/index.ts	lines 100.0 br 83.33 fn 31.58	98.95/88.89/80.00	174-175
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	lines 96.09 br 85.42 fn 67.65	100.00/98.04/100.00	
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	lines 100.0 br 71.43 fn 50.0	100.00/75.00/100.00	
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	lines 100.0 br 71.43 fn 50.0	100.00/75.00/100.00	
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	lines 100.0 br 83.33 fn 60.0	83.33/100.00/50.00	14-16
+apps/website/src/platform/db/migrations/runner.ts	lines 95.65 br 100.0 fn 42.86	95.65/100.00/100.00	25
+apps/website/src/platform/db/migrations/source-digests.ts	lines 88.33 br 100.0 fn 100.0	88.33/100.00/100	1-7
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	lines 94.74 br 100.0 fn 57.14	100.00/72.73/100.00	
+apps/website/src/platform/db/prepare-content-store.ts	lines 100.0 br 97.22 fn 71.43	100.00/100.00/100.00	
+apps/website/src/platform/db/publish-backstop-tables.ts	lines 14.29 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/platform/db/repos/analytics-sink.ts	lines 83.48 br 100.0 fn 30.0	100.00/100.00/100.00	
+apps/website/src/platform/db/repos/blob-gc-journal.ts	lines 100.0 br 94.12 fn 100.0	100.00/100.00/100.00	
+apps/website/src/platform/db/repos/media-grid-query.ts	lines 37.36 br 100.0 fn 0.0	90.23/86.96/95.65	123-139
+apps/website/src/platform/db/repos/media-record-row.ts	lines 84.09 br 63.64 fn 100.0	88.64/55.56/100.00	6-9,11
+apps/website/src/platform/db/repos/media-repo.ts	lines 98.75 br 82.21 fn 95.45	92.23/90.91/42.62	158-162,171-179,196-203,241-245,687-691,694-705,712-723
+apps/website/src/platform/db/repos/oauth-pending-store.ts	lines 100.0 br 94.12 fn 80.0	100.00/100.00/100.00	

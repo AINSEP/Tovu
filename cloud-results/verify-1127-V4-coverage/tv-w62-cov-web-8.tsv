@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/website/src/platform/db/repos/origin-repo.ts	lines 100.0 br 84.62 fn 100.0	100.00/63.64/100.00	
+apps/website/src/platform/db/repos/publish-content-run-repo.ts	lines 100.0 br 94.12 fn 100.0	100.00/94.12/100.00	
+apps/website/src/platform/db/repos/publish-history-repo.ts	lines 100.0 br 96.3 fn 100.0	100.00/100.00/100.00	
+apps/website/src/platform/db/schema.postgres.ts	lines 98.98 br 100.0 fn 100.0	98.98/100.00/100.00	1-13
+apps/website/src/platform/db/schema.sqlite.ts	lines 100.0 br 98.78 fn 46.51	100.00/100.00/100.00	
+apps/website/src/platform/db/site-store-copy.ts	lines 93.33 br 75.0 fn 15.38	86.67/100.00/25.00	1,17
+apps/website/src/platform/db/sqlite/chat-db.ts	lines 94.59 br 88.89 fn 100.0	98.65/100.00/100.00	68
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	lines 84.0 br 58.33 fn 41.67	100.00/94.12/100.00	
+apps/website/src/platform/db/sqlite/content-db.ts	lines 97.78 br 75.0 fn 61.11	99.44/90.00/100.00	199
+apps/website/src/platform/db/sqlite/copy-coordinator.ts	lines 98.01 br 69.57 fn 61.29	95.36/82.50/73.91	42-47,166
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	lines 100.0 br 97.4 fn 100.0	100.00/98.77/100.00	
+apps/website/src/platform/db/sqlite/fresh-content-db.ts	lines 99.38 br 96.0 fn 96.77	100.00/99.03/100.00	
+apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts	lines 97.5 br 100.0 fn 100.0	97.50/100.00/100.00	40
+apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts	lines 100.0 br 85.71 fn 100.0	100.00/85.71/100.00	
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	lines 100.0 br 100.0 fn 44.44	100.00/100.00/100.00	
+apps/website/src/platform/db/sqlite/restore-point-prune-warning.ts	lines 88.89 br 100.0 fn 100.0	88.89/100.00/100.00	7
+apps/website/src/platform/db/sqlite/routines-db.ts	lines 41.38 br 66.67 fn 100.0	55.17/100.00/100.00	3-14,16
+apps/website/src/platform/db/vault-credential-inventory.ts	lines 100.0 br 98.37 fn 78.57	100.00/100.00/100.00	
+apps/website/src/platform/db/vault-credential-recovery.ts	lines 100.0 br 94.29 fn 100.0	100.00/94.29/100.00	
+apps/website/src/platform/db/write-watermark-tables.ts	lines 16.67 br 100.0 fn 100.0	16.67/100.00/100	1-5
+apps/website/src/platform/dev-host/warm-site-agent.ts	lines 61.54 br 50.0 fn 50.0	92.31/91.67/100.00	1,11
+apps/website/src/platform/dev-supervisor/dev-restart.ts	lines 100.0 br 94.59 fn 81.82	98.98/100.00/100.00	87
+apps/website/src/platform/dev-supervisor/index.ts	lines 50.0 br 100.0 fn 100.0	50.00/100.00/100	1
+apps/website/src/platform/express/async-route.ts	lines 100.0 br 85.71 fn 66.67	36.36/100.00/100.00	3,6,9-27
+apps/website/src/platform/express/jini-routes.ts	lines 97.12 br 77.19 fn 100.0	95.19/81.48/90.91	1-6,186-188,203
+apps/website/src/platform/express/public-origin.ts	lines 98.96 br 95.0 fn 50.0	63.54/100.00/100.00	3-10,12-37,87
+apps/website/src/platform/express/request-facts.ts	lines 97.14 br 83.33 fn 50.0	91.43/100.00/66.67	35-37
+apps/website/src/platform/headless-browser/desktop-render.ts	lines 84.21 br 75.0 fn 100.0	78.95/87.50/100.00	1-3,12
+apps/website/src/platform/headless-browser/playwright-loader.ts	lines 43.59 br 100.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/platform/html/menu-render.ts	lines 98.53 br 100.0 fn 80.0	33.82/100.00/0.00	29-31,38-42,44-48,50,52-57,59,61-73,75,77-80,82-87
+apps/website/src/platform/html/published-webmcp-strip.ts	lines 98.51 br 81.82 fn 70.0	82.09/66.67/83.33	1,42,56,58-66
+apps/website/src/platform/http/client.ts	lines 95.0 br 86.67 fn 100.0	96.25/100.00/100.00	1-2,83
+apps/website/src/platform/http/egress-policies.ts	lines 90.03 br 88.89 fn 100.0	90.03/100.00/100.00	1-25,28-32
+apps/website/src/platform/http/index.ts	lines 33.33 br 100.0 fn 100.0	33.33/100.00/100	1-5,8-10
+apps/website/src/platform/http/ports.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/http/test-origin-allowlist.ts	lines 78.3 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/platform/mail/adapter-module.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/mail/adapters/smtp.nodemailer.ts	lines 90.0 br 100.0 fn 50.0	90.00/100.00/100.00	1,24
+apps/website/src/platform/mail/delivery-availability.ts	lines 84.62 br 100.0 fn 100.0	84.62/100.00/100.00	1,12
+apps/website/src/platform/mail/index.ts	lines 61.54 br 100.0 fn 100.0	61.54/100.00/100	1-5
+apps/website/src/platform/markdown/frontmatter.ts	lines 98.41 br 64.71 fn 100.0	98.41/100.00/100.00	48
+apps/website/src/platform/oauth/index.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/oauth/legacy-endpoint-error.ts	lines 96.88 br 75.0 fn 100.0	96.88/100.00/100.00	21
+apps/website/src/platform/publish-contracts.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/routing/adapter.ts	lines 100.0 br 75.0 fn 10.53	100.00/100.00/100.00	
+apps/website/src/platform/routing/index.ts	lines 100.0 br 66.67 fn 12.5	88.89/100.00/100	1
+apps/website/src/platform/secrets/startup-secrets.ts	lines 97.5 br 85.71 fn 100.0	95.00/92.31/100.00	1,38
+apps/website/src/platform/secrets/vault-api-connection-meta.ts	lines 97.06 br 93.33 fn 22.22	97.06/100.00/100.00	23
+apps/website/src/platform/secrets/vault-kinds.ts	lines 100.0 br 97.56 fn 77.27	98.89/100.00/100.00	107
+apps/website/src/platform/secrets/vault-meta-rules.ts	lines 100.0 br 98.85 fn 73.91	99.29/100.00/100.00	139
+apps/website/src/platform/server-logs/index.ts	lines 99.21 br 100.0 fn 100.0	99.21/100.00/95.24	116
+apps/website/src/platform/server-logs/log-buffer.ts	lines 71.43 br 69.23 fn 87.5	81.32/95.83/100.00	1-16,67
+apps/website/src/platform/server-logs/log-file.ts	lines 94.16 br 70.59 fn 91.67	99.27/100.00/100.00	140
+apps/website/src/platform/site-dir/active-site.ts	lines 91.45 br 44.44 fn 50.0	99.15/91.67/100.00	118
+apps/website/src/platform/site-dir/boot-site-dir.ts	lines 100.0 br 96.77 fn 100.0	98.96/95.45/80.00	217-218
+apps/website/src/platform/site-dir/duplicate-content-db.ts	lines 100.0 br 100.0 fn 60.0	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/duplicate-pglite-store.ts	lines 43.53 br 50.0 fn 0.0	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/duplicate-site.ts	lines 97.03 br 83.33 fn 80.0	100.00/96.97/100.00	
+apps/website/src/platform/site-dir/errors.ts	lines 100.0 br 93.33 fn 65.0	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/index.ts	lines 100.0 br 75.0 fn 3.64	78.07/100.00/100	1-25
+apps/website/src/platform/site-dir/init-site.ts	lines 99.77 br 94.17 fn 73.08	99.77/96.88/100.00	489
+apps/website/src/platform/site-dir/key-only-site-meta.ts	lines 75.64 br 60.0 fn 28.0	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/layout.ts	lines 99.33 br 100.0 fn 22.22	60.00/100.00/100.00	1-54,56-60,148
+apps/website/src/platform/site-dir/local-admin-bundle.ts	lines 98.88 br 93.94 fn 81.48	100.00/96.88/95.45	
+apps/website/src/platform/site-dir/local-site-child.ts	lines 95.3 br 93.33 fn 100.0	97.99/97.92/100.00	1-3
+apps/website/src/platform/site-dir/local-site-intent.ts	lines 98.39 br 93.33 fn 72.73	96.77/100.00/100.00	1,60
+apps/website/src/platform/site-dir/local-site-supervisor.ts	lines 86.69 br 61.11 fn 64.52	100.00/97.85/91.94	
+apps/website/src/platform/site-dir/move-sites-home.ts	lines 99.61 br 99.13 fn 100.0	99.61/99.13/100.00	1
+apps/website/src/platform/site-dir/moves.ts	lines 50.0 br 100.0 fn 100.0	50.00/100.00/100	1
+apps/website/src/platform/site-dir/nested-sites-root.ts	lines 100.0 br 95.83 fn 69.23	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/new-site-owner.ts	lines 100.0 br 90.0 fn 50.0	96.15/100.00/100.00	17
+apps/website/src/platform/site-dir/ports.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/site-dir/product-root.ts	lines 97.14 br 94.59 fn 64.71	100.00/97.50/100.00	
+apps/website/src/platform/site-dir/read-applied-schema-identity.ts	lines 100.0 br 100.0 fn 70.0	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/read-site-dir.ts	lines 100.0 br 97.87 fn 73.68	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/read-template.ts	lines 100.0 br 88.89 fn 50.0	98.78/100.00/100.00	66
+apps/website/src/platform/site-dir/repair-site.ts	lines 90.97 br 60.87 fn 66.67	100.00/100.00/100.00	
+apps/website/src/platform/site-dir/schema-guard.ts	lines 100.0 br 85.71 fn 50.0	98.90/92.86/100.00	86
+apps/website/src/platform/site-dir/seed-site-themes.ts	lines 99.38 br 100.0 fn 55.56	99.38/100.00/100.00	178
+apps/website/src/platform/site-dir/seed-starter-title.ts	lines 100.0 br 83.33 fn 60.0	97.22/90.91/100.00	13
+apps/website/src/platform/site-dir/site-databases.ts	lines 99.32 br 96.88 fn 68.75	99.32/96.83/100.00	134
+apps/website/src/platform/site-dir/site-key-dependent-data.ts	lines 84.15 br 64.71 fn 50.0	96.34/96.15/100.00	55-57
+apps/website/src/platform/site-dir/site-registry.ts	lines 99.38 br 95.59 fn 73.58	98.96/100.00/97.44	452-455,526
+apps/website/src/platform/site-dir/site-root.ts	lines 96.0 br 84.62 fn 33.33	97.00/100.00/75.00	90-92
+apps/website/src/platform/site-dir/site-running.ts	lines 100.0 br 96.97 fn 72.22	95.77/96.88/100.00	1-3
+apps/website/src/platform/site-dir/site-storage.ts	lines 98.88 br 96.88 fn 44.44	98.88/100.00/100.00	74
+apps/website/src/platform/site-dir/site-store.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/site-dir/site-switcher-enabled.ts	lines 96.43 br 87.5 fn 50.0	21.43/100.00/100.00	1-22
+apps/website/src/platform/site-dir/site-trash.ts	lines 99.55 br 97.3 fn 75.0	99.55/97.33/100.00	211
+apps/website/src/platform/site-dir/sites-home.ts	lines 97.62 br 100.0 fn 44.44	95.24/100.00/100.00	1,45

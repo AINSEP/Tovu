@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/website/src/features/theme/font-links.ts	lines 100.0 br 90.91 fn 84.62	100.00/100.00/100.00	
+apps/website/src/features/theme/handlebars-allowlist.ts	lines 99.75 br 89.55 fn 71.43	99.75/90.91/100.00	391
+apps/website/src/features/theme/hardcoded-link-lists.ts	lines 99.15 br 84.85 fn 100.0	100.00/84.85/100.00	
+apps/website/src/features/theme/held-back-choice.ts	lines 95.78 br 88.68 fn 100.0	93.98/93.75/85.71	155-157,164-170
+apps/website/src/features/theme/held-back-gated-hooks.ts	lines 97.73 br 100.0 fn 100.0	65.91/100.00/0.00	38-52
+apps/website/src/features/theme/held-back-themes.ts	lines 99.17 br 81.01 fn 100.0	95.87/84.72/89.47	216-218,243-249
+apps/website/src/features/theme/import-theme-file-tool.ts	lines 100.0 br 93.33 fn 88.89	99.43/93.33/88.89	177
+apps/website/src/features/theme/liquid-allowlist.ts	lines 99.66 br 95.24 fn 61.54	99.31/97.56/88.89	159,277
+apps/website/src/features/theme/migration/migrate-theme.ts	lines 88.37 br 55.26 fn 82.35	99.71/100.00/100.00	370
+apps/website/src/features/theme/migration/theme-migration-plan.ts	lines 61.98 br 52.63 fn 40.0	93.92/100.00/100.00	1-15,271
+apps/website/src/features/theme/page-publication.ts	lines 98.44 br 100.0 fn 100.0	98.44/100.00/100.00	43
+apps/website/src/features/theme/page-publish-tool.ts	lines 98.15 br 85.71 fn 100.0	98.15/100.00/100.00	55
+apps/website/src/features/theme/preview-policy.ts	lines 83.33 br 80.0 fn 75.0	83.33/100.00/100.00	1
+apps/website/src/features/theme/preview-switcher-html.ts	lines 100.0 br 100.0 fn 84.21	100.00/100.00/100.00	
+apps/website/src/features/theme/preview-switcher.ts	lines 99.15 br 97.5 fn 72.97	100.00/98.75/100.00	
+apps/website/src/features/theme/public-page-security-headers.ts	lines 96.15 br 100.0 fn 100.0	100.00/66.67/100.00	
+apps/website/src/features/theme/public-theme-resources.ts	lines 97.14 br 83.33 fn 50.0	100.00/100.00/100.00	
+apps/website/src/features/theme/publish-content.ts	lines 91.53 br 62.16 fn 84.62	100.00/98.89/100.00	
+apps/website/src/features/theme/render-contract.ts	lines 99.07 br 90.0 fn 55.56	59.81/100.00/100.00	6-15,18-38,80,228,231-239,295
+apps/website/src/features/theme/save-theme-original.ts	lines 98.08 br 100.0 fn 100.0	98.08/100.00/100.00	39
+apps/website/src/features/theme/set-active-theme-tool.ts	lines 99.44 br 65.0 fn 100.0	100.00/93.33/100.00	
+apps/website/src/features/theme/static-asset-contract.ts	lines 99.13 br 94.74 fn 57.14	78.26/100.00/100.00	1-12,14-25,112
+apps/website/src/features/theme/static-page-shell.ts	lines 99.39 br 76.0 fn 71.43	99.39/100.00/100.00	143
+apps/website/src/features/theme/static-portability-index.ts	lines 94.37 br 84.21 fn 53.33	99.57/100.00/100.00	218
+apps/website/src/features/theme/static-render-content.ts	lines 99.42 br 93.22 fn 66.67	99.42/100.00/100.00	167
+apps/website/src/features/theme/static-render-menus.ts	lines 100.0 br 100.0 fn 88.46	99.59/100.00/100.00	1
+apps/website/src/features/theme/static-render-previews.ts	lines 100.0 br 93.75 fn 63.64	100.00/100.00/100.00	
+apps/website/src/features/theme/static-render.ts	lines 99.59 br 91.89 fn 77.78	99.59/97.14/100.00	244
+apps/website/src/features/theme/static-template-choice.ts	lines 99.44 br 86.36 fn 55.56	99.44/100.00/100.00	175
+apps/website/src/features/theme/static-template-resolution.ts	lines 99.26 br 95.45 fn 50.0	100.00/100.00/100.00	
+apps/website/src/features/theme/structure-only-theme.ts	lines 98.15 br 96.0 fn 100.0	100.00/96.00/100.00	
+apps/website/src/features/theme/sync-originals.ts	lines 99.48 br 100.0 fn 100.0	99.48/100.00/100.00	186
+apps/website/src/features/theme/theme-discovery.ts	lines 99.56 br 93.88 fn 67.65	99.13/97.83/100.00	1,223
+apps/website/src/features/theme/theme-file-identity-tools.ts	lines 93.64 br 52.17 fn 100.0	74.57/69.57/83.33	64-65,67-68,75-76,96-97,142-177
+apps/website/src/features/theme/theme-file-import.ts	lines 87.79 br 95.24 fn 100.0	87.79/100.00/100.00	1-21
+apps/website/src/features/theme/theme-file-listing.ts	lines 96.1 br 71.43 fn 100.0	98.70/100.00/100.00	62
+apps/website/src/features/theme/theme-file-policy.ts	lines 100.0 br 96.67 fn 53.85	86.73/100.00/100.00	1,5-28,176
+apps/website/src/features/theme/theme-file-trash-tools.ts	lines 100.0 br 96.3 fn 100.0	92.81/60.00/87.50	42-45,95-96,101-102,104-105
+apps/website/src/features/theme/theme-file-write-ports.ts	lines 92.68 br 85.71 fn 83.33	100.00/90.91/100.00	
+apps/website/src/features/theme/theme-file-writing.ts	lines 97.12 br 94.44 fn 100.0	99.04/100.00/100.00	94
+apps/website/src/features/theme/theme-files.ts	lines 97.29 br 82.5 fn 100.0	99.55/100.00/100.00	209
+apps/website/src/features/theme/theme-generated-restore.ts	lines 98.48 br 100.0 fn 100.0	98.48/100.00/100.00	34
+apps/website/src/features/theme/theme-manifest-fields.ts	lines 100.0 br 88.1 fn 65.22	99.07/95.56/100.00	2
+apps/website/src/features/theme/theme-manifest.ts	lines 100.0 br 98.18 fn 83.33	100.00/98.15/100.00	
+apps/website/src/features/theme/theme-page-eligibility.ts	lines 98.68 br 93.75 fn 50.0	98.68/100.00/100.00	68
+apps/website/src/features/theme/theme-preview-image.ts	lines 66.02 br 70.0 fn 40.0	99.03/100.00/100.00	104
+apps/website/src/features/theme/theme-read-content.ts	lines 84.38 br 33.33 fn 100.0	92.19/100.00/100.00	1-4,54
+apps/website/src/features/theme/theme-read-tools.ts	lines 82.26 br 84.38 fn 68.75	99.19/95.24/85.71	104
+apps/website/src/features/theme/theme-reset-file-tool.ts	lines 99.17 br 100.0 fn 100.0	95.83/45.45/80.00	53-54,65-66,87
+apps/website/src/features/theme/theme-roster-ports.ts	lines 100.0 br 50.0 fn 0.0	100.00/100.00/100	
+apps/website/src/features/theme/theme-static-assets.ts	lines 100.0 br 87.69 fn 78.95	100.00/92.31/100.00	
+apps/website/src/features/theme/theme-template-sources.ts	lines 100.0 br 98.11 fn 72.73	99.25/100.00/100.00	1
+apps/website/src/features/theme/theme-tool-editing.ts	lines 86.76 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/theme/theme-tool-view.ts	lines 56.1 br 100.0 fn 100.0	58.54/100.00/100.00	1,4-19
+apps/website/src/features/theme/theme-trash-binding.ts	lines 65.85 br 100.0 fn 42.86	100.00/100.00/100.00	
+apps/website/src/features/theme/theme-watch-bindings.ts	lines 47.06 br 100.0 fn 0.0	94.12/100.00/100.00	16
+apps/website/src/features/theme/theme-write-tools.ts	lines 99.0 br 80.0 fn 100.0	99.00/100.00/100.00	61
+apps/website/src/features/theme/theme.ts	lines 78.06 br 93.88 fn 83.33	91.89/97.96/100.00	1-15
+apps/website/src/features/theme/token-aliases.ts	lines 98.08 br 80.0 fn 66.67	65.38/100.00/100.00	3-19,21
+apps/website/src/features/theme/tool-registrations.ts	lines 77.7 br 100.0 fn 100.0	76.98/100.00/100.00	1-31,139
+apps/website/src/features/theme/trash-theme-tool.ts	lines 71.11 br 100.0 fn 50.0	100.00/100.00/100.00	
+apps/website/src/features/theme/validation/markup.ts	lines 93.55 br 87.5 fn 61.54	100.00/100.00/100.00	
+apps/website/src/features/theme/validation/profiles.ts	lines 64.29 br 90.91 fn 100.0	65.48/100.00/100.00	1-10,12-25,30-34
+apps/website/src/features/theme/validation/references.ts	lines 99.04 br 100.0 fn 100.0	99.04/100.00/100.00	96
+apps/website/src/features/theme/validation/structure.ts	lines 99.66 br 89.66 fn 100.0	99.66/92.06/100.00	291
+apps/website/src/features/theme/validation/validate-theme-package.ts	lines 99.59 br 100.0 fn 100.0	99.59/100.00/100.00	237
+apps/website/src/features/theme/validation/webmcp-markup.ts	lines 99.0 br 87.62 fn 100.0	100.00/95.28/100.00	
+apps/website/src/features/theme/visitor-publication.ts	lines 55.56 br 63.16 fn 35.29	98.72/81.52/96.77	56-57
+apps/website/src/features/trash/adapters/comment.ts	lines 78.08 br 100.0 fn 100.0	78.08/100.00/100.00	1-15,29
+apps/website/src/features/trash/adapters/redirect.ts	lines 85.71 br 100.0 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/trash/agent-delete-policy.ts	lines MISSING br MISSING fn MISSING	80.00/100.00/100.00	1
+apps/website/src/features/trash/db-port.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/features/trash/index.ts	lines 83.67 br 100.0 fn 0.0	83.67/100.00/100.00	1-8
+apps/website/src/features/trash/registry.ts	lines 89.02 br 100.0 fn 100.0	89.02/100.00/100.00	1-21,24-31
+apps/website/src/features/trash/repo.sqlite.ts	lines 97.22 br 100.0 fn 100.0	97.22/100.00/100.00	32
+apps/website/src/features/trash/tool-kinds.ts	lines 100.0 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/trash/tool-registrations.ts	lines 100.0 br 100.0 fn 57.14	100.00/100.00/100.00	
+apps/website/src/features/vendor-credentials/index.ts	lines 33.33 br 100.0 fn 100.0	33.33/100.00/100	1-6
+apps/website/src/features/vendor-credentials/vault-adapter.ts	lines 100.0 br 100.0 fn 66.67	100.00/100.00/66.67	
+apps/website/src/features/web/policy.ts	lines 42.86 br 100.0 fn 100.0	42.86/100.00/100	3-6
+apps/website/src/features/web/web-page.ts	lines 96.88 br 100.0 fn 100.0	96.88/100.00/100.00	2
+apps/website/src/features/webhooks/keyring.env.ts	lines 100.0 br 93.33 fn 43.48	100.00/100.00/100.00	
+apps/website/src/features/webhooks/site-key-read-bindings.ts	lines 100.0 br 66.67 fn 23.08	91.67/50.00/100	4-5
+apps/website/src/features/webhooks/tool-registrations.ts	lines 92.66 br 100.0 fn 100.0	92.66/100.00/100.00	1-8
+apps/website/src/features/webhooks/wire-headers.ts	lines 28.57 br 100.0 fn 100.0	28.57/100.00/100	3-7
+apps/website/src/features/webmcp/published-html.ts	lines 94.74 br 66.67 fn 33.33	100.00/100.00/100.00	
+apps/website/src/features/widgets/deps.ts	lines 99.28 br 95.83 fn 76.19	99.28/100.00/100.00	174
+apps/website/src/features/widgets/media-html-log.ts	lines 92.31 br 80.0 fn 75.0	69.23/100.00/100.00	1-3,12
+apps/website/src/index.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/platform/db/chat-kernel.ts	lines 100.0 br 87.5 fn 42.86	88.89/100.00/50.00	4-5,63-65
