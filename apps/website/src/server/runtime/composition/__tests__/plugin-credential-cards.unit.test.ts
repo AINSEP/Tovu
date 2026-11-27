@@ -214,3 +214,41 @@ test('a fixed probe requires an API card and a fixed declared base origin', asyn
     assert.equal(result.refusals.length, 1);
   }
 });
+
+test('unreadable descriptors and an unreadable manifest grant no ownership beyond the plugin id', async () => {
+  const refusals: string[] = [];
+  const reads: string[] = [];
+  const declarations = [
+    { ...providerCard, providerId: 'metrics' },
+    { ...manifest, providerId: 'own-dns', saveKind: 'publish-host' as const },
+    { ...manifest, providerId: 'owner', saveKind: 'api' as const, label: 'owner' },
+  ];
+  const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => [] }, {
+    readFile: async ({ filename }) => { reads.push(filename); throw Object.assign(new Error('permission denied'), { code: 'EACCES' }); },
+    loadContributions: async ({ definition }) => {
+      const items = [];
+      for (const descriptor of declarations) {
+        const loaded = await definition.load({ plugin: { pluginId: 'owner', packageRoot: '/unused' }, descriptor: descriptor as never, importModule: async () => assert.fail('data only') });
+        if (typeof loaded === 'string') refusals.push(loaded); else items.push(loaded);
+      }
+      return { items, refusals: [] };
+    },
+  });
+  const cards = await load('workspace');
+  assert.deepEqual(cards.map(card => [card.providerId, card.pluginId]), [['owner', 'owner']]);
+  assert.deepEqual(refusals, [
+    "credential card 'metrics' from 'owner' was refused: destination is not owned by this plugin",
+    "credential card 'own-dns' from 'owner' was refused: destination is not owned by this plugin",
+  ]);
+  // The provider card reads only the manifest; each other card reads the three descriptor files.
+  assert.deepEqual(reads, ['plugin.json', ...Array(2).fill(['jini-deploy-targets.json', 'jini-source-control.json', 'jini-mail-adapters.json']).flat()]);
+});
+
+test('without a refusal sink, refusals go to the console under the module prefix', async (t) => {
+  const warned = t.mock.method(console, 'warn', () => {});
+  const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => [mail] }, {
+    loadContributions: async () => ({ items: [], refusals: ['card refused for a test'] }),
+  });
+  assert.deepEqual(await load('workspace'), [mail]);
+  assert.deepEqual(warned.mock.calls.map(call => call.arguments), [['[plugin-credential-cards] card refused for a test']]);
+});
