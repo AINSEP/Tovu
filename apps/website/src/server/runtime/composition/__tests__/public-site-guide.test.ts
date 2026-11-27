@@ -107,3 +107,11 @@ test("visitorsafe: public guide prose and pointers contain no raw tool identifie
     assert.doesNotMatch(JSON.stringify(result), /search_published_entries|get_published_entry/);
   }
 });
+
+test("an anonymous search matches only the public content card, by every word, and never a private topic", async () => {
+  const contentCard = { id: "content", title: "Published content", summary: "Find published entries and navigate this site.", source: "core" };
+  assert.deepEqual(await runPublicSiteGuide({ input: { operation: "search", topic: "Published Entries" } }), { operation: "search", topics: [contentCard], facts: {}, enrichment: "ok" });
+  for (const topic of ["plugins", "published plugins", "admin"]) {
+    assert.deepEqual(await runPublicSiteGuide({ input: { operation: "search", topic } }), { operation: "search", topics: [], facts: {}, enrichment: "ok" }, topic);
+  }
+});
