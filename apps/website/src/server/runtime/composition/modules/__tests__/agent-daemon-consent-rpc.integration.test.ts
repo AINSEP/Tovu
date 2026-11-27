@@ -20,20 +20,27 @@ async function fixture(t: import('node:test').TestContext) {
   await ensureExecutionSettingDefinitions({ settingsRepo, clock, ids: idGen,
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: 'system' });
   const run = { runId: 'accepted-run', workspaceId: 'site-one', principalId: 'owner' as string | null,
-    cancelReason: null as string | null, message: { runStatus: 'queued' }, request: { agentId: 'antigravity', contextRef: '{}' } };
+    cancelReason: null as string | null, conversationId: 'chat-one', message: { runStatus: 'queued' as string | undefined },
+    request: { agentId: 'antigravity' as string | undefined, contextRef: '{}' } };
+  const sessionLookups: Array<{ conversationId: string; agentId: string }> = [];
+  const ledger: { durable?: { find: (input: { runId: string }) => Promise<typeof run | null> } } = {
+    durable: { find: async ({ runId }: { runId: string }) => runId === run.runId ? run : null } };
   const deps = { workspaceId: 'site-one', settingsRepo, getEffective, ownerPrincipalId: Promise.resolve('owner'),
     settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(), siteTitleReady: Promise.resolve(), clock, idGen,
     authorize: async () => ({ allowed: true, reason: 'fixture' }), principalRepo: { findById: async ({ id, workspaceId }: { id: string; workspaceId: string }) => ({ id, workspaceId, ...actor }) },
-    chatRunLedger: { durable: { find: async ({ runId }: { runId: string }) => runId === run.runId ? run : null } },
+    chatRunLedger: ledger,
+    agentSessions: { getSessionId: async (locator: { conversationId: string; agentId: string }) => { sessionLookups.push(locator); return 'native-session'; } },
   } as unknown as Deps;
+  const refusals: string[] = [];
   const token = ensureToolExecToken({}, {});
   const app = express(); registerAgentDaemonCoreRoutes({ router: app, deps });
-  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => { res.status(409).json({ error: error.name }); });
+  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => { refusals.push(error.message); res.status(409).json({ error: error.name }); });
   const baseUrl = await startTestServer(app, t);
   const client = createDaemonCoreClient({ baseUrl, token });
   const target = { runId: run.runId, agentId: 'antigravity' };
   const layer = () => readCliPermissionLayer({ settingsRepo, workspaceId: deps.workspaceId, principalId: 'owner' });
-  return { run, client, target, layer, baseUrl, token, settingsRepo, setActor: (value: typeof actor) => { actor = value; } };
+  return { run, client, target, layer, baseUrl, token, settingsRepo, refusals, sessionLookups,
+    dropAttemptAuthority: () => { delete ledger.durable; }, setActor: (value: typeof actor) => { actor = value; } };
 }
 
 test('memory daemon consent reads and writes only the authenticated site owner ledger', async t => {
@@ -114,4 +121,54 @@ test('deactivation after the consent snapshot prevents the private RPC grant', a
   f.setActor({ kind: 'user', status: 'disabled' });
   await assert.rejects(f.client.allowRunTools({ ...f.target, keys: ['userMcp'], expectedRevisionSeq: 0 }), /RPC refused/);
   assert.equal((await f.layer()).revisionSeq, 0);
+});
+
+test('an accepted attempt cannot read or approve consent for an agent the runtime does not know', async t => {
+  const f = await fixture(t);
+  const unknownAgent = { ...f.target, agentId: 'no-such-agent' };
+  await assert.rejects(f.client.readToolConsentSnapshot(unknownAgent), /RPC refused/);
+  await assert.rejects(f.client.allowRunTools({ ...unknownAgent, keys: ['userMcp'], expectedRevisionSeq: 0 }), /RPC refused/);
+  assert.deepEqual(f.refusals, ['tool consent names an unknown agent', 'tool consent names an unknown agent']);
+  assert.equal((await f.layer()).revisionSeq, 0);
+});
+
+test('an accepted attempt with no recorded run status is not live and cannot approve a grant', async t => {
+  const f = await fixture(t);
+  f.run.message.runStatus = undefined;
+  await assert.rejects(f.client.allowRunTools({ ...f.target, keys: ['userMcp'], expectedRevisionSeq: 0 }), /RPC refused/);
+  assert.deepEqual(f.refusals, ["tool consent requires this site's live accepted answer"]);
+  assert.equal((await f.layer()).revisionSeq, 0);
+});
+
+test('every attempt-scoped operation refuses when the site has no durable attempt authority', async t => {
+  const f = await fixture(t);
+  f.dropAttemptAuthority();
+  await assert.rejects(f.client.readToolConsentSnapshot(f.target), /RPC refused/);
+  await assert.rejects(f.client.getSessionForAttempt({ runId: f.run.runId }), /RPC refused/);
+  assert.deepEqual(f.refusals, ['site attempt authority is unavailable', 'site attempt authority is unavailable']);
+  assert.deepEqual(f.sessionLookups, []);
+});
+
+test('a native session is resolved only for a live attempt, under the default agent when the attempt names none', async t => {
+  const f = await fixture(t);
+  f.run.request.agentId = undefined;
+  assert.equal(await f.client.getSessionForAttempt({ runId: f.run.runId }), 'native-session');
+  assert.deepEqual(f.sessionLookups, [{ conversationId: 'chat-one', agentId: 'claude' }]);
+  f.run.cancelReason = 'user_cancelled';
+  assert.equal(await f.client.getSessionForAttempt({ runId: f.run.runId }), null);
+  f.run.cancelReason = null; f.run.message.runStatus = undefined;
+  assert.equal(await f.client.getSessionForAttempt({ runId: f.run.runId }), null);
+  assert.equal(await f.client.getSessionForAttempt({ runId: 'unknown-run' }), null);
+  assert.equal(f.sessionLookups.length, 1, 'cancelled, status-less and unknown attempts never reach the session store');
+});
+
+test('bootstrap on a site without an AI trace sink reports tracing off at metadata capture', async t => {
+  const f = await fixture(t);
+  const response = await fetch(`${f.baseUrl}/internal/agent-daemon-core`, { method: 'POST',
+    headers: { authorization: `Bearer ${f.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ operation: 'bootstrap', input: {} }) });
+  assert.equal(response.status, 200);
+  const body = await response.json() as { value: { workspaceId: string; ownerPrincipalId: string; traceEnabled: boolean; traceCapture: string }; traceCapture: string };
+  assert.deepEqual({ workspaceId: body.value.workspaceId, ownerPrincipalId: body.value.ownerPrincipalId, traceEnabled: body.value.traceEnabled, traceCapture: body.value.traceCapture },
+    { workspaceId: 'site-one', ownerPrincipalId: 'owner', traceEnabled: false, traceCapture: 'metadata' });
+  assert.equal(body.traceCapture, 'metadata');
 });
