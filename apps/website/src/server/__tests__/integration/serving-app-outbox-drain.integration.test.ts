@@ -163,3 +163,25 @@ test("a background taxonomy subscriber span is a descendant of the producing req
   assert.equal(legacy.parentSpanId, undefined, "an event with no persisted context starts its own trace");
   assert.ok(spans.every((span) => span.name === "outbox.deliver" || span.traceId !== legacy.traceId || span.name.startsWith("subscriber:")));
 });
+
+test("a metric-capable observability provider receives the durable outbox depth as a gauge after each drain", async (t) => {
+  const metrics: Array<{ name: string; value: number; kind: unknown }> = [];
+  const port: ObservabilityPort = { ...createNoopObservabilityPort({}), supportsMetric: true,
+    metric: (input, options = {}) => { metrics.push({ name: input.name, value: input.value, kind: options.kind }); } };
+  const deps = await durableSiteDeps(t, { port });
+  const { outboxDrainer } = createServingApp(deps, { outboxDrainIntervalMs: 20 });
+  t.after(() => outboxDrainer.stop());
+  // Once boot-time events have drained, the durable queue the gauge reads is empty.
+  assert.ok(await waitFor(() => metrics.some(metric => metric.value === 0), 2_000), `no empty-queue depth gauge was sampled: ${JSON.stringify(metrics)}`);
+  assert.deepEqual([...new Set(metrics.map(({ name, kind }) => `${name}:${String(kind)}`))], ["outbox.queue_depth:gauge"]);
+});
+
+test("an observability provider without metric support gets no outbox depth sampling", async (t) => {
+  let metricCalls = 0;
+  const port: ObservabilityPort = { ...createNoopObservabilityPort({}), supportsMetric: false, metric: () => { metricCalls++; } };
+  const deps = await durableSiteDeps(t, { port });
+  const { outboxDrainer } = createServingApp(deps, { outboxDrainIntervalMs: 20 });
+  t.after(() => outboxDrainer.stop());
+  await new Promise(resolve => setTimeout(resolve, 200));
+  assert.equal(metricCalls, 0);
+});
