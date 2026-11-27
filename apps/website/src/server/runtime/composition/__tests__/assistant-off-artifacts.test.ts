@@ -12,7 +12,7 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "@j
 import { createFixedSecretSigner } from "@jini-ai/integrations/webhooks/site/signing";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { HttpClientPort } from "#src/platform/http/ports";
-import type { HumanConfirmOutcome } from "../../../../contracts/core/human-confirm.js";
+import type { HumanConfirmOutcome } from "@jini-ai/daemon/surface-exchanges/human-confirm";
 import { postRepoFor } from "../../../../features/post/repo.js";
 import { buildPostRecord } from "../../../../features/post/__tests__/post-record.fixture.js";
 import { createAgentPauseGate, sqlAgentPauseHoldStore, type AgentPauseGate, type AgentResumeResult } from "../agent-pause-gate.js";

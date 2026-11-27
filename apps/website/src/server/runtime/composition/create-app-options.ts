@@ -8,7 +8,7 @@ import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
 import type { createAssistantByokModule } from "./modules/assistant-byok.js";
 import type { ErrorReporter } from "@jini-ai/core/errors/reporter";
 import type { RoutineToolHost } from "#src/features/routines/routine-tool-registrations";
-import type { HumanConfirmSurfaceDeps } from "#src/contracts/core/human-confirm";
+import type { HumanConfirmSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import type { SiteStoragePort } from "./modules/storage-routes.js";
 
 /** Optional {@link createApp} hooks. */

@@ -4,7 +4,9 @@ import type { Express, Request, Response } from "express";
 import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/features/external-mcp/external-mcp-host-copy";
 import { OUTBOUND_CALL_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
-import { guardExternalMcpRequest } from "./guard.js";
+import { externalMcpProbeRoute } from "@jini-ai/cms/admin-http/routes/external-mcp/probe";
+import { mountAdminJsonRoute } from "../../admin-json-route-ports.js";
+import type { RequestHandler } from "express";
 import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 /**
@@ -73,16 +75,13 @@ async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Res
  * @complexity O(t) in the remote's advertised tool count, plus one round trip.
  */
 export function registerAdminExternalMcpProbeRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpProbeRouteDeps; limiter: RateLimiter }, _optional = {}): void {
-  app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", asyncRoute({ handler: async (req, res) => {
+  const limitedApp: Express = Object.create(app);
+  limitedApp.post = ((path: string, handler: RequestHandler) => app.post(path, asyncRoute({ handler: async (req, res, next) => {
     if (!(await withinProbeRateLimit(limiter, req, res))) return;
-    try {
-      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
-      const serverId = String(req.params.serverId ?? "");
-
-      const outcome = await probeExternalMcpServer({ deps, serverId });
-      res.status(outcome.ok ? 200 : outcome.status).json(outcome.body);
-    } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/external-mcp/probe", code: "INTERNAL_ERROR" });
-    }
-  } }));
+    return handler(req, res, next);
+  } }))) as Express["post"];
+  mountAdminJsonRoute({ app: limitedApp, spec: externalMcpProbeRoute, deps: {
+    workspaceId: deps.workspaceId, authorize: deps.authorize,
+    probe: ({ serverId }) => probeExternalMcpServer({ deps, serverId }),
+  } }, { authorization: "direct", failureWriter: ({ res, error }) => sendAdminFailure({ res, error }, { operation: "routes/external-mcp/probe", code: "INTERNAL_ERROR" }) });
 }

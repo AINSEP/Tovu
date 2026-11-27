@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
+=======
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
+>>>>>>> origin/codex/tv-r2-ext-crp
 import type { Express } from "express";
 import { memberOidcStartRoute, type MemberOidcStartRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-start";
 import { beginOidcLogin, memberLoginCallbackUrl } from "@jini-ai/user-management/member-login/oidc-login";

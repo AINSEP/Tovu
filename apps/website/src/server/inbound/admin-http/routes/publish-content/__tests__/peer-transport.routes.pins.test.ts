@@ -6,6 +6,7 @@ import { CONTENT_HASH_VERSION } from "@jini-ai/cms/publish/content/content-hash"
 import { PublishContentPeerTransportError } from "@jini-ai/cms/publish/content/peer-transport";
 import { PublishContentPeerCredentialMissingError, PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerValidationError } from "@jini-ai/cms/publish/content/peers";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
+import { PUBLISH_FROM_LIVE_SITE_ERROR } from "@jini-ai/cms/publish/content/live-site-policy";
 import { PublishTrustHandshakeError } from "@jini-ai/cms/publish/trust/handshake-client";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
@@ -158,4 +159,27 @@ test("pull stages the peer's export here and answers 201 with the local bundle",
   const result = await dispatchJsonRequest(app, "POST", `${PEER}/pull`, {});
   assert.equal(result.status, 201);
   assert.equal(typeof (result.body as { bundleId: unknown }).bundleId, "string");
+});
+
+
+test("live restriction wins over workspace mismatch and credential opening follows all push admission", async t => {
+  const previous = process.env.TOVU_RUNTIME_MODE;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_RUNTIME_MODE; else process.env.TOVU_RUNTIME_MODE = previous; });
+  const calls: string[] = [];
+  const repo = new FailingPeerRepo(new PublishContentPeerNotFoundError({ message: "peer unopened" }));
+  const find = repo.findById.bind(repo);
+  repo.findById = async () => { calls.push("open"); return find(); };
+  const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: repo, authorize: async () => { calls.push("authorize"); return { allowed: true, reason: "fixture" }; } }));
+  process.env.TOVU_RUNTIME_MODE = "production";
+  for (const action of ["plan", "confirm", "execute"]) {
+    const denied = await dispatchJsonRequest(app, "POST", `${PEER}/push/${action}`.replace("/workspaces/ws/", "/workspaces/foreign/"), {});
+    assert.deepEqual(denied, { status: 403, body: { error: PUBLISH_FROM_LIVE_SITE_ERROR, code: "PUBLISH_FROM_LIVE_SITE" } });
+  }
+  assert.deepEqual(calls, []);
+  process.env.TOVU_RUNTIME_MODE = "local";
+  assert.equal((await dispatchJsonRequest(app, "POST", `${PEER}/push/plan`, { scope: {} })).status, 400);
+  assert.deepEqual(calls, ["authorize"]);
+  calls.length = 0;
+  assert.equal((await dispatchJsonRequest(app, "POST", `${PEER}/push/confirm`, { planId: "plan", planHash: "hash" })).status, 404);
+  assert.deepEqual(calls, ["authorize", "open"]);
 });

@@ -1,6 +1,7 @@
-import { captureVisitorEvent } from "../../visitor-analytics.js";
+import type { Request } from "express";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/core/contracts/site/comments-providers';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
@@ -22,7 +23,7 @@ import { resolveProtocol, resolvePublicOrigin } from "../../../../../platform/ex
  * `COMMENTS_IP_SALT` itself and fall back to a public `"dev-only-insecure-salt"` constant —
  * see that resolver's header for why the fallback is now derived from the site key instead.
  */
-export interface CommentsSubmitDeps extends VisitorAnalyticsDeps {
+export interface CommentsSubmitDeps extends VisitorAnalyticsDeps<Request> {
   ingressPolicy: CommentIngressPolicy;
   workspaceId: string;
   /** A separate HTTP budget; the ingress policy retains its own submission limiter. */

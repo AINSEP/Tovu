@@ -1,6 +1,6 @@
 import type { RouteErrorPorts } from "@jini-ai/core/contracts/server";
 import { captureMemberSignedIn } from "./analytics.js";
-import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express, Request, Response } from "express";
 import { memberOidcCallbackRoute, type MemberOidcCallbackOutcome, type MemberOidcCallbackRouteDeps } from "@jini-ai/cms/public-http/routes/members/oidc-callback";
 import {

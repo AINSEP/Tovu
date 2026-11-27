@@ -1090,11 +1090,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/public-http/visitor-analytics.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/server/inbound/shared/admin-failure.ts",
     "rule": "catch-reads-error",
     "value": 2

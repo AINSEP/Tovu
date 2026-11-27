@@ -10,7 +10,7 @@ import {
 } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../../contracts/core/custom-credential-categories.js";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "@jini-ai/core/contracts/site/core-custom-credential-categories";
 import { byVaultLabel, createTovuStoreVault, createTovuVaultKinds, parseTovuStoreMeta, type TovuVaultPolicy } from "../vault-kinds.js";
 
 const policy: TovuVaultPolicy = {

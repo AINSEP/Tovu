@@ -20,7 +20,7 @@ Tovu's binding of the custom credential store, cards and credentialed requests t
   (Tovu fixtures, Tovu card URI namespace/app names, and the workspace-scoped publish port).
 - The create / set-token card builders come from `@jini-ai/integrations/custom-credentials/custom-credential-{create,set-token}-ui`;
   `tool-registrations.ts`'s `credentialCardForms` binding passes `tovuCredentialCardIdentity.appNames.*`,
-  `CUSTOM_CREDENTIAL_CATEGORIES` (`contracts/core/custom-credential-categories.ts`) and the
+  `CUSTOM_CREDENTIAL_CATEGORIES` (`@jini-ai/core/contracts/site/core-custom-credential-categories`) and the
   `credential_save` secret marker (`SECRET_FORM_CARD_DEFINITIONS`).
 - The provider-settings card comes from `@jini-ai/integrations/custom-credentials/provider-settings-card`;
   `server/runtime/composition/tool-catalog-manifest.ts` passes `cards: { defineSecretCardTool, askThenReport }`

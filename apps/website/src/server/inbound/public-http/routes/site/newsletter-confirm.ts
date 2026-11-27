@@ -1,5 +1,5 @@
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
-import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { captureVisitorEvent } from "@jini-ai/analytics/site/visitor-analytics";
 import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/features/newsletter/confirmation";

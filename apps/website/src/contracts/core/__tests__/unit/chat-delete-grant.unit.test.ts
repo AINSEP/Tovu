@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chatDeleteRefusal, requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "../../chat-delete-grant.js";
+import { chatDeleteRefusal, requireChatDeleteGrant } from "../../chat-delete-grant.js";
+import { type ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { PERMANENT_DELETE_TOOLS } from "../../../headless/index.js";
 import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
 

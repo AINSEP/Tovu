@@ -10,8 +10,8 @@ import { addCustomAnswerFields, customAnswerExchanges, mergeCustomAnswer, type C
 
 import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
 import { ASK_CHOICE_CUSTOM_ANSWER_COPY, withCustomAnswerReveal } from "./ask-choice-custom-answer.js";
-import { requireAccessApprover } from "../contracts/core/human-confirm.js";
-import type { ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
+import { requireAccessApprover } from "@jini-ai/daemon/surface-exchanges/human-confirm";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { askOnce } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 

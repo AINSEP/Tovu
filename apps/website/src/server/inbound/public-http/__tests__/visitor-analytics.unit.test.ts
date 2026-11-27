@@ -3,13 +3,14 @@ import test from 'node:test';
 import type { Request } from 'express';
 import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
-import { captureVisitorEvent, visitorAnalyticsProvenance, type VisitorAnalyticsDeps } from '../visitor-analytics.js';
+import { captureVisitorEvent, visitorAnalyticsProvenance } from '@jini-ai/analytics/site/visitor-analytics';
+import type { VisitorAnalyticsDeps } from '@jini-ai/analytics/site/contracts';
 
 test('public captures need an original grant and a still-active proof; receipt evidence never leaves', async () => {
   const events: ProductEvent[] = [];
   let granted = false, current = true;
   const proof = { receiptId: ['fake', 'receipt', '0123456789'].join('_'), policyVersion: '1' };
-  const deps: VisitorAnalyticsDeps = { idGen: { newId: () => 'opaque-id' },
+  const deps: VisitorAnalyticsDeps<Request> = { idGen: { newId: () => 'opaque-id' },
     tracker: createTracker({ productAnalytics: { capture: event => { events.push(event); }, identify() {} } }),
     visitorAnalyticsProof: async () => granted ? proof : undefined,
     visitorAnalyticsDeliveryAllowed: async () => current,
@@ -27,7 +28,7 @@ test('public captures need an original grant and a still-active proof; receipt e
 
 test('public analytics has no legacy boolean-consent fallback or dependency on owner telemetry', async () => {
   const events: ProductEvent[] = [];
-  const deps: VisitorAnalyticsDeps & { visitorAnalyticsConsent: () => Promise<boolean> } = {
+  const deps: VisitorAnalyticsDeps<Request> & { visitorAnalyticsConsent: () => Promise<boolean> } = {
     idGen: { newId: () => 'local' }, tracker: createTracker({}),
     visitorTracker: createTracker({ productAnalytics: { capture: event => { events.push(event); }, identify() {} } }),
     visitorAnalyticsConsent: async () => true,

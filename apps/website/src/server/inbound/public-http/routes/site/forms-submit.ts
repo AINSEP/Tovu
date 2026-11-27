@@ -1,7 +1,8 @@
+import type { Request } from "express";
 import { createFormsAdmissionMiddleware } from "./forms-admission.js";
-import { captureVisitorEvent, visitorAnalyticsProvenance } from "../../visitor-analytics.js";
+import { captureVisitorEvent, visitorAnalyticsProvenance } from "@jini-ai/analytics/site/visitor-analytics";
 import { FormSubmissionValidationError, FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, FormDefinitionNotFoundError, FormSubmissionTooFastError, type SubmissionAttempts } from "@jini-ai/cms/forms";
-import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
+import type { VisitorAnalyticsDeps } from "@jini-ai/analytics/site/contracts";
 import { parseFormMultipartMiddleware } from "./forms-multipart.js";
 import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
 import express, { type Express } from "express";
@@ -38,7 +39,7 @@ import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS } from "../../http/site/
  * this travels via a cookie rather than the query string.
  */
 
-export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps {
+export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps<Request> {
   workspaceId: string;
   submitForm: SubmitFormDeps;
   formSubmissionAttempts?: SubmissionAttempts;

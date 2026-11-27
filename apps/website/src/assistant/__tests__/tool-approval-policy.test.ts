@@ -110,7 +110,7 @@ test('one principal-bound confirmation approves one frozen call; cancel changes 
 });
 
 test('every supported locale translates the exact approval text and choices', async()=>{
-  const { APPROVAL_COPY, approvalText }=await import('../../contracts/core/approval-i18n.js');
+  const { APPROVAL_COPY, approvalText }=await import('@jini-ai/core/contracts/site/approval-i18n');
   const { ADMIN_LOCALES }=await import('@tovu/contracts/admin-locales');
   assert.deepEqual(Object.keys(APPROVAL_COPY).sort(),ADMIN_LOCALES.map(locale=>locale.code).sort());
   for(const locale of ADMIN_LOCALES)for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input','Technical name','Publish static site','Publish'] as const) {
@@ -119,14 +119,14 @@ test('every supported locale translates the exact approval text and choices', as
   }
 });
 test('unsupported approval locales fall back to English for every label', async()=>{
-  const { approvalText }=await import('../../contracts/core/approval-i18n.js');
+  const { approvalText }=await import('@jini-ai/core/contracts/site/approval-i18n');
   for(const locale of ['unsupported-locale',''])for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input','Technical name','{action}?','Publish static site','Publish','Unknown catalog title'] as const) {
     assert.equal(approvalText({locale,key}),key);
   }
 });
 
 test('the target folder label is translated in every supported approval locale', async () => {
-  const { APPROVAL_COPY, approvalText } = await import('../../contracts/core/approval-i18n.js');
+  const { APPROVAL_COPY, approvalText } = await import('@jini-ai/core/contracts/site/approval-i18n');
   for (const locale of Object.keys(APPROVAL_COPY)) {
     const label = approvalText({ locale, key: 'Target folder' });
     assert.ok(label);

@@ -20,7 +20,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AssistantSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
-import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
+import type { ChatDeleteSurfaceDeps } from "@jini-ai/core/contracts/site/daemon-surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "@jini-ai/core/tool-metadata/webhooks";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
