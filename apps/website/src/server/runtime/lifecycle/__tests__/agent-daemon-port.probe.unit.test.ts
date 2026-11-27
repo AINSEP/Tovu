@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ensureAgentDaemonPortResolved, getAgentDaemonPortForSpawnEnv, getAgentDaemonUrl, refreshAgentDaemonPort } from "../agent-daemon-port.js";
+import { resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "../assistant-daemon-connection.js";
 
 // The resolver itself (explicit-origin precedence, self-allocation, the free-port probe) is
 // covered in @jini-ai/sidecar's daemon-origin tests; this file proves the host's production wiring.
@@ -49,4 +50,18 @@ test("the first demand refreshes a missing daemon port and still prefers an expl
     if (oldPort === undefined) delete process.env.JINI_AGENT_DAEMON_PORT;
     else process.env.JINI_AGENT_DAEMON_PORT = oldPort;
   }
+});
+
+test("a delegated desktop daemon connection outranks the resolver's origin until it is withdrawn", async (t) => {
+  const previousUrl = process.env.JINI_AGENT_DAEMON_URL;
+  process.env.JINI_AGENT_DAEMON_URL = "http://127.0.0.1:59999";
+  t.after(() => {
+    resetAssistantDaemonConnectionForTests();
+    if (previousUrl === undefined) delete process.env.JINI_AGENT_DAEMON_URL;
+    else process.env.JINI_AGENT_DAEMON_URL = previousUrl;
+  });
+  setAssistantDaemonConnection({ connection: { url: "http://127.0.0.1:48123", pid: 4242, token: "tok-a" } });
+  assert.equal(getAgentDaemonUrl(), "http://127.0.0.1:48123");
+  setAssistantDaemonConnection({ connection: undefined });
+  assert.equal(getAgentDaemonUrl(), "http://127.0.0.1:59999");
 });
