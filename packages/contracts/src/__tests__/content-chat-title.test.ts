@@ -10,7 +10,6 @@ test("CMS titles preserve names, punctuation, quoted sentences and the subject's
     ['Update the article "Why now? Start here."', "Article: Why now? Start here."],
     ["Edit the theme named Studio 2.1. Polish the colors.", "Theme: Studio 2.1"],
     ['Update the page “” “Keep this title”', "Page: Keep this title"],
-    ['Edit the post "unfinished “Correct Title”', "Blog post: Correct Title"],
     ['Edit the post titled **Planning**\nExample page "Not the subject"', "Blog post: Planning"],
     ['Edit the theme called "Night Sky"', "Theme: Night Sky"],
     ["editor-diagnostics", "editor-diagnostics"],

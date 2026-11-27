@@ -80,7 +80,7 @@ test("ensureStarted and restart work before the first spawn", async () => {
 });
 
 test("both boot adapters register the readiness and eligibility gates without spawning", () => {
-  for (const file of ["../../../../index.ts", "../../../../cli/commands/serve.ts"]) {
+  for (const file of ["../../../../index.ts", "../../../../cli/commands/serve-listen.ts"]) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /beforeStart: async/);
     assert.match(source, /await awaitSiteBootReadiness/);

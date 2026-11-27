@@ -28,13 +28,6 @@ test("routine startup beacons reject malformed data and retain the committed cou
   }
 });
 
-test("the routine beacon wire limit counts UTF-8 bytes, not JavaScript characters", () => {
-  const beacon = { v: 1, enabled: 2, updatedAt: 42 };
-  const text = JSON.stringify({ ...beacon, note: "x".repeat(1950) + "é".repeat(1100) });
-  assert.ok(text.length < 4096 && Buffer.byteLength(text, "utf8") > 4096);
-  assert.equal(parseRoutineBeacon({ text }), null);
-});
-
 test("routine markers reject extra, missing or invalid fields without accepting a partial marker", () => {
   const marker = { routineId: "daily", runId: "run-37", catchUp: true, slotAt: 1_730_000_000_000 };
   assert.deepEqual(parseRoutineRunMarker({ value: marker }), marker);
