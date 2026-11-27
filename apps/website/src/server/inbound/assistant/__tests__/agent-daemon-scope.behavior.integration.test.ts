@@ -20,6 +20,8 @@ import * as core from "../../../runtime/composition/agent-daemon-core-deps.js";
 import * as policy from "../assistant-run-tool-policy.js";
 import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
+import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
+import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 
 function gate() {
@@ -46,6 +48,10 @@ const controls = {
   credential: undefined as ((token: string) => ReturnType<ReturnType<typeof access.createRunScopedCredentials>["resolveCaller"]>) | undefined,
   memory: true,
   deps: undefined as core.AgentDaemonCoreDeps | undefined,
+  /** The real host deps the scope hands Jini's delegated route list (the route list itself is stubbed). */
+  delegatedDeps: undefined as Parameters<typeof http.delegatedToolRoutes>[0]["deps"] | undefined,
+  /** The site's `/internal/component-catalog` answer; unset, the harness host has no such route (404). */
+  componentCatalog: undefined as unknown,
 };
 
 async function until(predicate: () => boolean) {
@@ -54,7 +60,7 @@ async function until(predicate: () => boolean) {
 }
 
 mock.module("@jini-ai/daemon/http", { namedExports: { ...http,
-  delegatedToolRoutes: () => delegatedRoutes,
+  delegatedToolRoutes: (input: Parameters<typeof http.delegatedToolRoutes>[0]) => { controls.delegatedDeps = input.deps; return delegatedRoutes; },
 } });
 mock.module("../../../../platform/express/jini-routes.js", { namedExports: { ...mounting,
   mountJiniRoutes: (required: Parameters<typeof mounting.mountJiniRoutes>[0], optional: Parameters<typeof mounting.mountJiniRoutes>[1]) => {
@@ -173,11 +179,12 @@ const { createSiteScope } = await import("../agent-daemon-scope.js");
 async function harness({ rehydrateError }: { rehydrateError?: Error } = {}) {
   controls.events = []; controls.handlers = []; controls.launches = []; controls.failures = []; controls.overlays.clear();
   controls.refresh = undefined; controls.write = undefined; controls.execution = undefined; controls.overlay = undefined;
-  controls.dispatchError = undefined; controls.credential = undefined; controls.memory = true; controls.deps = undefined;
+  controls.dispatchError = undefined; controls.credential = undefined; controls.memory = true; controls.deps = undefined; controls.delegatedDeps = undefined; controls.componentCatalog = undefined;
   controls.rehydrateError = rehydrateError;
   const dir = await mkdtemp(join(tmpdir(), "scope-behavior-"));
   const host = express();
   host.get("/internal/tool-catalog", (_req, res) => res.json({ tools: [] }));
+  host.get("/internal/component-catalog", (_req, res, next) => { if (controls.componentCatalog === undefined) next(); else res.json(controls.componentCatalog); });
   host.post("/internal/agent-plugin-preflight", (_req, res) => res.json({ prefix: "", refusalPrefix: "", pluginIds: [] }));
   const server = host.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
@@ -419,5 +426,92 @@ test("dispatch failure retains its error object and CLI execution stage", async 
     await h.scope.lifecycle.waitForTerminal({ runId }, { signal: AbortSignal.timeout(2_000) });
     assert.strictEqual(controls.failures.at(-1)?.startup?.error, sentinel);
     assert.equal(controls.failures.at(-1)?.startup?.stage, "CLI execution");
+  } finally { await h.close(); }
+});
+
+// Mutation: the claim gate admits a bearer that names no live run credential.
+test("the message-claim route refuses a caller without a live run credential before parsing", async () => {
+  const h = await harness();
+  try {
+    const missing = await fetch(`${h.url}/api/runs/any-run/messages/claim`, { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
+    const stale = await fetch(`${h.url}/api/runs/any-run/messages/claim`, { method: "POST", headers: { authorization: "Bearer gone-token", "content-type": "application/json" }, body: "{" });
+    const expected = { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } };
+    assert.deepEqual([missing.status, await missing.json(), stale.status, await stale.json()], [401, expected, 401, expected]);
+  } finally { await h.close(); }
+});
+
+// Mutations: fabricate a principal for an untracked run; ignore `requireReadOnly`; attenuate every call.
+test("delegated calls resolve the run's tracked principal, attenuated only for a read-only request", async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("delegated-principal");
+    await until(() => controls.launches.length === 1);
+    const resolve = controls.delegatedDeps?.resolvePrincipal;
+    assert.equal(typeof resolve, "function");
+    const tracked = resolve!({ request: { runId, toolId: "content_read", input: {} } });
+    assert.equal(tracked.id, "owner");
+    assert.deepEqual(resolve!({ request: { runId, toolId: "content_read", input: {}, requireReadOnly: true } }), constrainPrincipalToReadOnlyTools(tracked));
+    assert.notDeepEqual(constrainPrincipalToReadOnlyTools(tracked), tracked);
+    assert.throws(() => resolve!({ request: { runId: "untracked-run", toolId: "content_read", input: {} } }), { message: 'no principal is tracked for run "untracked-run"' });
+  } finally { await h.close(); }
+});
+
+// Mutations: recover every interrupted tool; return undefined (or the raw failure) when the status read cannot confirm a publish.
+test("an interrupted static publish recovers with the unconfirmed-status guidance; other tools are not recovered", async () => {
+  const h = await harness();
+  try {
+    const recover = controls.delegatedDeps?.recoverInterruptedTool;
+    assert.equal(typeof recover, "function");
+    const principal = { id: "owner" };
+    const result: daemon.ToolExecutionResult = { executionId: "exec-lost", status: "failed", error: "response lost" };
+    assert.equal(await recover!({ principal, runId: "run-1", toolId: "content_read", result }), undefined);
+    assert.equal(await recover!({ principal, runId: "run-1", toolId: "deployment_execute_static_publish", result }),
+      publishJobRecoveryMessage({ statusToolId: "deployment_get_static_publish_status" }));
+  } finally { await h.close(); }
+});
+
+// Mutation: let component discovery proceed (or 500) when the site's component catalog cannot be read.
+test("component discovery for a live run answers 503 when the site catalog cannot be read", async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("components");
+    await until(() => controls.launches.length === 1);
+    controls.credential = token => token === "run-token" ? { runId, principalId: "owner" } : undefined;
+    const response = await fetch(`${h.url}/api/components/search?q=chart`, { headers: { authorization: "Bearer run-token" } });
+    assert.deepEqual([response.status, await response.json()], [503, { error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" }]);
+  } finally { await h.close(); }
+});
+
+// Mutation: answer discovery from a stale or unscoped catalog instead of the refreshed site snapshot.
+test("component discovery for a live run searches the site's refreshed chart catalog", async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("components-ok");
+    await until(() => controls.launches.length === 1);
+    controls.componentCatalog = { snapshot: { generation: "gen-1", siteProvider: "fixture-charts", providers: [
+      { id: "fixture-charts", kinds: ["bar"], javascript: "export const render = () => null;" },
+    ] } };
+    controls.credential = token => token === "run-token" ? { runId, principalId: "owner" } : undefined;
+    const response = await fetch(`${h.url}/api/components/search?q=bar`, { headers: { authorization: "Bearer run-token" } });
+    const body = await response.json() as { hits: { id: string; provider: string }[] };
+    assert.equal(response.status, 200);
+    assert.equal(body.hits[0]?.id, "fixture-charts.bar-chart");
+    assert.deepEqual([...new Set(body.hits.map(hit => hit.provider))], ["fixture-charts"]);
+  } finally { await h.close(); }
+});
+
+// Mutation: call next() without binding the caller's run (siteTools.withRun), so a dead run's call reaches the catalog.
+// (Removing only the try/catch stays green: Express itself turns a synchronous middleware throw into the same 500.)
+test("discovery for a credential whose run is not live fails without reaching the catalog", async () => {
+  const h = await harness();
+  try {
+    controls.credential = token => token === "run-token" ? { runId: "ghost-run", principalId: "owner" } : undefined;
+    const response = await fetch(`${h.url}/api/components/search?q=bar`, { headers: { authorization: "Bearer run-token" } });
+    const text = await response.text();
+    assert.equal(response.status, 500);
+    assert.match(text, /a live run is required for site discovery/);
   } finally { await h.close(); }
 });
