@@ -10,7 +10,7 @@ import { PublishCredentialSecretStoreUnconfiguredError } from "@jini-ai/devops/d
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
 import type { PublishCredentialSource } from "@jini-ai/devops/deploy/site/static-publish/types";
 import { canYieldAccountLabel, InMemoryPublishCredentialVerificationCache, type PublishCredentialVerificationCache } from "@jini-ai/devops/deploy/site/static-publish/verify";
-import { verifyPublishCredential, verifyPublishCredentialById } from "../verify.js";
+import { verifyPublishCredential, verifyPublishCredentialById, verifySubmittedPublishCredential } from "../verify.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetModule, DeployTargetRegistry, LoadedDeployTarget } from "@jini-ai/devops/deploy/site/deploy-targets/types";
 
@@ -114,6 +114,38 @@ test("verifyPublishCredential: a plugin host is checked by its own module's veri
 
   assert.deepEqual(seen, ["acme-token", "function"]);
   assert.deepEqual(result, { status: "valid", message: "Acme accepted this credential.", checkedAt: NOW, accountLabel: "acme-user" });
+});
+
+test("submitted publish credentials project the declared token field to the checker and do not expose undeclared fields", async () => {
+  const spec: DeployTargetCredentialSpec = {
+    vendorId: "acme", vendorLabel: "Acme", tokenField: "secretKey",
+    fields: [{ name: "secretKey", label: "Key", required: true, secret: true },
+      { name: "account", label: "Account", required: true, secret: false }],
+  };
+  const seen: unknown[] = [];
+  const load = stubRegistry({
+    create: () => assert.fail("verification must not construct a publish target"),
+    async verifyCredential({ credential, kit }) {
+      seen.push({ credential, hasFetch: typeof kit.fetch === "function" });
+      return { ok: true, accountLabel: "Acme team" };
+    },
+  }, spec);
+  const deps = {
+    clock,
+    loadDeployTargets: async (input: { workspaceId: string }) => {
+      assert.deepEqual(input, { workspaceId: WORKSPACE });
+      return load();
+    },
+  };
+  const required = { deps, workspaceId: WORKSPACE, target: "acme-host", spec };
+  assert.deepEqual(await verifySubmittedPublishCredential({
+    ...required, connection: { providerId: "acme", secretKey: "fixture-key", account: "team-1", undeclared: "ignored" },
+  }), { status: "valid", message: "Acme accepted this credential.", checkedAt: NOW, accountLabel: "Acme team" });
+  assert.deepEqual(seen, [{ credential: { token: "fixture-key", account: "team-1" }, hasFetch: true }]);
+  assert.deepEqual(await verifySubmittedPublishCredential({
+    ...required, deps: { ...deps, loadDeployTargets: async () => assert.fail("an incomplete submission must not look up a target") },
+    connection: { providerId: "acme", account: "team-1" },
+  }), { status: "unreachable", message: "Could not verify this credential: the submitted connection is incomplete.", checkedAt: NOW });
 });
 
 test("verifyPublishCredential: a module whose check throws is 'unreachable', never a thrown error", async () => {

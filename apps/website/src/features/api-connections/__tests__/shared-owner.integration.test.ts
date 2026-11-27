@@ -18,7 +18,7 @@ import { openProjectStore } from '../../../server/runtime/composition/project-st
 import { createSiteOAuthBindings } from "#src/features/project-keys/host-bindings";
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
 import type { SharedOAuthIssuingContext } from "@jini-ai/integrations/api-connections/shared-owner";
-import { createSharedOAuthOwnerStorage } from '../shared-owner.js';
+import { createSharedOAuthLabels, createSharedOAuthOwnerStorage } from '../shared-owner.js';
 import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
 import { createApiConnectionVault } from '../vault-store-binding.js';
 
@@ -218,4 +218,29 @@ test('a later client cannot replace the sealed original issuing context', async 
     client: { ...context.client, clientId: 'later-client' } };
   await assert.rejects(f.b.saveContext({ credentialId, context: replacement }), { code: 'account-changed' });
   assert.deepEqual(await f.a.readContext({ credentialId }), context);
+});
+
+test('shared OAuth owner storage refuses a site-scoped vault with an actionable message', () => {
+  const repo = new InMemoryVaultRepo({});
+  const keyring = new InMemoryKeyring({ hkdfSalt: 'shared-owner-refusal' });
+  const sealer = new AesGcmSecretSealer({ keyring });
+  assert.throws(() => createSharedOAuthOwnerStorage({
+    scope: { workspaceId: 'workspace-local', repo, keyring, sealer }, clock,
+  }), {
+    code: 'connection-not-found',
+    message: 'This saved connection is no longer available. Choose a saved connection again or sign in.',
+  });
+});
+
+test('the shared-key inventory does not pretend a disconnected credential still names an account', async t => {
+  const f = await ownerFixture(t);
+  const describe = createSharedOAuthLabels({ scope: f.first.vault, clock });
+  assert.equal(await describe({ keyId: credentialId }), 'Shared fixture account — Alice (shared on this Mac)');
+  const current = await f.a.records.read({ key: credentialId });
+  assert.ok(current);
+  assert.equal(await f.a.records.compareAndSet({
+    key: credentialId, expectedRevision: current.revision,
+    record: { ...current, revision: current.revision + 1, status: 'disconnected', account: null, grantedScopes: [] },
+  }), true);
+  assert.equal(await describe({ keyId: credentialId }), 'Shared fixture account — No connected account (shared on this Mac)');
 });

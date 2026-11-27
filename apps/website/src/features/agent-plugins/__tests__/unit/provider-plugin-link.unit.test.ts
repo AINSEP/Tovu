@@ -55,6 +55,13 @@ test("the linked-face refusal names the provider plugin's real switch", async ()
   assert.match(error.message, /'metrics' is part of the 'metrics-provider' plugin.*family 'site-runtime' and pluginId 'metrics-provider'/);
 });
 
+test("a non-Error provider failure is still readable in the retry warning", (t) => {
+  const lines: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { lines.push(args); });
+  warnProviderFace({ pluginId: "metrics", error: "provider registry not ready" });
+  assert.deepEqual(lines, [["[agent-plugins] the assistant face of 'metrics' could not follow it; the next start retries: provider registry not ready"]]);
+});
+
 test("production ports read the shipped links and switch the real activation record", async (t) => {
   const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
   const { resolveAgentPluginLayout } = await import("../../layout.js");

@@ -10,6 +10,7 @@ import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../proje
 import { createSharedOAuthLabels, createSharedOAuthOwnerStorage } from '../shared-owner.js';
 import { createApiConnectionVault } from '../vault-store-binding.js';
 import { createSurfaceConnections } from '../surface-connections.js';
+import { bindAdminSurfaceConnectionsHost } from '../surface-connection-bindings.js';
 import { runApiConnectionConnect, startApiConnectionSignIn } from '../connect.js';
 import { startAcmeHarness, ACME_PLUGIN } from './support/acme-harness.js';
 
@@ -141,6 +142,41 @@ test('one explicit owner sign-in serves two granted site UUIDs; guessed binding 
   const surfaceB = createSurfaceConnections({ host: b.host, pluginId: ACME_PLUGIN, workspaceId: 'workspace-local', principalId: 'owner' });
   assert.equal((await surfaceB.status({ connectionId: connection.descriptor.connectionId })).accountLabel, 'Ada');
   assert.equal(h.provider.tokenCalls, 4);
+});
+
+test('the surface binding preserves absent shared status and an accountless shared connection', async t => {
+  const f = await fixture(t);
+  const { host } = f.make('site-a');
+  const [connection] = await host.listConnections({ pluginId: ACME_PLUGIN });
+  assert.ok(connection);
+  const shared = bindAdminSurfaceConnectionsHost({ host }).sharedOAuth;
+  assert.ok(shared);
+  assert.equal(await shared.hasBinding(connection), false);
+  assert.equal(await shared.getStatus(connection), null);
+
+  const redirectUri = 'http://127.0.0.1:1/callback';
+  const target = await host.prepareSignIn({ connection, actorId: 'owner', destination: 'shared', redirectUri });
+  const start = await target.service.start({ workspaceId: target.workspaceId, actorId: 'owner', intent: 'connect', scopeSetIds: [], redirectUri });
+  const back = f.h.consentRedirect(start.authorizationUrl);
+  await target.service.complete({
+    workspaceId: target.workspaceId, actorId: 'owner', redirectUri,
+    callbackParams: Object.fromEntries(back.searchParams), browserBinding: start.browserBinding,
+  });
+  await target.onCompleted();
+  const key = deriveApiConnectionKey({ workspaceId: 'project', pluginId: ACME_PLUGIN, connectionId: connection.descriptor.connectionId });
+  const current = await f.storage.records.read({ key });
+  assert.ok(current);
+  assert.equal(await f.storage.records.compareAndSet({
+    key, expectedRevision: current.revision,
+    record: { ...current, revision: current.revision + 1, status: 'reconnect-required', account: null },
+  }), true);
+
+  assert.equal(await shared.hasBinding(connection), true);
+  const status = await shared.getStatus(connection);
+  assert.ok(status, 'the binding still exists even though its owner record no longer names an account');
+  assert.deepEqual({ status: status.status, account: status.account, grantedScopes: status.grantedScopes }, {
+    status: 'reconnect-required', account: null, grantedScopes: ['acme.files'],
+  });
 });
 
 for (const reconnect of [false, true]) {

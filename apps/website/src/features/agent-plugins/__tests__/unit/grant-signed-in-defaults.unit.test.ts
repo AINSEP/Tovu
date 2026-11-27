@@ -14,6 +14,7 @@ import { grantDeclaredToolsAtBoot } from "../../grant-signed-in-defaults.js";
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { agentPluginActivations } from "../../activation-effects.js";
+import type { InstalledAgentPluginServers } from "@jini-ai/agent-plugins/connect";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
@@ -30,7 +31,7 @@ const WRITE = ["generate_image", "generate_video", "reveal_generation"];
 
 type Activation = "operator-on" | "seed-off" | "operator-off";
 
-async function bootWith(input: { activation: Activation; signedIn?: boolean; writeGrantsBy?: string }) {
+async function bootWith(input: { activation: Activation; signedIn?: boolean; writeGrantsBy?: string; listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]> }) {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-grant-at-boot-"));
   try {
     const source = path.join(dir, "source");
@@ -60,7 +61,8 @@ async function bootWith(input: { activation: Activation; signedIn?: boolean; wri
     let rosterNotifications = 0;
     const log = { info: [] as string[], warn: [] as string[] };
     await grantDeclaredToolsAtBoot(
-      { deps: { workspaceId: WORKSPACE, agentPluginLayout, repo, applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), clock, notifyRosterChanged: async () => { rosterNotifications += 1; } },
+      { deps: { workspaceId: WORKSPACE, agentPluginLayout, repo, applyAccess: input => applyExternalMcpAccess({ ...input, repo, clock }), clock, notifyRosterChanged: async () => { rosterNotifications += 1; },
+        ...(input.listPlugins ? { listPlugins: input.listPlugins } : {}) },
       log: { info: (message) => log.info.push(message), warn: (message) => log.warn.push(message) } },
     );
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "media" }))!;
@@ -89,6 +91,17 @@ test("boot never switches a plugin on: the seeder's default-off and an operator'
     assert.equal(activationAfter?.enabled, false, activation);
     assert.equal(rosterNotifications, 0, activation);
   }
+});
+
+test("boot honors an empty supplied plugin inventory even if a signed-in active plugin is on disk", async () => {
+  let listings = 0;
+  const { row, rosterNotifications, log } = await bootWith({
+    activation: "operator-on", listPlugins: async () => { listings += 1; return []; },
+  });
+  assert.equal(listings, 1);
+  assert.deepEqual([row.enabled, row.allowedToolNames, row.writeAllowedToolNames], [false, "[]", "[]"]);
+  assert.equal(rosterNotifications, 0);
+  assert.deepEqual(log, { info: [], warn: [] });
 });
 
 test("boot grants nothing to a connection that is not signed in", async () => {

@@ -85,6 +85,20 @@ function pluginHost(f: Awaited<ReturnType<typeof store>>, ports: AgentPluginMcpP
   return createTovuPluginHost({ deps }, { warn: () => {}, ...(optional.resolveServers === false ? {} : { resolveMcpServers: async () => servers }) }).getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
 }
 
+test('adding legacy projection ports does not read a lazy adapter or lose its receiver', () => {
+  let reads = 0;
+  const context = { classifyError: () => 'other' as const, workspaceId: 'workspace-lazy', get adapter() { reads++; return this.workspaceId; } };
+  const bound = withAgentPluginMcpPorts(context);
+  assert.equal(reads, 0);
+  context.workspaceId = 'original-only';
+  assert.equal(bound.adapter, 'workspace-lazy');
+  bound.workspaceId = 'bound-only';
+  assert.equal(bound.adapter, 'bound-only');
+  assert.equal(bound.projections, agentPluginMcpProjections);
+  assert.equal(reads, 2);
+  assert.equal(context.workspaceId, 'original-only');
+});
+
 test('composition preview and the approved provision grant revalidate with the host projections', async t => {
   const f = await store(t);
   await install(f);

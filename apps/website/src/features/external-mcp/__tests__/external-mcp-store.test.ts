@@ -10,7 +10,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { listExternalMcpServerViews, normalizeExternalMcpAccessToken, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
 import { parseEnvBlock } from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, parseAllowedToolNames, parseArgs, parseWriteAllowedToolNames, toResolvedFederatedConnections, deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope } from "@jini-ai/mcp/federation/hosted";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
@@ -82,6 +82,14 @@ function validInput(overrides: Partial<Parameters<typeof saveExternalMcpServer>[
     ...overrides,
   };
 }
+
+test("access-token normalization trims edges and applies the hosted character rule only to hosted transports", () => {
+  assert.equal(normalizeExternalMcpAccessToken({ value: "  ascii-key  ", transport: "streamable_http" }), "ascii-key");
+  assert.equal(normalizeExternalMcpAccessToken({ value: "  clé locale  ", transport: "stdio" }), "clé locale");
+  assert.throws(() => normalizeExternalMcpAccessToken({ value: "clé locale", transport: "streamable_http" }), (error: unknown) =>
+    error instanceof ExternalMcpValidationError && error.field === "accessToken" &&
+    error.message === "Hosted tokens must use visible ASCII characters (0x21–0x7E).");
+});
 
 test("saves a server and reads it back with its env decrypted", async () => {
   const { deps, sealer, repo } = makeDeps();

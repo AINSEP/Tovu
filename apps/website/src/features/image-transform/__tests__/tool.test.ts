@@ -1,6 +1,6 @@
 import { bindAssetDestinationDeps } from '#src/server/runtime/composition/asset-tool-host';
 import { requireAssetDestination, prepareAssetWrites, writeAssetFiles } from '@jini-ai/cms/asset-transfer/asset-destinations';
-import { refuseUnexpectedKeysPort as refuseUnexpectedKeys } from '@jini-ai/core';
+import { refuseUnexpectedKeysPort as refuseUnexpectedKeys, ToolInputError, type ToolExecutionContext } from '@jini-ai/core';
 import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { describeWriteBatch } from '@jini-ai/cms/fs-files/tool-registrations';
 import { ASSET_SOURCE_SCHEMA, readAssetSource, type AssetToolDeps } from '#src/features/asset-transfer/asset-sources';
@@ -9,6 +9,7 @@ import { FsFilePathError } from '@jini-ai/platform/fs/guarded-reader';
 import { FsWriteInputError } from '@jini-ai/cms/fs-files/write-files';
 import { isImportShapeRejection } from '#src/features/media-import/tool-registrations';
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
+import { trashMedia } from "@jini-ai/cms/media";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -176,6 +177,36 @@ test("media source cap is checked before the blob payload is fetched", async t =
   const get = t.mock.method(h.deps.blobStore, "get");
   await assert.rejects(() => h.call({ source: { root: "media", path: imported.media[0]!.id } }), /exceeds/);
   assert.equal(get.mock.callCount(), 0);
+});
+
+test("a missing or trashed Library source refuses before reading its stored bytes", async t => {
+  const h = await harness(t);
+  const imported = await h.call({
+    source: SOURCE, outputs: [{ path: "small.png", format: "png" }], destination: { kind: "media" },
+  }) as { media: { id: string }[] };
+  const id = imported.media[0]!.id;
+  const get = t.mock.method(h.deps.blobStore, "get");
+  const ctx: ToolExecutionContext = {
+    executionId: "asset-preview", principal: { id: "owner-1" }, run: { id: "run-1" },
+    input: {}, signal: new AbortController().signal,
+  };
+  const read = (assetId: string) => readAssetSource({
+    deps: h.deps, ctx, input: { root: "media", path: assetId }, maxBytes: 10_000,
+  });
+
+  const active = await read(id);
+  assert.equal(active.path, "small.png");
+  assert.ok(active.bytes.length > 0);
+  assert.equal(get.mock.callCount(), 1);
+
+  const input = { workspaceId: h.deps.workspaceId, id };
+  await trashMedia({ deps: h.deps, input });
+  assert.equal((await h.deps.mediaRepo.findById(input))?.status, "trashed");
+  for (const refused of [id, "absent-media"]) {
+    await assert.rejects(read(refused), (error: unknown) => error instanceof ToolInputError &&
+      error.message === "Restore this media item from Trash before using its file");
+    assert.equal(get.mock.callCount(), 1);
+  }
 });
 
 

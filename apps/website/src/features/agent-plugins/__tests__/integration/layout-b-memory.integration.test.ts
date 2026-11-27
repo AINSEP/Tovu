@@ -12,7 +12,7 @@ import { createPluginMemory, migratePluginLayout } from "@jini-ai/agent-plugins/
 import { withFileLock } from "@jini-ai/platform/fs/file-lock";
 import { installAgentPlugin, indexInstalledRoot, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { pluginMemory, appendPluginNotes, migrateAgentPluginLayout, migrateSiteAgentPluginLayouts } from "../../memory.js";
+import { pluginMemory, appendPluginNotes, migrateAgentPluginLayout, migrateSiblingAgentPluginLayouts, migrateSiteAgentPluginLayouts } from "../../memory.js";
 import { listInstalledPlugins, resolveAgentPluginRefs } from "../../lifecycle.js";
 import { previewAgentPluginUninstall, uninstallAgentPlugin } from "../../lifecycle.js";
 import { assertContainedOnDisk } from "../../lifecycle.js";
@@ -292,6 +292,37 @@ test("site boot migrates every existing workspace before seeding the active one"
       assert.deepEqual(JSON.parse(await fs.readFile(path.join(workspace.root, ".agent-plugin-layout-migrated"), "utf8")), { layoutVersion: 2 });
     }
   } finally { await forceRemove(f.temporary); }
+});
+
+test("a failed sibling migration logs its workspace, redacts the cause and continues with healthy siblings", async t => {
+  const f = await fixture();
+  t.after(() => forceRemove(f.temporary));
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
+  const broken = f.layout.forWorkspace({ workspaceId: "broken" });
+  const healthy = f.layout.forWorkspace({ workspaceId: "healthy" });
+  await fs.mkdir(broken.root, { recursive: true });
+  const legacy = path.join(healthy.packages, "d".repeat(64));
+  await fs.mkdir(legacy, { recursive: true });
+  await fs.writeFile(path.join(legacy, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example"}');
+  let brokenLookups = 0;
+  const layout = {
+    ...f.layout, forWorkspace: (input: { workspaceId: string }) => {
+      // Discovery succeeds. Opening the same root for migration then faults.
+      if (input.workspaceId === "broken" && ++brokenLookups === 2) throw new Error("cannot open plugin storage password=SIBLING_CANARY");
+      return f.layout.forWorkspace(input);
+    },
+  };
+
+  await migrateSiblingAgentPluginLayouts({ contain: containAgentPluginStatePath, layout, workspaceId });
+
+  assert.equal(brokenLookups, 2);
+  const failures = warnings.filter(message => message.startsWith("[agent-plugins:migration-failed] workspace broken "));
+  assert.equal(failures.length, 1);
+  assert.match(failures[0]!, /cannot open plugin storage/);
+  assert.doesNotMatch(failures[0]!, /SIBLING_CANARY/);
+  assert.deepEqual((await listInstalledPlugins({ workspaceRoot: healthy.root })).map(plugin => plugin.pluginId), ["example"]);
+  await assert.rejects(fs.stat(path.join(broken.root, ".agent-plugin-layout-migrated")), { code: "ENOENT" });
 });
 
 test("a crash after rename but before permission restoration never leaves the migrated package writable", async () => {

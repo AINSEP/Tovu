@@ -82,6 +82,12 @@ test('exact-key ownership includes other assets and workspaces while excluding o
   } finally { db.$client.close(); }
 });
 
+test('an unbound ownership reader keeps the stored bytes because it cannot prove there are no owners', async () => {
+  assert.equal(await hasFormFileStorageKeyOwners({
+    workspaceId: 'w', sha256: 'a'.repeat(64), storageKey: `ws/w/blobs/aa/${'a'.repeat(64)}`,
+  }), true);
+});
+
 test('canonical captured keys wait for the matching upload hash lock and unknown layouts keep bytes', async () => {
   const sha256 = 'a'.repeat(64), storageKey = `ws/w/blobs/aa/${sha256}`;
   let release!: () => void, entered = false;

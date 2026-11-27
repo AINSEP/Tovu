@@ -11,3 +11,16 @@ test("the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to 
   assert.match(agentPluginOverlaysDir({}, { env: {} }), /[/\\]content[/\\]agent-plugin-overlays$/);
   assert.equal(sitePathsOverlaysDir, agentPluginOverlaysDir);
 });
+
+test("the no-argument overlay binding reads the current process override on every call", t => {
+  const previous = process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR;
+    else process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR = previous;
+  });
+  process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR = "/srv/first/overlays";
+  assert.equal(agentPluginOverlaysDir(), "/srv/first/overlays");
+  process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR = "/srv/second/overlays";
+  assert.equal(agentPluginOverlaysDir(), "/srv/second/overlays");
+  assert.match(agentPluginOverlaysDir({}, { env: {} }), /[/\\]content[/\\]agent-plugin-overlays$/);
+});

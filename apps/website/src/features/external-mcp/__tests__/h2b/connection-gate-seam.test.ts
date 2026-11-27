@@ -141,6 +141,24 @@ test("row lookup failure: operator log gets the detail, the model gets only the 
   assert.ok(warnings[0]!.startsWith(`[external-mcp] '${SERVER}': federated tool call refused`) && warnings[0]!.includes(CANARY));
 });
 
+test("an enabled plugin missing an approval gets the Tovu access-review instruction", async () => {
+  const f = await fixture({ plugin: "ext-c" });
+  await f.repo.upsert({ ...f.row, oauthStatus: "connected" });
+  const row = await f.repo.findByServerId({ workspaceId: WS, serverId: SERVER });
+  assert.ok(row);
+  const lookedUp: string[] = [];
+  const gate = createExternalMcpConnectionGate({ workspaceId: WS, repo: f.repo, isPluginEnabled: async pluginId => {
+    lookedUp.push(pluginId);
+    return true;
+  } });
+  await assert.rejects(gate(SERVER, {
+    remoteName: "unlisted", declaredAnnotations: { readOnlyHint: true }, requiresWriteGrant: false,
+    origin: { kind: "roster", admissionRevision: hosted.externalMcpAdmissionRevision(row) },
+  }), (error: unknown) => error instanceof ToolInputError &&
+    error.message === `The 'ext-c' plugin's 'docs' connection needs access approval (tool-not-allowed). Use plugins_set_enabled({family:"agent-plugin",pluginId:"ext-c",enabled:true}) to show the owner one card for its declared source, tools and may-write grants.`);
+  assert.deepEqual(lookedUp, ["ext-c"]);
+});
+
 async function signInService(makeOnConnected: (repo: InMemoryExternalMcpServerRepo) => (serverId: string) => Promise<void>) {
   const f = await fixture();
   const onConnected = makeOnConnected(f.repo);

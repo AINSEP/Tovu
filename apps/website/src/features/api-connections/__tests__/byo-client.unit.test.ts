@@ -48,3 +48,19 @@ test("a saved client this site cannot open is refused with a next step and witho
   assert.equal(resolved.message, 'Acme Office cannot use your own OAuth client: the saved credential "acme-office/account OAuth client" could not be read on this site. Edit it under Admin > Access Tokens, then retry.');
   assert.ok(!resolved.message.includes(secret));
 });
+
+test("a saved BYO secret without a username names the missing client ID", async () => {
+  const repo = new InMemoryCustomCredentialSetRepo();
+  const keyring = new InMemoryKeyring({}, { keyId: "v1" });
+  const sealer = new AesGcmSecretSealer({ keyring });
+  await createCustomCredential({
+    repo, keyring, sealer, clock: { nowMs: () => 0 }, idGen: { newId: () => "00000000-0000-4000-8000-0000000000c3" },
+  }, {
+    workspaceId: "ws-1", label: "acme-office/account OAuth client", category: "general",
+    baseUrl: "https://auth.acme.test/token", connection: { token: secret },
+  });
+  const result = await resolveByoClient({ credentials: { repo, keyring, sealer }, workspaceId: "ws-1", connection: await fixtureConnection() });
+  assert.ok(result instanceof ApiConnectionError);
+  assert.equal(result.code, "descriptor-invalid");
+  assert.equal(result.message, 'Acme Office cannot use your own OAuth client: the saved credential "acme-office/account OAuth client" has no client ID: save the OAuth client ID as its username. Edit it under Admin > Access Tokens, then retry.');
+});

@@ -38,6 +38,7 @@ import { installLegacyRevision } from "../fixtures/install-legacy-revision.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import {
+  agentPluginToolDerivedRisk,
   buildAgentPluginToolRegistrations,
   buildAgentPluginConnectRegistrations,
   createAgentPluginToolGate,
@@ -716,6 +717,17 @@ test("plugin guidance carries maturity and warns before keys/actions for every m
       assert.match(result.guidance, /^Before saving keys or acting with this plugin, tell the user this integration hasn't been tested end to end yet\. It may not work\.\n\nGUIDANCE$/);
     } else assert.equal(result.guidance, 'GUIDANCE');
   }
+});
+
+test("installed guidance is classified as read-only by registered tool id", () => {
+  const source = {
+    id: "agent_plugin_help", pluginId: "help", archiveDigest: "a".repeat(64), description: "Help",
+    defaultSkillName: "help", skills: [{ name: "help", summary: "Help", markdown: "Guide" }],
+  };
+  const sources = [source, { ...source, id: "agent_plugin_faq", pluginId: "faq" }];
+  assert.deepEqual(agentPluginToolDerivedRisk({ sources }), new Map([
+    ["agent_plugin_help", "none"], ["agent_plugin_faq", "none"],
+  ]));
 });
 
 test("L025b guidance pins selection guards, reader recovery and sanitized unknown names", async () => {
