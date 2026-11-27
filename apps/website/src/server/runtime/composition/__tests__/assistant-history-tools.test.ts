@@ -8,7 +8,8 @@ import type { AssistantSurfaceDeps } from '@jini-ai/core/contracts/site/daemon-s
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import { openChatDb } from '#src/platform/db/sqlite/chat-db';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
-import { buildAssistantHistoryTools, type AssistantHistoryHostDeps } from '../assistant-history-tools.js';
+import { assistantHistoryDerivedRisk } from '@jini-ai/chat/store/runtime';
+import { buildAssistantHistoryTools, contributeAssistantHistoryTools, type AssistantHistoryHostDeps } from '../assistant-history-tools.js';
 import { installFirstPartyToolContributors } from '../tool-catalog-manifest.js';
 
 function call(deps: AssistantHistoryHostDeps, id: string, userId: string, input: unknown) {
@@ -78,4 +79,19 @@ test('history exposes only getStore; generic target scoping owns site selection'
     chatHistory: () => { throw new Error('no eager reads'); } };
   buildAssistantHistoryTools({ deps }, { buildRegistrations: ({ ports }) => { keys = Object.keys(ports); return []; } });
   assert.deepEqual(keys, ['getStore']);
+});
+
+test('the contribution names its domain and risk, and its build binds history to the supplied site deps', async () => {
+  const contribution = contributeAssistantHistoryTools({}, {});
+  assert.equal(contribution.domain, 'assistant-history');
+  assert.equal(contribution.risk, assistantHistoryDerivedRisk);
+  const grants: unknown[] = [];
+  const deps: AssistantHistoryHostDeps = { workspaceId: 'site-c', authorize: async input => { grants.push(input); return { allowed: false, reason: 'denied' }; },
+    chatHistory: () => { throw new Error('scope factory must not run'); } };
+  const tools = contribution.build(deps);
+  assert.deepEqual(tools.map(tool => tool.descriptor.id).sort(), ['assistant_chat_read', 'assistant_chats_list']);
+  const list = tools.find(tool => tool.descriptor.id === 'assistant_chats_list')!;
+  await assert.rejects(list.handler({ executionId: 'exec', principal: { id: 'caller' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }),
+    /Chat history is unavailable to this caller/);
+  assert.deepEqual(grants, [{ principalId: 'caller', workspaceId: 'site-c', permission: 'admin.assistant.use' }]);
 });
