@@ -9,6 +9,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
+import { trashToolEntityTypes } from "../tool-kinds.js";
 import { buildTrashRegistrations, type TrashToolDeps } from "../tool-registrations.js";
 import { PERMANENT_DELETE_SPECS } from "../../permanent-delete/tool-registrations.js";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
@@ -424,4 +425,9 @@ test("a malformed entityTypes filter throws a ToolInputError, not a plain Error"
       return true;
     }
   );
+});
+
+test("without a generic registry the kind vocabulary still admits every bespoke mover and no generic kinds", () => {
+  assert.deepEqual(trashToolEntityTypes().sort(), ["comment", "media", "plugin", "post", "redirect", "theme", "user"]);
+  assert.deepEqual(trashToolEntityTypes(new Map()).sort(), ["comment", "media", "plugin", "post", "redirect", "theme", "user"]);
 });

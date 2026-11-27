@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -10,7 +12,7 @@ import { listThemeFiles, MAX_LISTED_FILES } from "../theme-file-listing.js";
 import { MAX_WALK_DEPTH, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
 import { themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
 import { themeFileMovePorts, themeOriginalFilePorts } from "../theme-file-write-ports.js";
-import { writeThemeFile } from "../theme-file-writing.js";
+import { writeThemeBinaryFile, writeThemeFile } from "../theme-file-writing.js";
 import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
@@ -125,4 +127,44 @@ test("copyThemeFile maps a lost exclusive-create race to ThemePathError and reth
   assert.throws(() => copyThemeFile(required, { copyFile: () => { throw ioFault; } }), (error: unknown) => error === ioFault);
   assert.equal(copyThemeFile(required), path.join(fs.realpathSync(themeDir), "about-1.html"));
   assert.equal(fs.readFileSync(path.join(themeDir, "about-1.html"), "utf8"), "<p>About</p>");
+});
+
+test("a nonregular FIFO does not appear in editable theme files", t => {
+  const { root, themeDir } = themesRoot(t);
+  fs.writeFileSync(path.join(themeDir, "source.css"), "nav{}");
+  execFileSync("mkfifo", [path.join(themeDir, "source.pipe")]);
+  assert.deepEqual(listThemeFiles({ themeDir, themesRoot: root }), ["source.css", "theme.json"]);
+});
+
+test("binary theme writes refuse a directory destination without changing its contents", t => {
+  const { root, themeDir } = themesRoot(t);
+  const target = path.join(themeDir, "logo.png");
+  fs.mkdirSync(target);
+  fs.writeFileSync(path.join(target, "keep.txt"), "retained");
+  assert.throws(() => writeThemeBinaryFile({ themeDir, themesRoot: root, relativePath: "logo.png", bytes: Buffer.from([0x89, 0x50]) }),
+    { name: "ThemePathError", message: "path 'logo.png' exists and is not a regular file" });
+  assert.deepEqual(fs.readdirSync(target), ["keep.txt"]);
+  assert.equal(fs.readFileSync(path.join(target, "keep.txt"), "utf8"), "retained");
+});
+
+test("an entry removed after directory enumeration does not hide surviving files", t => {
+  const { root, themeDir } = themesRoot(t);
+  const vanished = path.join(fs.realpathSync(themeDir), "deleted.css");
+  fs.writeFileSync(vanished, "p{}");
+  fs.writeFileSync(path.join(themeDir, "kept.css"), "nav{}");
+  const lstat = fs.lstatSync;
+  const removals: string[] = [];
+  const probe = t.mock.method(fs, "lstatSync", (target: fs.PathLike, options?: { throwIfNoEntry?: boolean }) => {
+    if (target === vanished) {
+      fs.unlinkSync(vanished);
+      removals.push(vanished);
+    }
+    return lstat(target, options);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { probe.mock.restore(); syncBuiltinESMExports(); });
+
+  assert.deepEqual(listThemeFiles({ themeDir, themesRoot: root }), ["kept.css", "theme.json"]);
+  assert.deepEqual(removals, [vanished]);
+  assert.equal(fs.existsSync(vanished), false);
 });

@@ -240,3 +240,24 @@ test("a static css/ folder without styles.css reports each of its files as unrec
   assert.deepEqual(plan.moves, [{ from: "pages/index.html", to: "render/pages/index.html" }]);
   assert.deepEqual(plan.unrecognized, ["css/extra.css"]);
 });
+
+test("static planning carries token modes and provenance in place and distinguishes partial variants from lookalikes", t => {
+  const themeDir = bareThemeDir(t, "static", {
+    "tokens.dark-high-contrast.json": "{}",
+    "NOTICE.md": "Attribution",
+    "screenshots/index.png": "image bytes",
+    "footer-minimal.html": "<footer>Minimal</footer>",
+    "nav-account.html": "<nav>Account</nav>",
+    "navigation.html": "<nav>Not a slot</nav>",
+    "footer-print.txt": "Not HTML",
+  });
+  assert.deepEqual(planV2Migration({ themeDir, tier: "static" }), {
+    moves: [
+      { from: "footer-minimal.html", to: "render/partials/footer-minimal.html" },
+      { from: "nav-account.html", to: "render/partials/nav-account.html" },
+    ],
+    unrecognized: ["footer-print.txt", "navigation.html"],
+  });
+  assert.equal(fs.readFileSync(path.join(themeDir, "footer-minimal.html"), "utf8"), "<footer>Minimal</footer>");
+  assert.equal(fs.existsSync(path.join(themeDir, "render")), false);
+});

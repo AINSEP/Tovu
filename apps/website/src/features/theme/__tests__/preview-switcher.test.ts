@@ -6,6 +6,7 @@ import { JSDOM } from "jsdom";
 import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { parsePreviewSwitcher, validatePreviewSwitcher, choosePreviewTheme, type PreviewSwitcher } from "../preview-switcher.js";
 import { decoratePreviewPage } from "../preview-switcher-html.js";
+import { isReservedThemePreviewPath } from "../preview-policy.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 const config: PreviewSwitcher = { enabled: true, position: "top", themes: [{ themeId: "one", label: "One" }, { themeId: "two", label: "Two <sky>" }] };
@@ -108,4 +109,13 @@ test("navigation rewriting leaves rel-less links, hrefless and fragment anchors 
   assert.match(live, /name="googlebot"/, "robots overrides stay outside a static preview");
   assert.doesNotMatch(live, /noindex/);
   assert.match(live, /<a href="\/blog\?theme=one&amp;p=2">Blog<\/a>/, "live delivery never rewrites navigation");
+});
+
+test("preview reserves admin and API route segments but not lookalike theme page names", () => {
+  for (const pathname of ["/admin", "/AdMiN/themes", "/API", "/api/posts"]) {
+    assert.equal(isReservedThemePreviewPath({ pathname }), true, pathname);
+  }
+  for (const pathname of ["/administrator", "/apiary", "/news/api", "/"]) {
+    assert.equal(isReservedThemePreviewPath({ pathname }), false, pathname);
+  }
 });

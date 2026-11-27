@@ -60,3 +60,14 @@ test('opt-out removes repeated mixed-case attributes in templates without editin
   assert.equal(cleaned, expected);
   assert.equal(injectPublishedWebMcp({ html: cleaned, enabled: false }), expected);
 });
+
+test('a published fragment keeps its original bytes and appends exactly one discovery script', () => {
+  const html = '<main><button type="button" data-toolname="help" data-tooldescription="Show help">Help</button></main>';
+  const result = injectPublishedWebMcp({ html, enabled: true });
+  const opening = '<script data-tovu-webmcp-script';
+  assert.equal(result.indexOf(opening), html.length);
+  assert.equal(result.lastIndexOf(opening), html.length);
+  assert.equal(result.slice(0, html.length), html);
+  assert.match(result, /<\/script>$/);
+  assert.equal(injectPublishedWebMcp({ html: result, enabled: true }), result);
+});

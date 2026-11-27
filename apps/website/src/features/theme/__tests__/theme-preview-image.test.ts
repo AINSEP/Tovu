@@ -112,3 +112,40 @@ test("a non-regular entry (a FIFO) does not move the content version", (t) => {
   utimesSync(dir, at(100), at(100));
   assert.equal(themeContentVersion({ dir }), 100_000);
 });
+
+test("the default capture URL version changes after a source edit without a custom version reader", t => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-theme-card-version-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const source = join(dir, "theme.json");
+  const before = new Date(100_000);
+  const after = new Date(701_000);
+  writeFileSync(source, '{"name":"Before"}');
+  utimesSync(dir, before, before);
+  utimesSync(source, before, before);
+  const input = { theme: { dir, id: "evening", tier: "static" }, workspaceId: "newsroom" };
+  assert.equal(themeCardPreviewUrl(input, { capturesEnabled: true }),
+    "/api/admin/v1/workspaces/newsroom/themes/evening/preview?v=100000");
+  writeFileSync(source, '{"name":"After"}');
+  utimesSync(source, after, after);
+  assert.equal(themeCardPreviewUrl(input, { capturesEnabled: true }),
+    "/api/admin/v1/workspaces/newsroom/themes/evening/preview?v=701000");
+});
+
+test("a directory removed during the walk retains the version already observed", t => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-theme-version-race-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const observed = new Date(321_000);
+  utimesSync(dir, observed, observed);
+  const calls: unknown[][] = [];
+  const readFailure = Object.assign(new Error("directory was removed"), { code: "ENOENT" });
+  assert.equal(themeContentVersion({ dir }, {
+    fs: {
+      statSync: nodeFs.statSync,
+      readdirSync: (target: Parameters<typeof nodeFs.readdirSync>[0], options?: unknown) => {
+        calls.push([target, options]);
+        throw readFailure;
+      },
+    },
+  }), 321_000);
+  assert.deepEqual(calls, [[dir, { withFileTypes: true }]]);
+});

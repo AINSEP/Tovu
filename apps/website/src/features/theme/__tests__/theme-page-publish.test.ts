@@ -20,8 +20,9 @@ import { setThemePagePublished, ThemePagePublicationError } from "../page-public
  * touches — they stay live regardless of any recorded decision, or lack of one.
  */
 
-function makeStaticThemeDir(files: Record<string, string>, manifestExtra: Record<string, unknown> = {}): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-publish-theme-"));
+function makeStaticThemeDir(files: Record<string, string>, manifestExtra: Record<string, unknown> = {}, themesDir?: string): string {
+  const dir = themesDir === undefined ? fs.mkdtempSync(path.join(os.tmpdir(), "tovu-publish-theme-")) : path.join(themesDir, "t");
+  fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(
     path.join(dir, "theme.json"),
     JSON.stringify({ id: "t", name: "T", version: "1.0.0", tier: "static", engine: 1, ...manifestExtra }),
@@ -122,4 +123,23 @@ test("reserved theme page ids cannot be published or routed, even when the manif
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("publishing merges the latest on-disk decisions and refreshes what the live renderer sees", t => {
+  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-publish-merge-"));
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const dir = makeStaticThemeDir(PAGES, { publishedPages: [] }, themesDir);
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
+  const themes = [theme];
+  assert.equal(isStandaloneThemePage({ theme, pageId: "pricing" }), false);
+  const manifest = path.join(dir, "theme.json");
+  const existing = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  fs.writeFileSync(manifest, JSON.stringify({ ...existing, description: "Edited by the operator", publishedPages: ["pricing", "pricing"] }));
+  assert.deepEqual(setThemePagePublished({ themes, themesDir }, { themeId: "t", page: "about", published: true }),
+    { page: "about", published: true, publishedPages: ["about", "pricing"] });
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifest, "utf8")), {
+    ...existing, description: "Edited by the operator", publishedPages: ["about", "pricing"],
+  });
+  assert.equal(isStandaloneThemePage({ theme: themes[0]!, pageId: "about" }), true);
+  assert.equal(isStandaloneThemePage({ theme: themes[0]!, pageId: "pricing" }), true);
 });

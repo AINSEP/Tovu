@@ -32,3 +32,11 @@ test('sanitizePageHtml on its own logs once for a call that drops markup', (t) =
   assert.equal(sanitizePageHtml({ html: '<iframe src="https://x.example/"></iframe><i>ok</i>' }, { report: logMediaHtmlEvent }), '<i>ok</i>');
   assert.deepEqual(warn.mock.calls.map(call => call.arguments), [['[media] Raw HTML sanitizer dropped markup', { iframe: 1 }]]);
 });
+
+test('an unfamiliar pipeline diagnostic retains its event code and structured detail in the server log', t => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  logMediaHtmlEvent({ code: 'raw-html-asset-unavailable', detail: '{"slug":"header-photo","reason":"archived"}' });
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [
+    ['[media] raw-html-asset-unavailable', { slug: 'header-photo', reason: 'archived' }],
+  ]);
+});

@@ -22,3 +22,10 @@ test("new unimplemented field names warn only during authoring and near misses s
     }
   }
 });
+
+test("a managed gallery image's missing authored alt remains advisory even at publish", () => {
+  for (const profile of ["author", "install", "publish"] as const) {
+    assert.equal(resolveSeverity({ ruleId: "markup-gallery-alt-missing", profile }), "warning", profile);
+    assert.equal(resolveSeverity({ ruleId: "markup-gallery-config-invalid", profile }), "error", profile);
+  }
+});

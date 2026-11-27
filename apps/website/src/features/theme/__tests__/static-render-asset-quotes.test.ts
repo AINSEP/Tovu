@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderStaticPage } from "../static-render.js";
+import { renderStaticFragment, renderStaticPage } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -100,4 +100,15 @@ test("whitespace around = on a quoted asset href is left unrewritten (deliberate
   } finally {
     console.warn = originalWarn;
   }
+});
+
+test("an unsaved v2 fragment gets a tokenized document and rewritten assets instead of the saved page", () => {
+  const base = makeTheme("<main>Saved home</main>");
+  const theme = { ...base, manifest: { ...base.manifest, apiVersion: 2 as const }, tokens: { "--accent": "teal" } };
+  const html = renderStaticFragment({
+    theme, label: "index", html: `<aside>Unsaved preview<script src='../scripts/draft.js'></script></aside>`,
+  });
+  assert.match(html, /<head>[\s\S]*--accent: teal;[\s\S]*href="\/theme-assets\/quote-test\/css\/theme\.css"[\s\S]*<\/head>/);
+  assert.match(html, /<body>\s*<aside>Unsaved preview<script src='\/theme-assets\/quote-test\/scripts\/draft\.js'><\/script><\/aside>\s*<\/body>/);
+  assert.doesNotMatch(html, /Saved home/);
 });

@@ -587,7 +587,7 @@ test("apply normalizes executable modes and restores bits masked by the process 
 // ---------------------------------------------------------------------------
 
 /** Replaces one `node:fs/promises` export for this test; the module under test reads the live binding. */
-function mockFs<K extends "lstat" | "realpath">(t: { mock: { method: typeof test.mock.method }; after: (fn: () => void) => void }, name: K, impl: (typeof fsPromises)[K]): void {
+function mockFs<K extends "lstat" | "realpath" | "rm" | "rmdir">(t: { mock: { method: typeof test.mock.method }; after: (fn: () => void) => void }, name: K, impl: (typeof fsPromises)[K]): void {
   const mock = t.mock.method(fsPromises, name, impl);
   syncBuiltinESMExports();
   t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); });
@@ -766,4 +766,59 @@ test("pruning skips another tree's previous copy and keeps a key folder that sti
   assert.equal(await exists(path.join(previous, "k-shared/static/basic")), false);
   assert.deepEqual(await readTree(path.join(previous, "k-shared")), { "static/other/theme.json": "{}" });
   assert.deepEqual(await readTree(path.join(previous, "k-other-only")), { "static/other/theme.json": "{}" });
+});
+
+test("backup pruning failure after a swap keeps the new tree live and the old backup recoverable", async t => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const previousRoot = path.join(fixture.destThemes, ".publish-previous");
+  const oldestKey = path.join(previousRoot, "older-backup");
+  const oldestTree = path.join(oldestKey, "static/basic");
+  const priorBackup = { "theme.json": '{"id":"basic","name":"Older backup"}' };
+  await writeTree(oldestTree, priorBackup);
+  await writeTree(path.join(previousRoot, "recent-backup/static/basic"), ORIGINAL_BASIC);
+  const old = new Date("2020-01-01T00:00:00Z");
+  await utimes(oldestKey, old, old);
+  const remove = fsPromises.rm;
+  const pruneCalls: unknown[][] = [];
+  mockFs(t, "rm", async (target, options) => {
+    if (target !== oldestTree) return remove(target, options);
+    pruneCalls.push([target, options]);
+    throw eio(oldestTree);
+  });
+
+  const idempotencyKey = "backup-prune-failed";
+  await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey });
+  assert.deepEqual(pruneCalls, [[oldestTree, { recursive: true, force: true }]]);
+  assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), SOURCE_BASIC);
+  assert.deepEqual(await readTree(oldestTree), priorBackup);
+  const key = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
+  assert.deepEqual(await readTree(path.join(previousRoot, key, "static/basic")), ORIGINAL_BASIC);
+});
+
+test("an unexpected empty backup directory cleanup error is logged without disrupting publication", async t => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const previousRoot = path.join(fixture.destThemes, ".publish-previous");
+  const oldKey = path.join(previousRoot, "old-backup");
+  const oldTier = path.join(oldKey, "static");
+  await writeTree(path.join(oldTier, "basic"), ORIGINAL_BASIC);
+  await writeTree(path.join(previousRoot, "newer-backup/static/basic"), ORIGINAL_BASIC);
+  const old = new Date("2020-01-01T00:00:00Z");
+  await utimes(oldKey, old, old);
+
+  const removeDir = fsPromises.rmdir;
+  mockFs(t, "rmdir", async (target, options) => {
+    if (target !== oldTier) return removeDir(target, options);
+    throw eio(oldTier);
+  });
+  const log = t.mock.method(console, "error", () => {});
+
+  await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "rmdir-fault" });
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [
+    ["[theme-publish] Could not remove an empty backup directory", "Error(EIO)"],
+  ]);
+  assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), SOURCE_BASIC);
+  assert.deepEqual(await readdir(oldTier), []);
+  assert.deepEqual(await readTree(path.join(previousRoot, "newer-backup/static/basic")), ORIGINAL_BASIC);
 });

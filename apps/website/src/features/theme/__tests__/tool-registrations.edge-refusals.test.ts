@@ -163,3 +163,16 @@ test("theme_rename_file keeps a nested file in its own folder", async (t) => {
   assert.equal(fs.readFileSync(path.join(themesDir, "authored", "css", "renamed.css"), "utf8"), "p{}");
   assert.equal(fs.existsSync(path.join(themesDir, "authored", "css", "extra.css")), false);
 });
+
+test("theme rename rejects a backslash separator and dot directory names without moving the source", async t => {
+  const { deps, themesDir } = makeDeps(t);
+  const dir = path.join(themesDir, "authored");
+  fs.writeFileSync(path.join(dir, "extra.css"), "a{color:red}");
+  const rename = handler(deps, "theme_rename_file");
+  for (const name of ["nested\\new.css", ".", ".."]) {
+    await assert.rejects(() => rename(ctx({ themeId: "authored", path: "extra.css", name })),
+      /must be a plain filename in the same folder, not a path/);
+  }
+  assert.equal(fs.readFileSync(path.join(dir, "extra.css"), "utf8"), "a{color:red}");
+  assert.equal(fs.existsSync(path.join(dir, "nested\\new.css")), false);
+});

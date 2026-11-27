@@ -91,3 +91,15 @@ test("the contributor names its own domain, builder and risk map", () => {
   assert.equal(derivedRisk.get("theme_set_page_published"), "mutates-durable-state");
   assert.deepEqual(catalog.map(entry => entry.name), ["theme_set_page_published"]);
 });
+
+test("a declarative theme cannot gain a static page publication allowlist", async t => {
+  const { themesDir, dir } = makeThemes(t, "declarative");
+  const manifestPath = path.join(dir, "theme.json");
+  const before = fs.readFileSync(manifestPath, "utf8");
+  const run = handlerFor({ workspaceId: "ws", authorize: allow, themesDir, themes: [loadTheme({ themeDir: dir, id: "plain", source: "site" })] });
+  await assert.rejects(run({ themeId: "plain", page: "about", published: true }), {
+    name: "ToolInputError",
+    message: "theme 'plain' is tier 'declarative' — publish state only applies to static-tier themes",
+  });
+  assert.equal(fs.readFileSync(manifestPath, "utf8"), before);
+});

@@ -121,3 +121,25 @@ test('a single (non-batch) edit keeps its result shape', async t => {
   assert.deepEqual([single.themeId, single.path, single.occurrencesReplaced, single.bytesWritten], ['copy', 'p.css', 1, 3]);
   assert.equal(f.read('p.css'), 'A b');
 });
+
+test('ambiguous edits are refused until replaceAll is explicit, then report every literal replacement', async t => {
+  const f = themeBatchFixture(t, { files: { 'p.css': 'a[old] b[old] c[keep]' } });
+  const input = edit('p.css', '[old]', '$&');
+  await assert.rejects(() => f.run('theme_edit_file', input), /oldString matches 2 times in 'p\.css'/);
+  assert.equal(f.read('p.css'), 'a[old] b[old] c[keep]');
+  const result = await f.run('theme_edit_file', { ...input, replaceAll: true }) as { occurrencesReplaced: number };
+  assert.equal(result.occurrencesReplaced, 2);
+  assert.equal(f.read('p.css'), 'a$& b$& c[keep]');
+});
+
+test('blanking a file requires delete intent and single replacement treats dollar text literally', async t => {
+  const f = themeBatchFixture(t, { files: { 'p.css': 'keep', 'q.css': 'prefix old suffix' } });
+  const input = edit('p.css', 'keep', ' ');
+  await assert.rejects(() => f.run('theme_edit_file', input), /this edit would leave 'p\.css' empty/);
+  assert.equal(f.read('p.css'), 'keep');
+  const deleted = await f.run('theme_edit_file', { ...input, newString: '', intent: 'delete' }) as { bytesWritten: number };
+  assert.equal(deleted.bytesWritten, 0);
+  assert.equal(f.read('p.css'), '');
+  await f.run('theme_edit_file', edit('q.css', 'old', '$&'));
+  assert.equal(f.read('q.css'), 'prefix $& suffix');
+});

@@ -365,3 +365,15 @@ test("generateStaticPortabilityIndex skips a theme that loads but is not static-
   assert.deepEqual(generateStaticPortabilityIndex({ themeDir: dir, id: "t" }), { status: "skipped", reason: "not a static-tier theme, or ships no index page" });
   assert.equal(fs.existsSync(path.join(dir, "index.html")), false);
 });
+
+test("a theme that fails to load cannot replace its last portability index", t => {
+  const dir = tmpDir("tovu-portability-invalid-");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  writeStaticFixture(dir);
+  const index = path.join(dir, "index.html");
+  fs.writeFileSync(index, "<html><body>Last generated copy</body></html>");
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{broken");
+  assert.deepEqual(generateStaticPortabilityIndex({ themeDir: dir, id: "fixture-static" }),
+    { status: "skipped", reason: "theme failed to load (invalid)" });
+  assert.equal(fs.readFileSync(index, "utf8"), "<html><body>Last generated copy</body></html>");
+});

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import { createFakeClock } from "../../../__tests__/support/fake-clock.js";
 import { applyActiveTheme, type SetActiveThemeToolDeps } from "../set-active-theme-tool.js";
@@ -46,4 +48,20 @@ test("an unknown id is refused as a ToolInputError naming the valid ids, and not
   await assert.rejects(applyActiveTheme({ routeDeps: deps(repo), themeId: "ghost" }), (error: unknown) =>
     error instanceof ToolInputError && /\(valid ids: none\)$/.test(error.message));
   assert.equal((await repo.findByWorkspaceId({ workspaceId: "ws" }))?.activeThemeId, "none");
+});
+
+test("a tracker failure cannot undo activation and a same-value request does not record it again", async () => {
+  const presentationRepo = seededRepo({ activeThemeId: "previous-theme" });
+  const events: Parameters<Tracker["capture"]>[] = [];
+  const tracker: Tracker = { ...createNoopTracker({}), capture: (...args) => {
+    events.push(args);
+    throw new Error("tracking unavailable");
+  } };
+  const routeDeps = { ...deps(presentationRepo), tracker };
+  assert.deepEqual(await applyActiveTheme({ routeDeps, themeId: "none" }),
+    { previousThemeId: "previous-theme", activeThemeId: "none" });
+  assert.deepEqual(await applyActiveTheme({ routeDeps, themeId: "none", actorId: "another-owner" }),
+    { previousThemeId: "none", activeThemeId: "none" });
+  assert.deepEqual(events, [[{ name: "theme_changed", userId: "system:ws" }, { properties: { themeId: "none", source: "assistant" } }]]);
+  assert.equal((await presentationRepo.findByWorkspaceId({ workspaceId: "ws" }))?.activeThemeId, "none");
 });

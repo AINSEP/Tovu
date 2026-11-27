@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { explainThemeTree as explainWithChecks } from "#src/features/site-backup/import-restore-placement";
 import { checkHeldBackTheme, listHeldBackThemes, restoreHeldBackTheme } from "#src/features/theme/held-back-themes";
-import { isAbsent, parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
+import { heldBackThemeName, isAbsent, isHeldBackFolder, parseHeldBackId, recordHeldBackChoice, readHeldBackChoice } from "#src/features/theme/held-back-choice";
 import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
 /** The held-back re-check as the host binds it (`modules/theme-held-back.ts`). */
 const explainThemeTree = (required: { root: string; id: string; files: readonly string[] }) => explainWithChecks({ ...required, themeChecks: THEME_PLACEMENT_CHECKS });
@@ -160,4 +160,62 @@ test("isAbsent takes one args object, so the object form works with the optional
   assert.equal(isAbsent({ err: Object.assign(new Error("not a folder"), { code: "ENOTDIR" }) }), true);
   assert.equal(isAbsent({ err: Object.assign(new Error("denied"), { code: "EACCES" }) }), false);
   assert.equal(isAbsent({ err: null }), false);
+});
+
+test("a malformed held-back manifest falls back to the folder name", t => {
+  const { siteDir } = site();
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(siteDir, "theme.json"), "{invalid");
+  assert.equal(heldBackThemeName({ dir: siteDir, fallback: "editorial-rose" }), "editorial-rose");
+});
+
+test("a marker filed as a directory reports a read fault instead of hiding the held-back notice", t => {
+  const { siteDir } = site();
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(siteDir, ".import-quarantine", "held-back-choice.json"), { recursive: true });
+  assert.throws(() => readHeldBackChoice({ siteDir }), { code: "EISDIR" });
+});
+
+test("a quarantine path loop is reported as a filesystem fault, not as an empty roster", t => {
+  const { siteDir, themesDir, held } = site();
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const quarantine = path.dirname(held);
+  fs.symlinkSync(quarantine, quarantine);
+  assert.throws(() => listHeldBackThemes({ siteDir, themesDir }), { code: "ELOOP" });
+  assert.throws(() => isHeldBackFolder({ siteDir, id: "static/evening" }), { code: "ELOOP" });
+});
+
+test("checking a held-back manifest does not swallow a real read fault", t => {
+  const { siteDir } = site();
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const manifest = path.join(siteDir, "theme.json");
+  fs.writeFileSync(manifest, '{"name":"Evening"}');
+  const failure = Object.assign(new Error("manifest disk read failed"), { code: "EIO" });
+  const open = fs.openSync;
+  const calls: unknown[][] = [];
+  t.mock.method(fs, "openSync", (file: fs.PathLike, flags?: string | number, mode?: fs.Mode | null) => {
+    if (file !== manifest) return open(file, flags, mode);
+    calls.push([file, flags]);
+    throw failure;
+  });
+  assert.throws(() => heldBackThemeName({ dir: siteDir, fallback: "evening" }), error => error === failure);
+  assert.deepEqual(calls, [[manifest, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW]]);
+});
+
+test("listing propagates a read fault while resolving an otherwise addressable theme", t => {
+  const { siteDir, themesDir, held } = site();
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const dir = path.join(held, "static", "evening");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "theme.json"), '{"name":"Evening"}');
+  assert.deepEqual(listHeldBackThemes({ siteDir, themesDir }).map(({ id, name }) => ({ id, name })),
+    [{ id: "static/evening", name: "Evening" }]);
+
+  const failure = Object.assign(new Error("quarantine disk read failed"), { code: "EIO" });
+  const realpath = fs.realpathSync;
+  t.mock.method(fs, "realpathSync", (file: fs.PathLike) => {
+    if (file === dir) throw failure;
+    return realpath(file);
+  });
+  assert.throws(() => listHeldBackThemes({ siteDir, themesDir }), error => error === failure);
 });

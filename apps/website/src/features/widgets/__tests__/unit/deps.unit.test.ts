@@ -196,3 +196,18 @@ test("buildWidgetHostPorts: updatePost and restorePostForward read through the b
   }
   assert.deepEqual(seen, ["bound:p-up", "bound:p-re", "caller:p-up", "caller:p-re"]);
 });
+
+test("region operations can use the bound host reader without exposing the host on enumerable deps", async () => {
+  const routeDeps = makeRouteDeps();
+  const seen: string[] = [];
+  routeDeps.postRepo = postLookupRepo("region", seen);
+  const region = buildWidgetsRegionDeps(routeDeps);
+  const callerRepo = createPublicPostReader({ repo: postLookupRepo("caller", seen) });
+  const result = await region.host.posts.findPublishedPostBySlug({
+    deps: { repo: callerRepo },
+    input: { workspaceId: "ws-1", id: "p-1", slug: "s-1" },
+  });
+  assert.equal(result?.id, "region-post");
+  assert.deepEqual(seen, ["region:findBySlug:s-1"]);
+  assert.equal(Object.keys(region).includes("host"), false);
+});
