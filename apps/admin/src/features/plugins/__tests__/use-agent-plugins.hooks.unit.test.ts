@@ -5,7 +5,7 @@ import type { AgentPluginListRow } from "@jini-ai/admin/agent-plugins/models";
 import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
-import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
+import { useAgentPlugins, useWiredAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 import { publishContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 
 
@@ -323,4 +323,27 @@ describe("useAgentPlugins — onInstalled", () => {
 
     await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => plugin.pluginId)).toEqual(["site-compliance", "tovu-deploy-example"]));
   });
+});
+
+it("keeps a refused plugin disabled and translates the live binding's typed refusal", async () => {
+  const plugin = { ...SITE_COMPLIANCE, enabled: false };
+  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
+  const setEnabled = vi.spyOn(integrationsApi, "setAgentPluginEnabled").mockRejectedValue(
+    new ApiError({ message: "Raw host incompatibility details", status: 409 }, { code: "PLUGIN_HOST_INCOMPATIBLE" }),
+  );
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+    if (String(input).endsWith("/settings/effective?namespace=core.language")) {
+      return Response.json({ data: [{ key: "locale", value: "es" }] });
+    }
+    return Response.json({ error: "Unexpected plugin fetch" }, { status: 404 });
+  });
+  try {
+    const { result } = renderHook(() => useWiredAgentPlugins());
+    await waitFor(() => expect(result.current.agentPlugins).toEqual([plugin]));
+    await waitFor(() => expect(result.current.locale).toBe("es"));
+    await act(async () => { await result.current.onToggleEnabled(plugin); });
+    expect(setEnabled).toHaveBeenCalledExactlyOnceWith({ pluginId: "site-compliance", enabled: true });
+    expect(result.current.toggleError).toBe("Este plugin no está hecho para esta versión de Tovu.");
+    expect(result.current.agentPlugins?.find(row => row.pluginId === "site-compliance")?.enabled).toBe(false);
+  } finally { vi.unstubAllGlobals(); }
 });

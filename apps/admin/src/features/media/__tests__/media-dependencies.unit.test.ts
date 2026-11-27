@@ -1,3 +1,5 @@
+import { fakeGridPage } from "../hooks/media-dependencies.hooks";
+import type { AdminMedia } from "@jini-ai/core/contracts/site/cms-admin-media";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultMediaPort } from "../hooks/media-dependencies.hooks";
 
@@ -41,4 +43,16 @@ describe("defaultMediaPort", () => {
   it("resolves the original URL with an encoded media id", () => {
     expect(defaultMediaPort.mediaOriginalUrl("m/1")).toBe(`${base}/media/m%2F1/original`);
   });
+});
+
+it("limits deep-linked results to the requested item without narrowing the tab counts", () => {
+  const items = [
+    { id: "cover", title: "Cover", status: "active", createdAt: "2026-11-26T00:00:00Z", contentType: "image/jpeg" },
+    { id: "banner", title: "Banner", status: "active", createdAt: "2026-11-20T00:00:00Z", contentType: "image/png" },
+    { id: "video", title: "Video", status: "active", createdAt: "2026-11-26T00:00:00Z", contentType: "video/mp4" },
+  ] as AdminMedia[];
+  expect(fakeGridPage({ items, tab: "images", orderBy: "created", itemId: "banner" })).toMatchObject({
+    media: [items[1]], counts: { all: 3, images: 2, videos: 1, trash: 0 }, nextCursor: null,
+  });
+  expect(fakeGridPage({ items, tab: "images", orderBy: "created", itemId: "video" }).media).toEqual([]);
 });

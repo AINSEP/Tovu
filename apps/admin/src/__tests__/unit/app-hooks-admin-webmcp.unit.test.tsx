@@ -351,3 +351,31 @@ it('activates a parked page service before rebinding a protected WebMCP request'
     expect(click).not.toHaveBeenCalled();
   } finally { unmount(); }
 });
+
+it("forwards a bridge event's application error to the frontend-session logger", async () => {
+  const create = vi.fn<typeof import("@jini-ai/chat/react").createFrontendSessionBridge>(() => createBridge());
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  const { result } = renderHook(() => useAgentPageBridge({ createBridge: create }));
+  await act(async () => result.current.setContentEl(document.createElement("main")));
+  const config = create.mock.calls[0]?.[1];
+  const failure = new Error("Malformed frontend response frame");
+  if (!config?.onError) throw new Error("the bridge has no error handler");
+
+  config.onError(failure);
+
+  expect(error).toHaveBeenCalledWith("[admin] frontend session", failure);
+});
+
+it("names the page capability whose browser registration failed", async () => {
+  const failure = new Error("browser refused page registration");
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const registerTool = vi.fn((registration: WebMcpToolRegistration) => {
+    if (registration.name === "page.click") throw failure;
+  });
+  Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool } });
+  act(() => browserAgentSettingsPort.setEnabled({ enabled: true }));
+  const { result } = renderHook(() => useAgentPageBridge({ createBridge }));
+  await act(async () => result.current.setContentEl(document.createElement("main")));
+  expect(registerTool.mock.calls.map(([tool]) => tool.name)).toContain("page.click");
+  expect(warn).toHaveBeenCalledWith("[admin] WebMCP registration failed: page.click", failure);
+});

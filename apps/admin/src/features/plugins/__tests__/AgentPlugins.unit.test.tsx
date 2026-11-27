@@ -1,3 +1,4 @@
+import { AgentPlugins as HostAgentPlugins } from "../AgentPlugins";
 import { HOST_AGENT_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { useWiredAgentPluginDetailsModal } from "@/features/plugins/hooks/use-agent-plugin-details-modal.hooks";
 import { useAgentPluginDetailsView } from "@jini-ai/admin/screens/plugins/hooks/use-agent-plugin-details-modal.hooks";
@@ -588,6 +589,17 @@ describe("AgentPlugins inspector (stateful)", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens the clicked plugin's files through the production Agent Plugins surface", async () => {
+    const user = userEvent.setup();
+    render(<HostAgentPlugins useAgentPluginsHook={useStatefulFakeAgentPlugins} />);
+    await user.click(screen.getByRole("button", { name: "Inspect package files — Site Compliance" }));
+    const dialog = await screen.findByRole("dialog", { name: /Site Compliance package files preview/i });
+    expect(await within(dialog).findByRole("treeitem", { name: "plugin.json" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "plugin.json" })).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("closes the package inspector with Escape", async () => {

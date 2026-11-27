@@ -49,3 +49,16 @@ describe('contentAnalysisPort', () => {
     expect(error).toMatchObject({ status, code, message: 'plugin refused' });
   });
 });
+
+it("preserves the browser's request cancellation instead of translating it into a plugin failure", async () => {
+  const cancelled = new DOMException("Preview was cancelled", "AbortError");
+  const fetchPreview = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) !== PREVIEW_URL || init?.method !== "GET") {
+      return jsonResponse({ error: "Wrong preview request" }, 404);
+    }
+    throw cancelled;
+  });
+  vi.stubGlobal("fetch", fetchPreview);
+  await expect(contentAnalysisPort.previewStatus({ pluginId: "content-analyzer" })).rejects.toBe(cancelled);
+  expect(fetchPreview).toHaveBeenCalledTimes(1);
+});

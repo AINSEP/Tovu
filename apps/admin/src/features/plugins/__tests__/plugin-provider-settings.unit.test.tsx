@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import { useWiredPluginProviderSettings } from "../hooks/use-plugin-provider-settings.hooks";
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
 import { ProviderSettingField } from "@jini-ai/admin/screens/plugins/PluginProviderSettingField";
 import { providerSettingRequiredHere } from "../rules";
@@ -374,4 +376,39 @@ it('keeps a committed startup failure visible with the shared safe reason and co
   expect((await screen.findByRole('alert')).textContent).toBe(message);
   expect(saved).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+});
+
+it("loads and saves the chosen provider card through the wired settings hook", async () => {
+  const id = "observability-opentelemetry";
+  const endpoint = `/api/admin/v1/workspaces/workspace-local/plugins/${id}/provider-settings`;
+  const writes: unknown[] = [];
+  let provider = card();
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/settings/effective?namespace=core.language")) return Response.json({ data: [] });
+    if (url !== endpoint) return Response.json({ error: "Unexpected provider" }, { status: 404 });
+    if ((init?.method ?? "GET") === "GET") return Response.json(provider);
+    if (init?.method !== "PUT") return Response.json({ error: "Unexpected method" }, { status: 405 });
+    const body = JSON.parse(String(init.body));
+    writes.push(body);
+    provider = { ...provider, fields: provider.fields.map(field => field.name === "endpoint" ? { ...field, value: body.values.endpoint } : field) };
+    return Response.json(provider);
+  });
+  try {
+    const onSaved = vi.fn();
+    render(<PluginProviderSettingsDialog {...requiredPluginProviderSettingsDialogHooks}
+      plugin={{ id, name: "OpenTelemetry" }} agentHandleBase="row-otel" onClose={() => {}}
+      onSaved={onSaved} useSettings={useWiredPluginProviderSettings} />);
+    const endpointInput = await findControl(/^OTLP endpoint/);
+    expect(endpointInput).toHaveValue("https://old.example.test");
+    const user = userEvent.setup();
+    await user.clear(endpointInput);
+    await user.type(endpointInput, "https://new.example.test");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(writes).toEqual([{ values: { endpoint: "https://new.example.test", headers: "" } }]);
+    expect(provider.fields.find(field => field.name === "endpoint")?.value).toBe("https://new.example.test");
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

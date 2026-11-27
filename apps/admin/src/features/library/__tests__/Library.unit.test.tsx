@@ -860,3 +860,32 @@ describe("Library preview dialog", () => {
     expect(srcdoc).toContain("border:1px solid GrayText");
   });
 });
+
+it("renames, previews and trashes the intended document through the live Library port", async () => {
+  const id = "doc/notes";
+  let document = fakeDocument({ filename: "notes.md" }, { overrides: { id } });
+  const update = vi.spyOn(mediaApi, "updateMedia").mockImplementation(async (target, patch) => {
+    if (target.id !== id || !patch.title) throw new Error("Unexpected document update");
+    document = { ...document, title: patch.title };
+    return { media: document };
+  });
+  const preview = vi.spyOn(mediaApi, "readDocumentText").mockImplementation(async (target) => {
+    if (target.id !== id) throw new Error("Unexpected document preview");
+    return { id, text: "# Quarterly plan", offset: 0, nextOffset: null, totalBytes: 16, truncated: false };
+  });
+  const trash = vi.spyOn(mediaApi, "trashMedia").mockImplementation(async ({ id: target }) => {
+    if (target !== id || document.status === "trashed") throw new Error("Unexpected document trash");
+    document = { ...document, status: "trashed" };
+    return { media: document };
+  });
+  vi.spyOn(mediaApi, "listDocuments").mockImplementation(async () => ({ media: document.status === "trashed" ? [] : [document] }));
+
+  await defaultLibraryPort.renameDocument({ target: { id }, input: { title: "Quarterly plan" } });
+  expect(update).toHaveBeenCalledExactlyOnceWith({ id }, { title: "Quarterly plan" });
+  await expect(defaultLibraryPort.listDocuments()).resolves.toMatchObject({ media: [{ id, title: "Quarterly plan" }] });
+  await expect(defaultLibraryPort.readDocumentText({ id })).resolves.toMatchObject({ id, text: "# Quarterly plan", truncated: false });
+  expect(preview).toHaveBeenCalledExactlyOnceWith({ id });
+  await defaultLibraryPort.trashDocument({ id });
+  expect(trash).toHaveBeenCalledExactlyOnceWith({ id });
+  await expect(defaultLibraryPort.listDocuments()).resolves.toEqual({ media: [] });
+});

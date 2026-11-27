@@ -159,3 +159,23 @@ describe("chat cleanup", () => {
     expect(client.preview).toHaveBeenCalledWith({ before: NOW - 30 * DAY });
   });
 });
+
+it("translates the fallback for an unfamiliar cleanup retention reason", () => {
+  const copy = chatCleanupCopy({ t: ({ key }) => `[translated] ${key}`, locale: "en", untitled: "Untitled" });
+  expect(copy.reason({ reason: "held-by-policy" })).toBe("[translated] Not checked");
+});
+
+it("keeps a non-actionable cleanup button accessible without an expanded state", async () => {
+  const CleanupButton = DOCK_CHAT_CLEANUP_KIT.Button;
+  render(<CleanupButton type="button" disabled>Cleanup unavailable</CleanupButton>);
+  const button = screen.getByRole("button", { name: "Cleanup unavailable" });
+  expect(button).toBeDisabled();
+  expect(button).not.toHaveAttribute("aria-expanded");
+  await userEvent.click(button);
+  expect(button).toBeDisabled();
+});
+
+it("uses the generic retention label even when an unfamiliar reason names an object property", () => {
+  const copy = chatCleanupCopy({ t: ({ key }) => `[translated] ${key}`, locale: "en", untitled: "Untitled" });
+  expect(copy.reason({ reason: "constructor" })).toBe("[translated] Not checked");
+});

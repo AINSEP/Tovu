@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import { screenshotCleanupClient } from "../api/screenshot-cleanup-api";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RetentionPassResult } from "@jini-ai/platform/retention";
@@ -121,4 +123,40 @@ describe("StorageScreen", () => {
     expect(seen).toEqual([{ dryRun: true, listShown: false }, { dryRun: false, listShown: true }]);
     expect(await screen.findByText(/Freed: 1 kB/)).toBeTruthy();
   });
+});
+
+it("reports a failed storage read with safe copy and diagnostic class rather than the raw message", async () => {
+  const read = vi.spyOn(storageClient, "report").mockRejectedValue(new TypeError("private-path=/srv/site"));
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    renderWithKits(<Storage useAdminLocaleHook={() => "en"} />);
+    expect(await screen.findByText("The storage request could not finish. Try again.")).toBeVisible();
+    expect(log).toHaveBeenCalledWith("Storage request failed", "TypeError");
+    expect(document.body).not.toHaveTextContent("/srv/site");
+  } finally {
+    log.mockRestore();
+    read.mockRestore();
+  }
+});
+
+it("uses the browser clock for the 90-day screenshot preview cutoff without deleting", async () => {
+  const now = vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 10, 27));
+  const read = vi.spyOn(storageClient, "report").mockResolvedValue(report());
+  const preview = vi.spyOn(screenshotCleanupClient, "preview").mockResolvedValue({
+    previewToken: "preview-9", deadline: Date.UTC(2026, 10, 28), count: 1, bytes: 30, items: ["2026-01-15/summary.jpg"],
+  });
+  const apply = vi.spyOn(screenshotCleanupClient, "apply").mockRejectedValue(new Error("must not apply a preview"));
+  try {
+    const user = userEvent.setup();
+    renderWithKits(<Storage useAdminLocaleHook={() => "en"} />);
+    await user.click(screen.getByRole("button", { name: "Show what would be deleted" }));
+    expect(await screen.findByText("2026-01-15/summary.jpg")).toBeVisible();
+    expect(preview).toHaveBeenCalledExactlyOnceWith({ before: Date.UTC(2026, 7, 29) });
+    expect(apply).not.toHaveBeenCalled();
+  } finally {
+    apply.mockRestore();
+    preview.mockRestore();
+    read.mockRestore();
+    now.mockRestore();
+  }
 });

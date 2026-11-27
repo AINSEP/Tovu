@@ -1,3 +1,6 @@
+import { useAttachmentValidator } from "../hooks/composer-files.hooks";
+import { renderHook } from "@/__tests__/render-with-jini-kits";
+import type { ChatAttachment } from "@jini-ai/chat/core";
 import { cleanup, render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 import { ConversationTitle } from "@jini-ai/chat/react";
@@ -56,4 +59,25 @@ it("prebinds the original DockHeader without forwarding its binding field", () =
   expect(DockHeader).toHaveBeenCalled();
   expect(vi.mocked(DockHeader).mock.calls[0][0]).not.toHaveProperty("DockHeader");
   expect(screen.getByRole("button", { name: "Clean up chats" })).toBeTruthy();
+});
+
+it("probes saved dock attachments through the current browser fetch and restores only live ones", async () => {
+  const { result } = renderHook(() => useAttachmentValidator());
+  const live: ChatAttachment = { path: "attachment:still-present", name: "diagram.png", kind: "image", size: 16 };
+  const gone: ChatAttachment = { path: "attachment:expired", name: "old.png", kind: "image", size: 8 };
+  const calls: string[] = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input);
+    if (init?.method !== "HEAD" || init.credentials !== "same-origin") {
+      return new Response(null, { status: 405 });
+    }
+    calls.push(path);
+    return new Response(null, { status: path === "/api/attachments/attachment%3Astill-present" ? 200 : 404 });
+  });
+  try {
+    await expect(result.current([gone, live])).resolves.toEqual([live]);
+    expect(calls.sort()).toEqual(["/api/attachments/attachment%3Aexpired", "/api/attachments/attachment%3Astill-present"]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

@@ -300,3 +300,7 @@ describe("adminThemeAccentDefaults", () => {
     expect(adminThemeAccentDefaults(swatch)).toEqual({ defaultAccent: "oklch(55% 0.11 43)", defaultPickerAccent: "oklch(55% 0.11 43)" });
   });
 });
+
+it("rejects an empty admin theme registry with a configuration diagnostic", () => {
+  expect(() => findAdminTheme({ id: "classic" }, { themes: [] })).toThrow(/^admin theme registry has no themes$/);
+});

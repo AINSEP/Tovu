@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 
@@ -621,4 +622,24 @@ it("hands the created-site return to the injected useReturnToSiteListOnCreateHoo
   const useReturnToSiteListOnCreateHook = vi.fn();
   render(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controllerFixture()} useReturnToSiteListOnCreateHook={useReturnToSiteListOnCreateHook} />);
   expect(useReturnToSiteListOnCreateHook).toHaveBeenCalledWith(expect.objectContaining({ returnToList: expect.any(Function) }));
+});
+
+it("honors hidden sites from the signed-in owner's ledger when no list hook is injected", async () => {
+  const ledger = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === "/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.interface" && init?.method === "GET") {
+      return Response.json({ data: [{ key: "sitesList", value: { sort: "name", pinned: [], hidden: ["beta"] } }] });
+    }
+    return Response.json({ error: "Unexpected Sites request" }, { status: 404 });
+  });
+  vi.stubGlobal("fetch", ledger);
+  try {
+    const controller = controllerFixture();
+    render(<FetchQueryProvider><Sites useSitesHook={() => controller} /></FetchQueryProvider>);
+    const hidden = await screen.findByRole("button", { name: "Hidden (1)" });
+    expect(screen.getByText("Alpha", { exact: true })).toBeVisible();
+    expect(screen.queryByText("Beta", { exact: true })).toBeNull();
+    await userEvent.click(hidden);
+    expect(screen.getByText("Beta", { exact: true })).toBeVisible();
+    expect(ledger).toHaveBeenCalledTimes(1);
+  } finally { vi.unstubAllGlobals(); }
 });

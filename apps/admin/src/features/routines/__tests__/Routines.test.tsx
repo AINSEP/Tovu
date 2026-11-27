@@ -1,3 +1,5 @@
+import { act } from "@testing-library/react";
+import { Routines as HostRoutines } from "../index";
 import { describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
@@ -175,4 +177,39 @@ describe("routines copy", () => {
       }
     }
   });
+});
+
+it("refreshes the production Routines screen on focus and at the poll interval only while mounted", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  const routineReads: string[] = [];
+  let current = row();
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname.endsWith("/settings/effective")) return Response.json({ data: [] });
+    if (url.pathname === "/api/admin/assistant/routines" && init?.method === "GET") {
+      routineReads.push(url.pathname);
+      return Response.json({ routines: [current] });
+    }
+    return Response.json({ error: "Unexpected request" }, { status: 404 });
+  });
+  try {
+    const rendered = render(<HostRoutines releaseEnabled />);
+    expect(await screen.findByText("Morning digest")).toBeVisible();
+    current = row({ name: "Evening digest" });
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(await screen.findByText("Evening digest")).toBeVisible();
+    expect(screen.queryByText("Morning digest")).not.toBeInTheDocument();
+    current = row({ name: "Weekend digest" });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    expect(screen.getByText("Weekend digest")).toBeVisible();
+    rendered.unmount();
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(routineReads).toEqual(Array(3).fill("/api/admin/assistant/routines"));
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  }
 });

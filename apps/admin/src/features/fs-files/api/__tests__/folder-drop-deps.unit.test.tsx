@@ -108,3 +108,11 @@ describe("useFolderDrop — real ChatPane composer", () => {
     expect(result.current.notice?.kind).toBe(fails ? "error" : "confirmation");
   });
 });
+
+it("keeps the server's custom-root failure code without treating non-text payloads as diagnostics", () => {
+  const error = new ApiError({ message: "Invalid path", status: 400 }, {
+    code: "INVALID_PATH", body: { error: { path: "/private/site" } },
+  });
+  expect(folderDropDeps.readFailure(error)).toEqual({ code: "INVALID_PATH", message: "" });
+  expect(folderDropDeps.readFailure(new Error("network unavailable"))).toBeNull();
+});

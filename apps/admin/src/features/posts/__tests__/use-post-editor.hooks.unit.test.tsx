@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useLoadedPostApply } from "../hooks/use-loaded-post-apply.hooks";
 import { createPostEditorRouteKeyStore } from "@jini-ai/admin/posts/post-editor-route-key";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -2175,4 +2177,60 @@ describe("usePostEditor — remaining boundaries", () => {
     expect(result.current.showAuthor).toBe(false);
     expect(result.current.dirty).toBe(true);
   });
+});
+
+it.each([true, false])("inserts a dropped link as an image at the resolved drop position (coordinates available: %s)", async (coordsAvailable) => {
+  const port = createFakePostEditorPort({ post: POST });
+  const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
+  await waitFor(() => expect(result.current.post?.id).toBe(POST.id));
+  const editor = result.current.editor!;
+  const src = "https://images.example.test/diagram.png";
+  act(() => {
+    editor.commands.setContent({ type: "doc", content: [
+      { type: "title", content: [{ type: "text", text: "Image notes" }] },
+      { type: "paragraph", content: [{ type: "text", text: "Before" }] },
+      { type: "paragraph", content: [{ type: "text", text: "After" }] },
+    ] });
+    editor.commands.setNodeSelection(editor.state.doc.child(0).nodeSize + editor.state.doc.child(1).nodeSize);
+  });
+  const betweenParagraphs = editor.state.doc.child(0).nodeSize + editor.state.doc.child(1).nodeSize;
+  const position = vi.spyOn(editor.view, "posAtCoords")
+    .mockReturnValue(coordsAvailable ? { pos: betweenParagraphs, inside: -1 } : null);
+  try {
+    const drop = new MouseEvent("drop", { bubbles: true, cancelable: true, clientX: 31, clientY: 72 }) as DragEvent;
+    Object.defineProperty(drop, "dataTransfer", {
+      value: { getData: (format: string) => format === "text/uri-list" ? src : "" },
+    });
+    const handleDrop = editor.options.editorProps.handleDrop!;
+    act(() => {
+      expect(handleDrop.call(editor.view, editor.view, drop, editor.state.doc.slice(0), false)).toBe(true);
+    });
+    expect(position).toHaveBeenCalledExactlyOnceWith({ left: 31, top: 72 });
+    expect(drop.defaultPrevented).toBe(true);
+    expect(editor.getJSON().content?.map(node => node.type)).toEqual(
+      coordsAvailable ? ["title", "paragraph", "image", "paragraph"] : ["title", "paragraph", "paragraph", "image"],
+    );
+    expect(editor.getJSON().content?.find(node => node.type === "image")?.attrs?.src).toBe(src);
+  } finally {
+    position.mockRestore();
+  }
+});
+
+it("leaves the post unsavable and preserves the server refusal when applying the fetched body fails", async () => {
+  const port = createFakePostEditorPort({ post: POST });
+  const editorView = renderHook(() => usePostEditor({ postId: "p1", deps: { routeKeys: createPostEditorRouteKeyStore(), port, navigate: fakeNavigate(), t: fakeT } }));
+  await waitFor(() => expect(editorView.result.current.post?.id).toBe(POST.id));
+  const editor = editorView.result.current.editor!;
+  const applyLoadedPost = vi.fn().mockImplementationOnce(() => {
+    throw new ApiError({ message: "This version of the post is unavailable.", status: 409 });
+  });
+  const { result } = renderHook(() => {
+    const [error, setError] = useState<string | null>(null);
+    return { error, ...useLoadedPostApply({ editor, applyLoadedPost, setError, t: fakeT }) };
+  });
+  const first = { post: POST, activeThemeTemplates: ["standard"] };
+  act(() => result.current.takeLoadedRow(first));
+  expect(result.current.bodyReady).toBe(false);
+  expect(result.current.error).toBe("This version of the post is unavailable.");
+  expect(applyLoadedPost).toHaveBeenCalledExactlyOnceWith({ ...first, liveEditor: editor });
 });

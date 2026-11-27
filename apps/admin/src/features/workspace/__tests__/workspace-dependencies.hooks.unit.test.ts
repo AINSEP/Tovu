@@ -161,3 +161,14 @@ describe("workspace cache and form drafts (this app's TanStack adapter)", () => 
     expect(result.current.workspace.slug).toBe("unsaved-slug");
   });
 });
+
+it("merges a workspace patch into the saved fake workspace without dropping untouched fields", async () => {
+  const port = createFakeWorkspacePort({ workspace: WORKSPACE });
+  const other = createFakeWorkspacePort({ workspace: WORKSPACE });
+  expect((await port.getWorkspace()).workspace).toEqual(WORKSPACE);
+  const updated = { ...WORKSPACE, name: "Renamed by owner" };
+  await expect(port.updateWorkspace({ patch: { name: "Renamed by owner" } })).resolves.toEqual({ workspace: updated });
+  expect(port.current).toEqual(updated);
+  expect((await port.getWorkspace()).workspace).toEqual(updated);
+  expect((await other.getWorkspace()).workspace).toEqual(WORKSPACE);
+});

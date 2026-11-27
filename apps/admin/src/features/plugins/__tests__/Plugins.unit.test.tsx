@@ -1,3 +1,4 @@
+import { Plugins as HostPlugins } from "../Plugins";
 import { HOST_PLUGIN_SCREEN } from "./plugin-host-deps";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
@@ -806,4 +807,17 @@ describe("row expanders and tab edge states (injected controller)", () => {
     expect(screen.getByRole("tab", { name: /Add a plugin/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByText("Upload a .zip or a folder")).not.toBeInTheDocument();
   });
+});
+
+it("replaces the current location when switching production Plugin tabs", async () => {
+  // Avoid adding a second history entry for a tab change.
+  window.history.replaceState(null, "", "/admin/addons/plugins?tab=installed");
+  const entriesBefore = window.history.length;
+  fetchMock.mockResolvedValue(jsonResponse(AC11_PLUGINS_RESPONSE));
+  const user = userEvent.setup();
+  render(<HostPlugins tabId="installed" />);
+  expect(await screen.findByRole("listitem", { name: "Word Count" })).toBeVisible();
+  await user.click(screen.getByRole("tab", { name: "Downloaded" }));
+  expect(window.location.pathname + window.location.search).toBe("/admin/addons/plugins?tab=downloaded");
+  expect(window.history.length).toBe(entriesBefore);
 });

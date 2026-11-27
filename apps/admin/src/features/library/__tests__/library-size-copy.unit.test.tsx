@@ -56,3 +56,24 @@ describe("library upload size copy", () => {
     expect(result.current.uploads[0]?.error).toBe("That video is over 500 MB.");
   });
 });
+
+it("preserves a non-size server refusal instead of telling the owner to shrink the file", async () => {
+  const base = "/api/admin/v1/workspaces/workspace-local";
+  const uploads: unknown[] = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input);
+    if (path === `${base}/media` && init?.method === "POST") {
+      uploads.push(JSON.parse(String(init.body)));
+      return Response.json({ code: "QUOTA_EXCEEDED", error: "The workspace has no storage space left." }, { status: 400 });
+    }
+    if (path === `${base}/media?kind=document`) return Response.json({ media: [] });
+    if (path === `${base}/users`) return Response.json({ users: [] });
+    if (path.endsWith("/auth/me")) return Response.json({ effectivePermissions: ["media.upload"] });
+    return Response.json({ error: "Unexpected library request" }, { status: 404 });
+  });
+  const { result } = renderHook(() => useWiredLibrary(), { wrapper });
+  act(() => result.current.addFiles([new File(["x"], "agenda.pdf")]));
+  await waitFor(() => expect(result.current.uploads.find(row => row.name === "agenda.pdf")?.error)
+    .toBe("The workspace has no storage space left."));
+  expect(uploads).toEqual([{ filename: "agenda.pdf", dataBase64: "eA==", kind: "document" }]);
+});

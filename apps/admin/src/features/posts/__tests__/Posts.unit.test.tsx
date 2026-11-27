@@ -389,3 +389,15 @@ it("New Post opens the unsaved editor without persisting an Untitled post", asyn
   expect(navigate).toHaveBeenCalledWith({ routePath: "/posts?create=1" });
   expect(port.posts).toEqual([]);
 });
+
+it("links a post title to its editor and sends Edit to the same route through the admin router", async () => {
+  const c = controller();
+  vi.mocked(navigate).mockClear();
+  render(<HostPosts usePostsHook={() => c} hooks={{ useWiredAdminLocale: () => "en" }} />);
+  const row = screen.getByRole("row", { name: /Hello World/ });
+  expect(within(row).getByRole("link", { name: "Hello World" })).toHaveAttribute("href", "/admin/posts/hello-world");
+  const user = userEvent.setup();
+  await user.click(within(row).getByRole("button", { name: 'Actions for "Hello World"' }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+  expect(navigate).toHaveBeenCalledExactlyOnceWith({ routePath: "/posts/hello-world" });
+});

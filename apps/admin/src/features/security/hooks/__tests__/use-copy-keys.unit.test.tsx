@@ -1,8 +1,10 @@
+import { subscribeToContentRefresh } from "@jini-ai/admin/shell/lib/content-refresh-bus";
+import { ACCESS_TOKENS_RESOURCE } from "../../rules";
 import { act, renderHook, waitFor } from '@/__tests__/fetch-query-render';
 import type { ChangeEvent } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCopyKeys } from '@jini-ai/admin/security/host/hooks/use-copy-keys.hooks';
-import { copyKeysHostPolicy } from '../copy-keys-dependencies.hooks';
+import { copyKeysHostPolicy, notifyCopyKeysGranted } from '../copy-keys-dependencies.hooks';
 import { fakeCopyKeysPort, t } from '../../__tests__/copy-keys.fixture';
 
 const check = (id: string) => ({ currentTarget: { value: id, checked: true } }) as ChangeEvent<HTMLInputElement>;
@@ -76,4 +78,15 @@ describe('saved-key grant controller', () => {
     act(() => result.current.changeKey({ currentTarget: { checked: true, value: "saved-on-site:b:2" } } as never));
     expect(result.current.disabled).toBe(true);
   });
+});
+
+it("invalidates only access tokens after a shared key is granted", () => {
+  const listener = vi.fn();
+  const dispose = subscribeToContentRefresh({ listener });
+  try {
+    notifyCopyKeysGranted({});
+    expect(listener).toHaveBeenCalledExactlyOnceWith([ACCESS_TOKENS_RESOURCE]);
+  } finally {
+    dispose();
+  }
 });

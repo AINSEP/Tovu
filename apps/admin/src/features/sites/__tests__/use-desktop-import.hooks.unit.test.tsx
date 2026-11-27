@@ -75,3 +75,28 @@ describe("useDesktopImport", () => {
     expect(result.current.opening).toBe(false);
   });
 });
+
+it("uses the real preload property when no import bridge is injected", async () => {
+  const open = vi.fn(async (_input: { address?: string }) => ({ opened: true }));
+  const prior = Object.getOwnPropertyDescriptor(window, "tovuImport");
+  Object.defineProperty(window, "tovuImport", { configurable: true, value: { open } });
+  try {
+    const { result } = renderHook(() => useDesktopImport({ t }));
+    expect(result.current.available).toBe(true);
+    await act(async () => { await result.current.open("https://example.net/news"); });
+    expect(open).toHaveBeenCalledExactlyOnceWith({ address: "https://example.net/news" });
+    expect(result.current.error).toBeNull();
+  } finally {
+    if (prior) Object.defineProperty(window, "tovuImport", prior);
+    else Reflect.deleteProperty(window, "tovuImport");
+  }
+});
+
+it("preserves a native bridge rejection when it is delivered as a string", async () => {
+  const { result } = renderHook(() => useDesktopImport({ t }, {
+    port: port(async () => { throw "The home window closed."; }),
+  }));
+  await act(async () => result.current.open("https://example.org"));
+  expect(result.current.error).toBe("Couldn't open Tovu's Import tab: The home window closed.");
+  expect(result.current.opening).toBe(false);
+});

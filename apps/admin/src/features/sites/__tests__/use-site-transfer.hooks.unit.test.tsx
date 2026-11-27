@@ -1,3 +1,4 @@
+import { unavailableReason, prefilledLiveAddress } from "../hooks/site-transfer-rules";
 import { useImportHistoryPages } from "../hooks/use-site-import-state.hooks";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { STATIC_EXPORT_OPTIONS_KEY } from "../hooks/use-static-export-selection.hooks";
@@ -656,4 +657,81 @@ it("transports the import cursor as a query string", async () => {
   vi.stubGlobal("fetch", fetchMock);
   await defaultSiteTransferPort.listImports({ cursor: "abc_-" });
   expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/site-imports?cursor=abc_-");
+});
+
+it("keeps the export id scoped to the password reveal POST", async () => {
+  const endpoint = "/api/admin/v1/workspaces/workspace-local/site-shares/share%2F7/password";
+  const reveal = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) !== endpoint || init?.method !== "POST") {
+      return Response.json({ error: "Unexpected reveal request" }, { status: 404 });
+    }
+    return Response.json({ password: "example-only" });
+  });
+  vi.stubGlobal("fetch", reveal);
+  await expect(defaultSiteTransferPort.revealSharePassword({ shareId: "share/7" })).resolves.toEqual({ password: "example-only" });
+  expect(reveal).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(String(reveal.mock.calls[0]?.[1]?.body))).toEqual({});
+});
+
+it("refuses an unexpected implicit download in the fake transfer port", () => {
+  expect(() => createFakeSiteTransferPort().downloadShare({ share: share() })).toThrow(/^downloadShare was not expected$/);
+});
+
+it("keeps only a usable 503 explanation for an unavailable import", () => {
+  const message = "Imports are paused for maintenance.";
+  expect(unavailableReason({ error: new ApiError({ message, status: 503 }) })).toBe(message);
+  expect(unavailableReason({ error: new ApiError({ message: "", status: 503 }) })).toBeNull();
+  expect(unavailableReason({ error: new ApiError({ message, status: 409 }) })).toBeNull();
+  expect(unavailableReason({ error: new Error(message) })).toBeNull();
+});
+
+it("does not prefill a non-website URL from the Import hand-off", () => {
+  const previous = window.location.href;
+  try {
+    window.history.replaceState(null, "", "/admin/import-export?tab=import&liveImport=file%3A%2F%2F%2Fnotes.html");
+    expect(prefilledLiveAddress()).toBe("");
+    window.history.replaceState(null, "", "/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.org%2Fnews");
+    expect(prefilledLiveAddress()).toBe("https://example.org/news");
+  } finally {
+    window.history.replaceState(null, "", previous);
+  }
+});
+
+it("stops polling an export job whose initial response arrives after the tab has closed", async () => {
+  let respond!: (value: { jobId: string; phase: string }) => void;
+  const start = new Promise<{ jobId: string; phase: string }>(resolve => { respond = resolve; });
+  const createShare = vi.fn().mockReturnValueOnce(start).mockRejectedValue(new Error("closed tabs must not poll"));
+  const port = createFakeSiteTransferPort({ createShare });
+  const { result, unmount } = renderHook(() => useSiteExport({ port, t }), { wrapper: FetchQueryProvider });
+  let pending!: Promise<void>;
+  act(() => { pending = result.current.exportSite(); });
+  expect(createShare).toHaveBeenCalledExactlyOnceWith({});
+  unmount();
+
+  await act(async () => {
+    respond({ jobId: "delayed-start", phase: "packing" });
+    await pending;
+  });
+  expect(createShare).toHaveBeenCalledExactlyOnceWith({});
+});
+
+it("withholds saved-key controls and skips its owner lookup until the authentication check settles", async () => {
+  const owner = vi.fn(async () => ({ isOwner: true }));
+  const port = createFakeSiteTransferPort({ savedKeysAccess: owner });
+  let checking = true;
+  const Wrapper: React.FC<React.PropsWithChildren> = ({ children }) => (
+    <FetchQueryProvider>
+      <AdminBootScopeContext.Provider value={{ principalId: checking ? null : "owner-7", checking }}>
+        {children}
+      </AdminBootScopeContext.Provider>
+    </FetchQueryProvider>
+  );
+  const { result, rerender } = renderHook(() => useSiteExport({ port, t }), { wrapper: Wrapper });
+  await act(async () => {});
+  expect(result.current.canManageSavedKeys).toBe(false);
+  expect(owner).not.toHaveBeenCalled();
+  checking = false;
+  rerender();
+  await waitFor(() => expect(result.current.canManageSavedKeys).toBe(true));
+  expect(owner).toHaveBeenCalledExactlyOnceWith({});
 });

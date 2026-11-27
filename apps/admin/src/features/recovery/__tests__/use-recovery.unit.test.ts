@@ -531,3 +531,13 @@ describe("useRecovery — content refresh bus", () => {
   });
 
 });
+
+it("reports a recovery failure using its class rather than the underlying storage message", () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    RECOVERY_HOST.reportError({ message: "Could not load recovery status", error: new TypeError("private backup path") });
+    expect(log).toHaveBeenCalledExactlyOnceWith("Could not load recovery status", "TypeError");
+  } finally {
+    log.mockRestore();
+  }
+});

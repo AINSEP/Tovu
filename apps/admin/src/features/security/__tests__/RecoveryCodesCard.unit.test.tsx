@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { ApiError } from '@/lib/admin-http/request';
 import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini-kits";
 import { describe, it, expect, vi } from 'vitest';
@@ -103,4 +104,49 @@ it('includes the enrolled owner authenticator proof when rotating the recovery k
   expect(p.issue).toHaveBeenCalledExactlyOnceWith({ password: 'owner-password', code: '123456' });
   expect(screen.queryByDisplayValue('owner-password')).toBeNull();
   expect(screen.queryByDisplayValue('123456')).toBeNull();
+});
+
+it("downloads the complete recovery kit under the host filename, then clears it from the page", async () => {
+  const codes = ["a".repeat(64), "b".repeat(64)];
+  const issue = vi.fn(async () => ({ codes }));
+  const objectUrl = "blob:http://localhost/owner-recovery-kit";
+  const events: string[] = [];
+  const blobs: Blob[] = [];
+  const oldCreate = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+  const oldRevoke = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: (blob: Blob) => {
+    blobs.push(blob);
+    return objectUrl;
+  } });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: (href: string) => { events.push(`revoke ${href}`); } });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+    events.push(`download ${this.download} ${this.href}`);
+  });
+  try {
+    const user = userEvent.setup();
+    render(<RecoveryCodesCard port={{ ...port(), issue }} />);
+    await user.type(await screen.findByLabelText("Current owner password"), "owner-password");
+    await user.click(screen.getByText("Generate recovery codes"));
+    const download = await screen.findByRole("button", { name: "Download codes" });
+    expect(screen.getByText((_, el) => el?.tagName === "PRE" && el.textContent === codes.join("\n"))).toBeVisible();
+    await user.click(download);
+    expect(events).toEqual([`download tovu-owner-recovery-codes.txt ${objectUrl}`, `revoke ${objectUrl}`]);
+    expect(blobs).toHaveLength(1);
+    expect(blobs[0].type).toBe("text/plain");
+    const reader = new FileReader();
+    const text = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blobs[0]);
+    });
+    expect(text).toBe(`${codes[0]}\n${codes[1]}\n`);
+    expect(screen.queryByRole("button", { name: "Download codes" })).toBeNull();
+    expect(document.body).not.toHaveTextContent(codes[0]);
+  } finally {
+    click.mockRestore();
+    if (oldCreate) Object.defineProperty(URL, "createObjectURL", oldCreate);
+    else Reflect.deleteProperty(URL, "createObjectURL");
+    if (oldRevoke) Object.defineProperty(URL, "revokeObjectURL", oldRevoke);
+    else Reflect.deleteProperty(URL, "revokeObjectURL");
+  }
 });

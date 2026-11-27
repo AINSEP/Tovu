@@ -1,3 +1,4 @@
+import { useShareExpiryState } from "../hooks/use-share-expiry.hooks";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -129,4 +130,22 @@ describe("share expiry controls on the Export tab (P11 ST-12b.T)", () => {
     expect(screen.queryByText("Expired")).toBeNull();
     expect(screen.getByText("Active")).toBeVisible();
   });
+});
+
+it("does not dismiss the expiry notice for a different export after acknowledging one", () => {
+  const { result, rerender } = renderHook(
+    ({ newestBackup }: { newestBackup: SiteShare | undefined }) => useShareExpiryState({ offered: [7], newestBackup }),
+    { initialProps: { newestBackup: undefined } },
+  );
+  act(() => result.current.useShareExpiry().acknowledge());
+  expect(result.current.acknowledgedId).toBeNull();
+  rerender({ newestBackup: base });
+  act(() => result.current.useShareExpiry().acknowledge());
+  expect(result.current.acknowledgedId).toBeNull();
+  rerender({ newestBackup: { ...base, shareId: "expired-2", status: "expired" } });
+  act(() => result.current.useShareExpiry().acknowledge());
+  expect(result.current.acknowledgedId).toBe("expired-2");
+  rerender({ newestBackup: { ...base, shareId: "active-3" } });
+  act(() => result.current.useShareExpiry().acknowledge());
+  expect(result.current.acknowledgedId).toBe("expired-2");
 });

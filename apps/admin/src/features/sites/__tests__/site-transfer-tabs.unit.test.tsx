@@ -706,3 +706,26 @@ it("shows more imports and keeps owner action on an appended row", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Finish setup" }));
   expect(controller.resume).toHaveBeenCalledWith({ item: pending });
 });
+
+it("uses the edited desktop website address when handing it to Tovu", async () => {
+  const desktop = desktopImport();
+  const initial = importController();
+  const setLiveAddress = vi.fn(initial.setLiveAddress);
+  let address = "";
+  let showEditedAddress = () => {};
+  setLiveAddress.mockImplementation(next => {
+    address = next;
+    showEditedAddress();
+  });
+  const renderTab = () => <SiteImportTab t={t}
+    useImport={() => ({ ...initial, liveAddress: address, liveAddressValid: true, setLiveAddress })}
+    useLiveSite={() => liveSite()} useDesktop={() => desktop} />;
+  const view = render(renderTab());
+  showEditedAddress = () => view.rerender(renderTab());
+  const field = screen.getByRole("textbox", { name: "Website address" });
+  const user = userEvent.setup();
+  await user.type(field, "https://example.org/docs");
+  expect(field).toHaveValue("https://example.org/docs");
+  await user.click(screen.getByRole("button", { name: "Open Import in Tovu" }));
+  expect(desktop.open).toHaveBeenCalledExactlyOnceWith("https://example.org/docs");
+});

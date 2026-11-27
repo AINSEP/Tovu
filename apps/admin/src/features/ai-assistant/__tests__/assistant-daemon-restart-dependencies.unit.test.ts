@@ -1,7 +1,9 @@
+import { ApiError } from "@/lib/admin-http/request";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
-import { assistantDaemonProcessRestartPort, defaultAssistantDaemonRestartPort } from "../hooks/assistant-daemon-restart-dependencies.hooks";
+import { assistantDaemonProcessRestartPort, defaultAssistantDaemonRestartPort, useWiredAssistantDaemonRestart } from "../hooks/assistant-daemon-restart-dependencies.hooks";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -58,4 +60,18 @@ describe("assistantDaemonProcessRestartPort (the engine restart hook's readiness
     vi.spyOn(aiAssistantApi, "restartAssistantDaemon").mockResolvedValue(result);
     await expect(assistantDaemonProcessRestartPort.restart()).resolves.toEqual(result);
   });
+});
+
+it("keeps the readiness failure's diagnostic and clears it after a successful manual check", async () => {
+  const getReadyz = vi.spyOn(aiAssistantApi, "getAssistantDaemonReadyz")
+    .mockRejectedValueOnce(new ApiError({ message: "Readiness response malformed", status: 503 }))
+    .mockResolvedValue({ ready: false, assistantDaemonKnownFailed: true });
+  const { result } = renderHook(() => useWiredAssistantDaemonRestart());
+  await waitFor(() => expect(result.current.statusError).toBe("Readiness response malformed"));
+  expect(result.current.knownFailed).toBeNull();
+
+  await act(async () => result.current.checkStatus());
+
+  expect(result.current).toMatchObject({ knownFailed: true, statusError: null });
+  expect(getReadyz.mock.calls).toEqual([[], []]);
 });

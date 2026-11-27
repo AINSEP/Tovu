@@ -444,3 +444,28 @@ describe("useExternalMcpAdmissions — restart permission", () => {
     await waitFor(() => expect(result.current.controller.connections).toHaveLength(1));
   });
 });
+
+it("reports a malformed restart success without claiming the assistant restarted", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  let restarts = 0;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/settings/effective")) return Response.json({ data: [] });
+    if (url.endsWith("/auth/me")) return Response.json({ effectivePermissions: ["*"] });
+    if (url.endsWith("/mcp-servers/admissions")) return Response.json({ connections: [] });
+    if (url.endsWith("/system/assistant-daemon/restart") && init?.method === "POST") {
+      restarts += 1;
+      return Response.json(null);
+    }
+    return Response.json({ error: "Unexpected endpoint" }, { status: 404 });
+  });
+  try {
+    const { result } = renderHook(() => useWiredExternalMcpAdmissions({}), { wrapper });
+    await waitFor(() => expect(result.current.canRestart).toBe(true));
+    await act(async () => result.current.restart());
+    await waitFor(() => expect(log).toHaveBeenCalledWith("[external-mcp] Could not handle the restart result", "TypeError"));
+    expect(result.current.restartAccepted).toBe(false);
+    expect(result.current.restarting).toBe(false);
+    expect(restarts).toBe(1);
+  } finally { log.mockRestore(); }
+});

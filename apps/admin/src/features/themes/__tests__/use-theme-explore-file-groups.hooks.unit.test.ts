@@ -198,3 +198,8 @@ describe("useThemeExploreFileGroups", () => {
     expect(result.current.expanded).toBe(false);
   });
 });
+
+it("rejects an invalid collapsed limit before adding a missing highlighted file", () => {
+  expect(() => themeExploreVisibleGroupFiles({ files: FILES, highlightedPath: "removed.html", expanded: false }, { limit: -1 }))
+    .toThrow(/^theme file group has an invalid collapsed limit$/);
+});

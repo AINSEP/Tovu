@@ -1,9 +1,9 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import type { AssistantConversation } from "@jini-ai/chat/transports/http";
-import { createAssistantLastConversationStore, createFakeAssistantChatsPort, upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
+import { createAssistantLastConversationStore, createFakeAssistantChatsPort, defaultAssistantChatsPort, defaultChatCleanupClient, upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
 
 /**
  * @file `upsertMessage` — pulled out of `createFakeAssistantChatsPort`'s `saveMessage`
@@ -178,4 +178,29 @@ describe("createAssistantLastConversationStore", () => {
     a.clear();
     expect(a.read()).toBeNull();
   });
+});
+
+test.each([
+  { path: "/topic%2F42", method: "PATCH", body: { title: "Edited title" }, response: {}, send: () => defaultAssistantChatsPort.renameConversation({ id: "topic/42", title: "Edited title" }), result: undefined },
+  { path: "/topic%2F42", method: "DELETE", body: undefined, response: undefined, send: () => defaultAssistantChatsPort.deleteConversation({ id: "topic/42" }), result: undefined },
+  { path: "/topic%2F42", method: "PATCH", body: { pinned: true }, response: { conversation: { id: "topic/42", pinned: false } }, send: () => defaultChatCleanupClient.setPinned({ id: "topic/42", pinned: true }), result: { id: "topic/42", pinned: false } },
+  { path: "/cleanup/preview", method: "POST", body: { before: 1_800_000_000_000 }, response: { count: 2, bytes: 31, kept: [], previewToken: "preview-2" }, send: () => defaultChatCleanupClient.preview({ before: 1_800_000_000_000 }), result: { count: 2, bytes: 31, kept: [], previewToken: "preview-2" } },
+  { path: "/cleanup/apply", method: "POST", body: { previewToken: "preview-2", confirm: true }, response: { deleted: ["topic/42"], kept: [] }, send: () => defaultChatCleanupClient.apply({ previewToken: "preview-2" }), result: { deleted: ["topic/42"], kept: [] } },
+  { path: "/delete-selected", method: "POST", body: { ids: ["topic/42", "topic/43"], confirm: true }, response: { deleted: ["topic/42", "topic/43"], kept: [] }, send: () => defaultChatCleanupClient.deleteSelected({ ids: ["topic/42", "topic/43"], confirm: true }), result: { deleted: ["topic/42", "topic/43"], kept: [] } },
+])("binds the real chat request for $method $path $body", async ({ path, method, body, response, send, result }) => {
+  const api = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    if (String(url) !== `/api/assistant/chats${path}` || init?.method !== method) {
+      return Response.json({ error: "Wrong chat endpoint" }, { status: 404 });
+    }
+    return response === undefined ? new Response(null, { status: 204 }) : Response.json(response);
+  });
+  vi.stubGlobal("fetch", api);
+  try {
+    await expect(send()).resolves.toEqual(result);
+    expect(api).toHaveBeenCalledTimes(1);
+    const sent = api.mock.calls[0]?.[1]?.body;
+    expect(sent === undefined ? undefined : JSON.parse(String(sent))).toEqual(body);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

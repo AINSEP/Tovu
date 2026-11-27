@@ -198,3 +198,23 @@ it('cancels a pending MFA proof without completing it or retaining the code', as
   expect(onLogin).not.toHaveBeenCalled();
   expect(completeMfa).not.toHaveBeenCalled();
 });
+
+it("sends the MFA proof and code together to the sign-in completion endpoint", async () => {
+  const session = { user: { id: "owner-2", username: "Owner" } };
+  const fetchMfa = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    if (String(url) !== "/api/admin/v1/auth/mfa/login" || init?.method !== "POST") {
+      return new Response(null, { status: 404 });
+    }
+    return new Response(JSON.stringify(session), {
+      headers: { "content-type": "application/json" },
+    });
+  });
+  vi.stubGlobal("fetch", fetchMfa);
+  try {
+    await expect(defaultLoginPort.completeMfa!({ pendingToken: "proof-2", code: "092731" })).resolves.toEqual(session);
+    expect(fetchMfa).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMfa.mock.calls[0]?.[1]?.body))).toEqual({ pendingToken: "proof-2", code: "092731" });
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

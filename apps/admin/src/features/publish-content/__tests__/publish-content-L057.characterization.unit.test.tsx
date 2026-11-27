@@ -1,5 +1,6 @@
+import { usePublishContentConfirm as useHostPublishConfirm } from "../hooks/use-publish-content-confirm.hooks";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PublishContentReport } from "@jini-ai/cms/publish/content/ui";
 import { createFakePublishContentPort, defaultPublishContentPort } from "../hooks/publish-content-dependencies.hooks";
 import { bindPublishContentConfirm } from "@jini-ai/cms/react/publish-content/hooks/use-publish-content-confirm.hooks";
@@ -103,4 +104,29 @@ describe("L057 view characterization before extraction", () => {
     expect(result.current.summary).toBeNull();
     expect(port.calls.planPublish).toEqual([]);
   });
+});
+
+it("arms production publish confirmation only after the monotonic delay", async () => {
+  const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+  try {
+    const port = createFakePublishContentPort({
+      peers, report,
+      executeResult: { restorePointId: "restore", runId: "run", changeSetIds: ["change"] },
+    });
+    const { result } = renderHook(() => useHostPublishConfirm({ onCancel: () => {}, t, port, confirmArmDelayMs: 250 }));
+    await waitFor(() => expect(result.current.selectedPeerId).toBe("live"));
+    act(() => result.current.onPrimary());
+    await waitFor(() => expect(result.current.primaryKind).toBe("confirm"));
+    clock.mockReturnValue(1249);
+    await act(async () => result.current.onPrimary());
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(result.current.primaryKind).toBe("confirm");
+    clock.mockReturnValue(1250);
+    act(() => result.current.onPrimary());
+    await waitFor(() => expect(result.current.phase.kind).toBe("done"));
+    expect(port.calls.confirmPublish).toHaveLength(1);
+    expect(port.calls.executePublish).toHaveLength(1);
+  } finally {
+    clock.mockRestore();
+  }
 });

@@ -6,8 +6,8 @@ import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@jini-ai/admin/shell/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeSitesPort, defaultSitesPort } from "../hooks/sites-dependencies.hooks";
-import { useSites } from "../hooks/use-sites.hooks";
+import { createFakeSitesPort, defaultSitesPort, useSitesNavSnapshot } from "../hooks/sites-dependencies.hooks";
+import { useSites, useWiredSites } from "../hooks/use-sites.hooks";
 
 /**
  * @file `useSites` — the Sites screen's one read and two writes, driven against
@@ -454,4 +454,62 @@ describe("useSites — content refresh bus", () => {
     expect(result.current.sites[0]?.displayName).toBe("Gamma");
     unmount();
   });
+});
+
+it("does not request the sidebar's site list until it is enabled", async () => {
+  const snapshot = snapshotFixture();
+  const listSites = vi.fn(async () => snapshot);
+  const { result, rerender } = renderHook(({ enabled }) => useSitesNavSnapshot({ port: { listSites } }, { enabled }), {
+    initialProps: { enabled: false }, wrapper,
+  });
+  await act(async () => {});
+  expect(listSites).not.toHaveBeenCalled();
+  rerender({ enabled: true });
+  await waitFor(() => expect(listSites).toHaveBeenCalledExactlyOnceWith());
+  await waitFor(() => expect(result.current.data).toEqual(snapshot));
+});
+
+it("opens the selected site's own admin address through the browser", () => {
+  const assign = vi.fn();
+  vi.stubGlobal("window", { location: { assign } });
+  try {
+    defaultSitesPort.openSite!({ url: "https://site-b.example.test/admin/" });
+    expect(assign).toHaveBeenCalledExactlyOnceWith("https://site-b.example.test/admin/");
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("the wired sites hook releases Create after a malformed success and accepts the next valid reply", async () => {
+  const request = "/api/admin/v1/workspaces/workspace-local/system/sites";
+  const diag = vi.spyOn(console, "error").mockImplementation(() => {});
+  const creates: unknown[] = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/settings/effective?namespace=core.language")) return Response.json({ data: [] });
+    if (url === request && (init?.method ?? "GET") === "GET") return Response.json(snapshotFixture());
+    if (url === `${request}/token-sign-in-plugins`) return Response.json({ plugins: [] });
+    if (url === request && init?.method === "POST") {
+      const body = JSON.parse(String(init.body));
+      creates.push(body);
+      if (creates.length === 1) return Response.json({});
+      return Response.json({ site: { name: body.name, dir: "/sites/gamma", siteId: "gamma-1" } });
+    }
+    return Response.json({ error: "Unexpected request" }, { status: 404 });
+  });
+  try {
+    const { result } = renderHook(() => useWiredSites(), { wrapper });
+    await waitFor(() => expect(result.current.snapshot?.currentSite.name).toBe("alpha"));
+    act(() => result.current.setCreateName("gamma"));
+    await act(async () => result.current.createSite());
+    await waitFor(() => expect(diag).toHaveBeenCalledWith("[sites] Could not finish handling the created site", "TypeError"));
+    expect(result.current.createdName).toBeNull();
+    expect(result.current.createName).toBe("gamma");
+    await act(async () => result.current.createSite());
+    await waitFor(() => expect(result.current.createdName).toBe("gamma"));
+    expect(creates).toEqual([{ name: "gamma" }, { name: "gamma" }]);
+  } finally {
+    diag.mockRestore();
+    vi.unstubAllGlobals();
+  }
 });

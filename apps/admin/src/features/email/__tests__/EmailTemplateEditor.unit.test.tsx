@@ -1,3 +1,5 @@
+import { EmailTemplateEditorPanel } from "../email-panel";
+import { emailApi } from "../email-api";
 import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -166,4 +168,19 @@ describe("EmailTemplateEditor", () => {
     expect(screen.queryByRole("button", { name: "As sent" })).toBeNull();
     expect(screen.queryByText("390px")).toBeNull();
   });
+});
+
+it("loads the requested template through the production editor panel", async () => {
+  const id = "monthly-digest";
+  const loadTemplate = vi.spyOn(emailApi, "getTemplate").mockImplementation(async (request) => {
+    if (request.id !== id) throw new Error("Wrong template requested");
+    return { ...TEMPLATE, id, name: "Monthly digest draft" };
+  });
+  try {
+    render(<EmailTemplateEditorPanel id={id} locale="en" />);
+    expect(await screen.findByDisplayValue("Monthly digest draft")).toHaveAccessibleName("Template name");
+    expect(loadTemplate).toHaveBeenCalledExactlyOnceWith({ id });
+  } finally {
+    loadTemplate.mockRestore();
+  }
 });

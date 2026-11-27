@@ -159,3 +159,33 @@ it("disables export during roster loading or failure and explains the problem in
   await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Roster unavailable"));
   expect(screen.getByRole("button", { name: "Export static site" }).hasAttribute("disabled")).toBe(true);
 });
+
+it("keeps the export toggle in sync when the browser dismisses the native picker", async () => {
+  const port = createFakeSiteTransferPort({ staticExportOptions: async () => options });
+  render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
+  const toggle = screen.getByRole("button", { name: "Choose sites to export" });
+  await userEvent.click(toggle);
+  expect(await screen.findByRole("group", { name: "Sites to export" })).toBeVisible();
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const picker = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+  // jsdom cannot light-dismiss popovers; it can dispatch the resulting native notification.
+  const dismissed = new Event("toggle");
+  Object.defineProperty(dismissed, "newState", { value: "closed" });
+  fireEvent(picker, dismissed);
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("group", { name: "Sites to export" })).not.toBeInTheDocument();
+});
+
+it("keeps static export unavailable when the server's active theme is not in its export roster", async () => {
+  const port = createFakeSiteTransferPort({
+    staticExportOptions: async () => ({ ...options, activeThemeId: "not-installed" }),
+  });
+  const user = userEvent.setup();
+  render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
+  await user.click(screen.getByRole("button", { name: "Choose sites to export" }));
+  expect(await screen.findByRole("checkbox", { name: "poster" })).not.toBeChecked();
+  const exportButton = screen.getByRole("button", { name: "Export static site" });
+  expect(exportButton).toBeDisabled();
+  await user.click(screen.getByRole("checkbox", { name: "editorial" }));
+  expect(exportButton).toBeEnabled();
+});

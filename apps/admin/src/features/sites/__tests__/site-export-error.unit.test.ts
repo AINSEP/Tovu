@@ -14,3 +14,19 @@ it('reformats raw export evidence with the host key policy before display or cop
   expect(failure.copyText).toContain('[REDACTED:tovu_api_key]');
   expect(JSON.stringify(failure)).not.toContain(secret);
 });
+
+it("uses safe host copy for missing or malformed export diagnostics", () => {
+  const cases = [
+    new ApiError({ message: "Export access expired.", status: 403 }),
+    new ApiError({ message: "Export access expired.", status: 403 }, { body: { details: "old diagnostic" } }),
+    new ApiError({ message: "Export access expired.", status: 403 }, { body: { details: { failure: "old diagnostic" } } }),
+    new ApiError({ message: "Export access expired.", status: 403 }, { body: { details: { failure: { message: 9, step: false, action: ["retry"] } } } }),
+  ];
+  for (const error of cases) {
+    expect(siteExportFailure({ error, t: (text) => text })).toMatchObject({
+      message: "Export access expired.",
+      step: "export request",
+      action: "Check export history before starting another export. Copy details and report this problem.",
+    });
+  }
+});

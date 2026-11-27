@@ -1,3 +1,6 @@
+import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
+import { assistantRuntimePreferencesPort } from "../assistant-runtime-preferences.adapter";
+import { settingsApi } from "@/lib/admin-http/settings-api";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { describe, expect, it, vi } from "vitest";
@@ -91,4 +94,46 @@ describe("reply length through the runtime preferences hook", () => {
     expect(result.current.preferences.replyLength).toBe("short");
     expect(result.current.saveFailed).toBe(true);
   });
+});
+
+it("writes only changed runtime preferences at user scope and reads them back", async () => {
+  const stored = new Map<string, unknown>([["replyLength", "detailed"], ["preferSubagents", false], ["useClaudeInChrome", false]]);
+  const read = vi.spyOn(settingsApi, "getSettingsEffective").mockImplementation(async ({ namespace }) => {
+    if (namespace !== "core.interface") throw new Error("unexpected namespace");
+    return { data: [...stored].map(([key, value]) => ({ key, value, sourceLayer: "user" as const, defVersion: 1 })) };
+  });
+  const write = vi.spyOn(settingsApi, "setSetting").mockImplementation(async (input) => {
+    if (input.namespace !== "core.interface" || input.scope !== "user") throw new Error("unexpected settings write");
+    stored.set(input.key, input.valueJson);
+    return {} as Awaited<ReturnType<typeof settingsApi.setSetting>>;
+  });
+  try {
+    const previous = { replyLength: "detailed" as const, preferSubagents: false, useClaudeInChrome: false };
+    await expect(assistantRuntimePreferencesPort.load()).resolves.toEqual(previous);
+    await assistantRuntimePreferencesPort.save({ previous, next: { ...previous, replyLength: "short" } });
+    expect(write).toHaveBeenCalledExactlyOnceWith({ namespace: "core.interface", scope: "user", key: "replyLength", valueJson: "short" });
+    await expect(assistantRuntimePreferencesPort.load()).resolves.toEqual({
+      replyLength: "short", preferSubagents: false, useClaudeInChrome: false,
+    });
+  } finally {
+    write.mockRestore();
+    read.mockRestore();
+  }
+});
+
+it("refreshes runtime preferences only for their namespace or an unscoped event", () => {
+  const listener = vi.fn();
+  const dispose = assistantRuntimePreferencesPort.subscribe({ listener });
+  try {
+    publishSettingsRefresh(["core.language"]);
+    expect(listener).not.toHaveBeenCalled();
+    publishSettingsRefresh(["core.language", "core.interface"]);
+    expect(listener.mock.calls).toEqual([[]]);
+    publishSettingsRefresh();
+    expect(listener.mock.calls).toEqual([[], []]);
+  } finally {
+    dispose();
+  }
+  publishSettingsRefresh(["core.interface"]);
+  expect(listener).toHaveBeenCalledTimes(2);
 });

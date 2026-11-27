@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { render, screen, within } from "@/__tests__/fetch-query-render";
+import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { VisitorToolConfigureInput, VisitorToolsPort, VisitorToolsView, VisitorToolView } from "@jini-ai/core/contracts/site/api-ai-assistant-api-types";
 import { VisitorToolsPanel } from "@jini-ai/admin/screens/assistant-settings/VisitorToolsPanel";
 import { useVisitorTools } from "@jini-ai/admin/screens/assistant-settings/use-visitor-tools.hooks";
-import { visitorToolsDependencies, visitorToolsPanelBindings } from "../hooks/visitor-tools-dependencies.hooks";
+import { useWiredVisitorTools, visitorToolsDependencies, visitorToolsPanelBindings } from "../hooks/visitor-tools-dependencies.hooks";
 import { ApiError } from "@/lib/admin-http/request";
 import { publishSettingsRefresh } from "@jini-ai/admin/shell/lib/settings-refresh-bus";
 import { VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE } from "@jini-ai/admin/shell/lib/visitor-tools";
@@ -105,4 +105,45 @@ describe("VisitorToolsPanel (host copy and policy)", () => {
     const direct = policy.slice(policy.indexOf("DIRECT_PAGE_HANDLES"), policy.indexOf("]);", policy.indexOf("DIRECT_PAGE_HANDLES")));
     expect(direct).not.toMatch(/visitor/);
   });
+});
+
+it("reads the live visitor policy, refetches an exact revision conflict, and explains an ordinary refusal", async () => {
+  const endpoint = "/api/admin/v1/workspaces/workspace-local/assistant/visitor-tools";
+  const writes: unknown[] = [];
+  let current = view();
+  let reads = 0;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) !== endpoint) return Response.json({ error: "Unexpected endpoint" }, { status: 404 });
+    if (init?.method === "GET") {
+      reads += 1;
+      return Response.json({ data: current });
+    }
+    if (init?.method !== "PUT") return Response.json({ error: "Unexpected method" }, { status: 405 });
+    const body = JSON.parse(String(init.body));
+    writes.push(body);
+    return body.expectedRevisionSeq === current.revisionSeq
+      ? Response.json({ error: "Editing visitor tools requires permission." }, { status: 403 })
+      : Response.json({ code: "VISITOR_TOOLS_REVISION_CONFLICT", error: "Revision changed." }, { status: 409 });
+  });
+  try {
+    const { result } = renderHook(() => useWiredVisitorTools({ t }));
+    await waitFor(() => expect(result.current.view?.revisionSeq).toBe(7));
+    current = view({ revisionSeq: 8 });
+    await act(async () => {
+      expect(await result.current.configure({ toolId: "list_posts", mode: "ask" })).toBe(false);
+    });
+    expect(result.current.notice).toEqual({ kind: "conflict", message: "Changed somewhere else. Showing the latest — try again." });
+    await waitFor(() => expect(result.current.view?.revisionSeq).toBe(8));
+    await act(async () => {
+      expect(await result.current.configure({ toolId: "list_posts", mode: "ask" })).toBe(false);
+    });
+    expect(result.current.notice).toEqual({ kind: "error", message: "Editing visitor tools requires permission." });
+    expect(reads).toBe(2);
+    expect(writes).toEqual([
+      { toolId: "list_posts", mode: "ask", expectedRevisionSeq: 7 },
+      { toolId: "list_posts", mode: "ask", expectedRevisionSeq: 8 },
+    ]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

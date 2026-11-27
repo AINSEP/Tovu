@@ -147,3 +147,10 @@ it("carries every key in every locale", () => {
   expect(t({ locale: "fr", key: "Open" })).toBe("Ouvrir");
   expect(t({ locale: "fr", key: "Other" })).toBe("Autres");
 });
+
+it("opens Export when the host is mounted without any tab prop", async () => {
+  render(<ImportExport useTranslate={identity} useGitBackup={useFakeGitBackup} useTransferTranslate={identity} />);
+  expect(screen.getByRole("tab", { name: "Export" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("button", { name: "Export Tovu site" })).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText("Loading exports…")).toBeNull());
+});

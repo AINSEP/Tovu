@@ -4,9 +4,9 @@ import type { AdminPluginDto } from "@jini-ai/core/contracts/site/cms-plugins";
 import { defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { createFakePluginInstallPort } from "./plugin-install-port.fixture";
 import { defaultAgentPluginMemoryPort } from "../hooks/agent-plugin-memory-dependencies.hooks";
-import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
+import { createFakeAgentPluginsPort, defaultAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { defaultPluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
-import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
+import { createFakePluginsPort, defaultPluginsPort } from "../hooks/plugins-dependencies.hooks";
 import type { PluginInstallPreview } from "@jini-ai/admin/screens/plugins/hooks/plugin-install-port.hooks";
 
 /**
@@ -118,4 +118,47 @@ describe("createFakePluginsPort refusals mirror the real routes", () => {
     const port = createFakePluginsPort({ plugins: [userPlugin] });
     await expect(port.getPluginFiles({ id: "user" })).rejects.toMatchObject({ status: 404, code: "PLUGIN_NOT_FOUND" });
   });
+});
+
+it.each([
+  {
+    method: "GET", path: "/agent-plugins", body: undefined, response: { agentPlugins: [] },
+    send: () => defaultAgentPluginsPort.listAgentPlugins(),
+  },
+  {
+    method: "PATCH", path: "/agent-plugins/acme%2Fwriter", body: { enabled: true },
+    response: { agentPlugin: { pluginId: "acme/writer", enabled: true } },
+    send: () => defaultAgentPluginsPort.setAgentPluginEnabled({ pluginId: "acme/writer", input: { enabled: true } }),
+  },
+  {
+    method: "GET", path: "/agent-plugins/acme%2Fwriter/files", body: undefined, response: { files: [] },
+    send: () => defaultAgentPluginsPort.getAgentPluginFiles({ pluginId: "acme/writer" }),
+  },
+  {
+    method: "GET", path: "/plugins/acme%2Fstats/provider-settings", body: undefined, response: { pluginId: "acme/stats", fields: [] },
+    send: () => defaultPluginsPort.getProviderSettings({ id: "acme/stats" }),
+  },
+  {
+    method: "PUT", path: "/plugins/acme%2Fstats/provider-settings", body: { values: { endpoint: "https://stats.example.test" } },
+    response: { pluginId: "acme/stats", fields: [{ key: "endpoint", value: "https://stats.example.test" }] },
+    send: () => defaultPluginsPort.saveProviderSettings({ id: "acme/stats", values: { endpoint: "https://stats.example.test" } }),
+  },
+  {
+    method: "PUT", path: "/project-keys/key%2F47/use", body: { use: false },
+    response: { keyId: "key/47", usedByThisSite: false, usedBy: ["other"], appliesAt: "now" },
+    send: () => defaultPluginsPort.useProjectKey!({ keyId: "key/47", use: false }),
+  },
+])("preserves the request and result for $method $path", async ({ method, path, body, response, send }) => {
+  const endpoint = `/api/admin/v1/workspaces/workspace-local${path}`;
+  const fetchPort = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) !== endpoint || (init?.method ?? "GET") !== method) {
+      return Response.json({ error: "Unexpected plugin endpoint" }, { status: 404 });
+    }
+    return Response.json(response);
+  });
+  vi.stubGlobal("fetch", fetchPort);
+  await expect(send()).resolves.toEqual(response);
+  expect(fetchPort).toHaveBeenCalledTimes(1);
+  const init = fetchPort.mock.calls[0]?.[1];
+  expect(init?.body === undefined ? undefined : JSON.parse(String(init.body))).toEqual(body);
 });

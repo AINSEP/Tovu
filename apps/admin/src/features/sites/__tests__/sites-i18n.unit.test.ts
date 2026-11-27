@@ -137,3 +137,13 @@ it.each(Object.keys(SITE_TRANSFER_DICT))("localizes import paging in %s", locale
     expect(t({ locale, key })).not.toBe(key);
   }
 });
+
+it("preserves the site-name placeholder in the import password prompt in every locale", () => {
+  const key = "Choose a password for {name}";
+  expect(Object.keys(SITE_TRANSFER_DICT)).toContain("ja");
+  for (const [locale, dictionary] of Object.entries(SITE_TRANSFER_DICT)) {
+    const value = dictionary[key];
+    expect(value, locale).not.toBe(key);
+    expect(value?.match(/\{[^{}]+\}/g), locale).toEqual(["{name}"]);
+  }
+});

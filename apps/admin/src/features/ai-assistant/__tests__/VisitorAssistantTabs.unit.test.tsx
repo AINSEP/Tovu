@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { VisitorAssistantTabs } from "@jini-ai/admin/screens/assistant-settings/VisitorAssistantTabs";
 import { useVisitorAssistantTabs } from "@jini-ai/admin/screens/assistant-settings/use-visitor-assistant-tabs.hooks";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import { VISITOR_TOOLS_DICT, VISITOR_TOOLS_KEYS } from "../visitor-tools-i18n";
+import { VISITOR_TOOLS_DICT, VISITOR_TOOLS_KEYS, withVisitorToolsStrings } from "../visitor-tools-i18n";
 import { AI_ASSISTANT_DICT, t as translate } from "../ai-assistant-i18n";
 import { VISITOR_TOOL_PRESENTATION } from "../../../../../website/src/assistant/site/visitor-tool-presentation";
 
@@ -52,4 +52,14 @@ describe("visitor tools strings", () => {
     for (const key of copy) expect(translate({ locale: "en", key })).toBe(key);
   });
 
+});
+
+it("merges visitor-tool copy without losing a base-only locale or overriding shared copy", () => {
+  const base = { de: { "Visitor tools": "Website-Werkzeuge" }, nl: { "AI provider": "AI-aanbieder" } };
+  const merged = withVisitorToolsStrings({ base });
+  expect(merged.nl).toEqual({ "AI provider": "AI-aanbieder" });
+  expect(merged.de["Visitor tools"]).toBe("Website-Werkzeuge");
+  expect(merged.ja["Default: {ip} per visitor/hour, {site} per site/day."]?.match(/\{[^{}]+\}/g)?.sort())
+    .toEqual(["{ip}", "{site}"]);
+  expect(base.de).toEqual({ "Visitor tools": "Website-Werkzeuge" });
 });

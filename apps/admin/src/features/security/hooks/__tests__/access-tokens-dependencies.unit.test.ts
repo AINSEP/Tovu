@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@jini-ai/admin/security/api/security-api.types";
 import type { AdminSourceControlCredentialSummary } from "@jini-ai/admin/source-control/api/source-control-api.types";
@@ -270,4 +270,26 @@ describe("createFakeAccessTokensPort — defaults", () => {
     await expect(port.sourceControl.list()).resolves.toMatchObject({ credentials: [{ id: "sc-1" }] });
     await expect(port.custom.list()).resolves.toMatchObject({ credentials: [{ id: "cc-1" }] });
   });
+});
+
+afterEach(() => vi.unstubAllGlobals());
+
+it("stops using the chosen project key without changing the returned usage record", async () => {
+  const endpoint = "/api/admin/v1/workspaces/workspace-local/project-keys/key%2F8/use";
+  const response = { keyId: "key/8", usedByThisSite: false, usedBy: ["another-site"], appliesAt: "restart" };
+  const fetchKey = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    if (String(url) !== endpoint || init?.method !== "PUT") {
+      return Response.json({ error: "Unexpected project key path" }, { status: 404 });
+    }
+    return Response.json(response);
+  });
+  vi.stubGlobal("fetch", fetchKey);
+  await expect(defaultAccessTokensPort.custom.useKey!({ keyId: "key/8", use: false })).resolves.toEqual(response);
+  expect(fetchKey).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(String(fetchKey.mock.calls[0]?.[1]?.body))).toEqual({ use: false });
+});
+
+it("fails loudly when a fake Access Tokens test did not provision project key use", async () => {
+  await expect(createFakeAccessTokensPort().custom.useKey!({ keyId: "key-8", use: true }))
+    .rejects.toThrow(/^custom\.useKey not stubbed for this test$/);
 });

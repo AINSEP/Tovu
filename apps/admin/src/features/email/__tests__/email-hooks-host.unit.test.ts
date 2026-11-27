@@ -2,9 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { navigate } from "@jini-ai/admin/shell/lib/router";
 import { ApiError } from "@/lib/admin-http/request";
+import { integrationsApi } from "@/features/integrations/integrations-host-ports";
 import { authApi } from "@/features/auth/api/auth-api";
 import { emailApi } from "../email-api";
-import { newRequestId, useWiredEmailActivity, useWiredEmailOverview, useWiredEmailTemplateEditor, useWiredEmailTemplates } from "../email-hooks-host";
+import { newRequestId, useWiredEmailActivity, useWiredEmailOverview, useWiredEmailProvider, useWiredEmailSender, useWiredEmailTemplateEditor, useWiredEmailTemplates } from "../email-hooks-host";
 import { TEMPLATE } from "./email.test-helpers";
 
 vi.mock("@jini-ai/admin/shell/lib/router", () => ({ navigate: vi.fn() }));
@@ -67,4 +68,27 @@ describe("email hooks host bindings", () => {
     expect(result.current.test).toEqual({ kind: "error", message: "Unavailable" });
     expect(newRequestId()).not.toBe(newRequestId());
   });
+});
+
+it("keeps a provider refusal and a sender denial distinct in the production hooks", async () => {
+  const provider = vi.spyOn(emailApi, "listProviders").mockRejectedValue(new ApiError({ message: "Mail provider catalog is unavailable", status: 409 }));
+  const sender = vi.spyOn(emailApi, "readSender").mockRejectedValue(new ApiError({ message: "Forbidden", status: 403 }));
+  const dns = vi.spyOn(emailApi, "readDns").mockRejectedValue(new ApiError({ message: "Forbidden", status: 403 }));
+  const plugins = vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [] });
+  const onChanged = vi.fn();
+  try {
+    const providerHook = renderHook(() => useWiredEmailProvider({ onChanged }));
+    const senderHook = renderHook(() => useWiredEmailSender({ onChanged }));
+    await waitFor(() => expect(providerHook.result.current.view).toEqual({ kind: "error", message: "Mail provider catalog is unavailable" }));
+    await waitFor(() => expect(senderHook.result.current.sender).toEqual({ kind: "forbidden" }));
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(sender).toHaveBeenCalledTimes(1);
+    expect(dns).toHaveBeenCalledTimes(1);
+    expect(onChanged).not.toHaveBeenCalled();
+  } finally {
+    provider.mockRestore();
+    sender.mockRestore();
+    dns.mockRestore();
+    plugins.mockRestore();
+  }
 });

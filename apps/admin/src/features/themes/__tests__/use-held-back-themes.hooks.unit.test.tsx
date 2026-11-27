@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { heldBackThemesApi, type HeldBackTheme } from "../api/held-back-themes-api";
 import { createFakeHeldBackThemesPort, defaultHeldBackThemesPort, heldBackApiError } from "../hooks/held-back-themes-dependencies.hooks";
 import { heldBackFailure } from "../held-back-themes-failure";
-import { useHeldBackThemes } from "../hooks/use-held-back-themes.hooks";
+import { useHeldBackThemes, useWiredHeldBackThemes } from "../hooks/use-held-back-themes.hooks";
 
 /**
  * @file `useHeldBackThemes` — the code-to-message mapping, the CHANGED_SINCE_CHECK path, and the
@@ -151,4 +151,28 @@ describe("the fake port", () => {
     // The digest alone is a version check, not an approval.
     await expect(port.restore({ themeId: "static/foo", approvedDigest: "x", confirmationToken: "" })).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" });
   });
+});
+
+it("reads and retries the real held-back themes list through the wired hook", async () => {
+  const reload = vi.spyOn(heldBackThemesApi, "list")
+    .mockResolvedValueOnce({ themes: [FOO], chosenThemeHeldBack: null })
+    .mockResolvedValueOnce({ themes: [], chosenThemeHeldBack: null });
+  const onRestored = vi.fn();
+  const { result } = renderHook(() => useWiredHeldBackThemes({ t: identity, onRestored }));
+  await waitFor(() => expect(result.current.themes.map(({ id }) => id)).toEqual(["static/foo"]));
+  await act(async () => result.current.retry());
+  expect(result.current.themes).toEqual([]);
+  expect(reload.mock.calls).toEqual([[], []]);
+  expect(onRestored).not.toHaveBeenCalled();
+});
+
+it("dismisses the restore confirmation without losing the refreshed list", async () => {
+  const view = await loaded();
+  await checkAndConfirm(view);
+  expect(view.result.current.restoredNotice).toBe('Restored "Foo Theme". It is switched off until you activate it.');
+  expect(view.result.current.themes).toEqual([]);
+  act(() => view.result.current.dismissRestoredNotice());
+  expect(view.result.current.restoredNotice).toBeNull();
+  expect(view.result.current.themes).toEqual([]);
+  expect(view.onRestored).toHaveBeenCalledExactlyOnceWith();
 });

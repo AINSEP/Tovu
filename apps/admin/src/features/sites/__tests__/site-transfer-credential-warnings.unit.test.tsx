@@ -1,3 +1,4 @@
+import { credentialSummary, CredentialWarningList } from "../CredentialWarnings";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -236,4 +237,35 @@ describe("live port: acknowledgement and download check", () => {
       init?.method === "HEAD" ? new Response(null, { status: 409 }) : new Response("refused", { status: 403 }));
     expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() })).toEqual({ status: 403, credentialWarnings: [] });
   });
+});
+
+it("counts affected import files once and lists each credential kind once per file", () => {
+  const duplicated = [...warnings, warnings[1]];
+  expect(credentialSummary({ subject: "import", warnings: [warnings[0]], t }))
+    .toBe("This import may contain credentials in 1 file.");
+  expect(credentialSummary({ subject: "import", warnings: duplicated, t }))
+    .toBe("This import may contain credentials in 2 files.");
+  expect(credentialSummary({ subject: "export", warnings: [], t }))
+    .toBe("This export may contain credentials.");
+  render(<CredentialWarningList warnings={duplicated} t={t} />);
+  const warning = screen.getByText("media/notes.txt").closest("li")!;
+  expect(within(warning).getAllByText("Private key")).toHaveLength(1);
+  expect(within(warning).getByText("Password")).toBeInTheDocument();
+});
+
+it("explains a download refusal with no server message without attempting the download", async () => {
+  const exported = share();
+  const downloadShare = vi.fn();
+  const port = createFakeSiteTransferPort({
+    listShares: async () => ({ shares: [exported] }),
+    shareDownloadRefusal: async ({ share: target }) => {
+      if (target.shareId !== exported.shareId) throw new Error("wrong export");
+      return { status: 410, credentialWarnings: [] };
+    },
+    downloadShare,
+  });
+  renderExport(port);
+  fireEvent.click(await screen.findByRole("link", { name: "Download zip" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Download failed.");
+  expect(downloadShare).not.toHaveBeenCalled();
 });

@@ -1,6 +1,7 @@
+import { useWiredAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
 import { pluginRules } from "../rules";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AgentPluginFiles } from "@jini-ai/admin/agent-plugins/models";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
@@ -48,4 +49,27 @@ describe("useAgentPluginDetailsModal", () => {
     expect(result.current.files).toEqual([]);
     expect(result.current.selectedFile).toBeNull();
   });
+});
+
+it("loads an installed agent package through the wired file viewer", async () => {
+  const requests: string[] = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes("/settings/effective?namespace=core.language")) return Response.json({ data: [] });
+    requests.push(url);
+    if (url === "/api/admin/v1/workspaces/workspace-local/agent-plugins/supabase/files" && (init?.method ?? "GET") === "GET") {
+      return Response.json(SUPABASE_FILES);
+    }
+    return Response.json({ error: "Unexpected package" }, { status: 404 });
+  });
+  try {
+    const { result } = renderHook(() => useWiredAgentPluginDetailsModal({ pluginId: "supabase" }));
+    expect(result.current.status).toEqual({ text: "Loading package files…", role: "status" });
+    await waitFor(() => expect(result.current.selectedFile?.content).toBe('{"name":"supabase"}'));
+    act(() => result.current.selectFile("skills/supabase/SKILL.md"));
+    expect(result.current.selectedFile?.content).toBe("# Supabase");
+    expect(requests).toEqual(["/api/admin/v1/workspaces/workspace-local/agent-plugins/supabase/files"]);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

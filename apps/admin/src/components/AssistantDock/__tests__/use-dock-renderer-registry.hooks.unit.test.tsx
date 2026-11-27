@@ -1,6 +1,6 @@
 import { render, renderHook, screen } from "@testing-library/react";
 import { isValidElement, StrictMode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import {
   getExtEventRenderer,
@@ -121,4 +121,21 @@ describe("admin dock owned renderer lifecycle", () => {
     // The host binds the Jini card's required translator hook, failure hook, error formatter and redaction copy.
     expect(failure.props).toEqual({ ...props, useTHook: useT, useAgentFailureCardHook: useAgentFailureCard, formatUserFacingError, redactionOptions: TOVU_ERROR_REDACTION_OPTIONS });
   });
+});
+
+it("routes a card's in-app link to an isolated tab and refuses non-HTTPS external links", () => {
+  const { result } = renderHook(() => useDockRendererRegistry({ agUiApprovals: NO_AG_UI_APPROVALS }));
+  const renderer = result.current.registry.get({ name: MCP_UI_EXT_EVENT_NAME })!;
+  const card = renderer({ name: MCP_UI_EXT_EVENT_NAME, runStreaming: false, runSucceeded: true, runId: "r-2", events: [resource("ui://summary")] });
+  if (!isValidElement<{ onOpenLink: (url: string) => void }>(card)) throw new Error("No card renderer");
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  try {
+    card.props.onOpenLink("/admin/posts?tab=recent");
+    expect(open).toHaveBeenCalledExactlyOnceWith(`${window.location.origin}/admin/posts?tab=recent`, "_blank", "noopener,noreferrer");
+    expect(() => card.props.onOpenLink("http://example.test/help"))
+      .toThrow(/^This link is not a valid https:\/\/ address, so it was not opened\.$/);
+    expect(open).toHaveBeenCalledTimes(1);
+  } finally {
+    open.mockRestore();
+  }
 });

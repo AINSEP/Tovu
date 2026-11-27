@@ -1,3 +1,4 @@
+import { lookupOwnedConversation, useConversationLinkBuilder } from "../use-conversation-deep-link";
 import { describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useApplyConversationDeepLink, CONVERSATION_GONE_KEY } from "@jini-ai/admin/shell/hooks/use-conversation-deep-link";
@@ -75,4 +76,27 @@ describe("useApplyConversationDeepLink", () => {
     await Promise.resolve();
     expect(chats.select).toHaveBeenCalledTimes(1);
   });
+});
+
+it("encodes a conversation id as a single query value in the assistant link", () => {
+  const { result } = renderHook(() => useConversationLinkBuilder());
+  const href = result.current.hrefFor({ conversationId: "work/7?x=1&tab=chat" });
+  expect(href).toBe("/ai-assistant?conversation=work%2F7%3Fx%3D1%26tab%3Dchat");
+});
+
+it("admits only ids present in the signed-in conversation list", async () => {
+  const list = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) !== "/api/assistant/chats" || init?.method !== "GET") {
+      return Response.json({ error: "Unexpected conversation request" }, { status: 404 });
+    }
+    return Response.json({ conversations: [{ id: "work-17-archive" }, { id: "work-22" }] });
+  });
+  vi.stubGlobal("fetch", list);
+  try {
+    await expect(lookupOwnedConversation({ id: "work-22" })).resolves.toBe(true);
+    await expect(lookupOwnedConversation({ id: "work-17" })).resolves.toBe(false);
+    expect(list).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

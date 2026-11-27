@@ -1,7 +1,7 @@
 import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useEmbedInsertControl, type EmbedEditor } from "../EmbedInsertControl/EmbedInsertControl.hooks";
+import { createEmbedInsertControlTranslator, useEmbedInsertControl, type EmbedEditor } from "../EmbedInsertControl/EmbedInsertControl.hooks";
 
 /**
  * @file `useEmbedInsertControl` — the menu/dialog visibility state and the two pinned
@@ -168,4 +168,10 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
     expect(result.current.menuControl.pickerType).toBeNull();
     expect(result.current.formControl.pickerType).toBeNull();
   });
+});
+
+it("binds embed control copy to the caller's locale and keeps an unknown key readable", () => {
+  const translate = createEmbedInsertControlTranslator({ locale: "es" });
+  expect(translate({ key: "Media" })).toBe("Multimedia");
+  expect(translate({ key: "Choose sample embed" })).toBe("Choose sample embed");
 });

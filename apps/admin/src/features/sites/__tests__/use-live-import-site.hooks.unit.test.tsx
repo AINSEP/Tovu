@@ -108,3 +108,28 @@ describe("useLiveImportSite", () => {
     expect(third.result.current.error).toMatch(/^example-com was made but didn't start\./);
   });
 });
+
+it("does not open a running site until that exact site advertises its admin address", async () => {
+  const runningWithoutAdmin = local("example-com", { status: "running", adminUrl: null });
+  const ready = local("example-com", { status: "running", adminUrl: "https://localhost:3200/admin/" });
+  const listSites = vi.fn()
+    .mockResolvedValueOnce(snapshot([]))
+    .mockResolvedValueOnce(snapshot([], [local("unrelated", { status: "running" })]))
+    .mockResolvedValueOnce(snapshot([], [ready]));
+  const wait = vi.fn(async (_input: { ms: number }) => {});
+  const sites = port({ listSites, manageLocalSite: async () => runningWithoutAdmin });
+  const { result } = renderHook(() => useLiveImportSite({ port: sites, t }, { wait, attempts: 3 }));
+  await act(() => result.current.start("https://example.com/guide"));
+  expect(wait.mock.calls).toEqual([[{ ms: 1000 }], [{ ms: 1000 }]]);
+  expect(sites.opened).toEqual(["https://localhost:3200/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2Fguide"]);
+  expect(result.current.error).toBeNull();
+});
+
+it("uses plain make-site copy when the create rejection has no server diagnostic", async () => {
+  const sites = port({ createSite: async () => { throw "connection failed"; } });
+  const { result } = renderHook(() => useLiveImportSite({ port: sites, t }));
+  await act(() => result.current.start("https://example.com"));
+  expect(result.current.error).toBe("Couldn't make the new site.");
+  expect(result.current.creating).toBe(false);
+  expect(sites.opened).toEqual([]);
+});

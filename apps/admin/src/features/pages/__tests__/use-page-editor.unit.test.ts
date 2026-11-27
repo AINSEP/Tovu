@@ -2976,3 +2976,24 @@ describe("page editor recovery and failure outcomes", () => {
     }
   });
 });
+
+it("replaces an id-based bookmark with the wired page slug, then sends Back to the pages list", async () => {
+  const id = "b7e6c8a0-1f2d-4e3a-9c5b-6a7d8e9f0a1b";
+  const page = { ...DOC_PAGE, id, slug: "privacy-policy" };
+  const prior = window.location.href;
+  window.history.replaceState(null, "", `/admin/pages/${id}`);
+  try {
+    const entries = window.history.length;
+    const { result, unmount } = await mountLoaded(id, page);
+    expect(result.current.page?.id).toBe(id);
+    await waitFor(() => expect(window.location.pathname).toBe("/admin/pages/privacy-policy"));
+    expect(window.history.length).toBe(entries);
+    const preventDefault = vi.fn();
+    await act(async () => result.current.onBackLinkClick({ preventDefault }));
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(window.location.pathname).toBe("/admin/pages");
+    unmount();
+  } finally {
+    window.history.replaceState(null, "", prior);
+  }
+});

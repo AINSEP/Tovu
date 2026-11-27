@@ -31,3 +31,8 @@ describe("file size refusal copy", () => {
     expect(typeof mediaT).toBe("function");
   });
 });
+
+it("does not guess a size ceiling for a typed refusal with no response body", () => {
+  const error = new ApiError({ message: "Size limit exceeded.", status: 413 }, { code: "MEDIA_UPLOAD_TOO_LARGE" });
+  expect(sizeRefusalFromError({ t: (key) => key, error })).toBeNull();
+});

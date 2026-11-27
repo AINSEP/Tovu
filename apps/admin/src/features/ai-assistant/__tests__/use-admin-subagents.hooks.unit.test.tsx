@@ -196,3 +196,23 @@ describe("production bindings", () => {
     expect(read).toHaveBeenCalledWith({});
   });
 });
+
+it("uses the runtime id for confirmation when an agent has no display record", async () => {
+  const f = fakePort({ enabled: false, canEdit: true, agents: [{ id: "claude", name: "Claude", writesPersonalConfig: true }] });
+  const confirm = vi.fn(async () => false);
+  const { result } = renderHook(() => useAdminSubagents({ port: f.port }, { useConfirmation: () => ({
+    confirm,
+    dialog: { open: false, title: "", body: "", confirmLabel: "", onConfirm: () => {}, onCancel: () => {} },
+  }) }));
+  await waitFor(() => expect(result.current.settings?.canEdit).toBe(true));
+  await act(async () => result.current.setAgentMcp({ agentId: "other-runtime", enabled: true }));
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(confirm.mock.calls[0]).toEqual([{
+    dialog: {
+      title: "Allow personal MCP servers for other-runtime?",
+      body: "Loads MCP servers set up in other-runtime or this project. Tovu doesn't approve or log them. Applies to other-runtime's other chats on this site.",
+      confirmLabel: "Allow", cancelLabel: "Cancel", tone: "danger",
+    },
+  }]);
+  expect(f.writes).toEqual([]);
+});

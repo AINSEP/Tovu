@@ -149,3 +149,20 @@ it("a legacy /section/<known id> path resolves exactly like the bare panel path"
 it("a route naming a panel that is no longer registered reports the dashboard to agents", () => {
   expect(agentPageId({ ...parseRoute({ routePath: "/" }), panelId: "retired-panel" })).toBe("dashboard");
 });
+
+it("announces a missing conversation from the assistant URL while preserving its other query parameters", async () => {
+  window.history.replaceState(null, "", "/admin/ai-assistant?conversation=not-owned&tab=chat");
+  const { container } = render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
+  const dock = container.querySelector("aside.admin-chat-dock");
+  await waitFor(() => expect(window.location.search).toBe("?tab=chat"));
+  const notice = within(dock as HTMLElement).getByText("This conversation is no longer available.");
+  expect(notice).toHaveAttribute("role", "status");
+});
+
+it("does not apply the assistant conversation query on an unrelated panel", async () => {
+  window.history.replaceState(null, "", "/admin/posts?conversation=not-owned");
+  render(<App useAdminLocaleHook={useAdminLocaleHook} useSession={() => session} />);
+  expect(await screen.findByRole("heading", { name: "Posts", exact: true })).toBeInTheDocument();
+  expect(window.location.search).toBe("?conversation=not-owned");
+  expect(screen.queryByText("This conversation is no longer available.")).toBeNull();
+});
