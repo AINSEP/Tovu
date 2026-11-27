@@ -193,8 +193,9 @@ test("checking a held-back manifest does not swallow a real read fault", t => {
   const failure = Object.assign(new Error("manifest disk read failed"), { code: "EIO" });
   const open = fs.openSync;
   const calls: unknown[][] = [];
-  t.mock.method(fs, "openSync", (file: fs.PathLike, flags?: string | number, mode?: fs.Mode | null) => {
-    if (file !== manifest) return open(file, flags, mode);
+  t.mock.method(fs, "openSync", (...args: Parameters<typeof fs.openSync>) => {
+    const [file, flags] = args;
+    if (file !== manifest) return open(...args);
     calls.push([file, flags]);
     throw failure;
   });

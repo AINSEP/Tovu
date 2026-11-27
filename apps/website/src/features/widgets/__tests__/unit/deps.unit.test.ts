@@ -205,7 +205,7 @@ test("region operations can use the bound host reader without exposing the host 
   const callerRepo = createPublicPostReader({ repo: postLookupRepo("caller", seen) });
   const result = await region.host.posts.findPublishedPostBySlug({
     deps: { repo: callerRepo },
-    input: { workspaceId: "ws-1", id: "p-1", slug: "s-1" },
+    input: { workspaceId: "ws-1", slug: "s-1" },
   });
   assert.equal(result?.id, "region-post");
   assert.deepEqual(seen, ["region:findBySlug:s-1"]);

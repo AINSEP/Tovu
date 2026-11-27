@@ -71,7 +71,10 @@ export function publishVisitorPage({ html, path, workspaceId }: { html: string; 
   const data = JSON.stringify(publication).replace(/</g, '\\u003c');
   html = html.replace(/<body\b/i, () => `<body data-visitor-page-root data-agent-publication="${revision}"`);
   const script = `<script type="application/json" id="tovu-visitor-publication">${data}</script>`;
-  const bodyEnd = html.toLowerCase().lastIndexOf('</body>');
+  // Match case-insensitively on the original string: toLowerCase() can change length (e.g. 'İ'
+  // becomes 'i' + U+0307), so an offset found in a lowercased copy can land mid-tag in the original.
+  let bodyEnd = -1;
+  for (const match of html.matchAll(/<\/body>/gi)) bodyEnd = match.index;
   return bodyEnd < 0 ? html + script : html.slice(0, bodyEnd) + script + html.slice(bodyEnd);
 }
 
