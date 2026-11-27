@@ -222,7 +222,7 @@ test("free-page shutdown drains before closing SQLite", async () => {
 });
 
 test("a report-only measurement that fails is reported with its cause and listed as failed beside the measured ones", async () => {
-  const errors: Array<{ error: Error; policyId: string }> = [];
+  const errors: Array<{ error: Error; policyId?: string }> = [];
   const cause = new Error("stat failed");
   const lifecycle = startSiteRetention({
     createRunner: createRetentionRunner, policiesForSignal: () => [],
@@ -248,7 +248,7 @@ test("a report-only measurement that fails is reported with its cause and listed
 
 test("a failed free-page pass is reported, overlapping and post-stop ticks start nothing", async () => {
   const timers: Array<{ callback: () => void; ms: number }> = [];
-  const errors: Array<{ error: Error; policyId: string }> = [];
+  const errors: Array<{ error: Error; policyId?: string }> = [];
   const cause = new Error("vacuum step failed");
   let runs = 0;
   let fail!: () => void;
