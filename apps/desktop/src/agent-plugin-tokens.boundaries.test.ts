@@ -86,9 +86,20 @@ function fakeRepoRoot(t: { after: (fn: () => void) => void }): string {
   return root;
 }
 const scratchDirs = () => fs.readdirSync(os.tmpdir()).filter(name => name.startsWith('tovu-token-sign-in-'));
+/** Points os.tmpdir() at a test-owned folder: other test files run in parallel and create their own
+ *  tovu-token-sign-in-* folders in the shared temp dir, so a before/after listing there races. */
+function privateTmpdir(t: { after: (fn: () => void) => void }): void {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-token-tmp-'));
+  const previous = process.env.TMPDIR;
+  process.env.TMPDIR = dir;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = previous;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+}
 
 test('listTokenSignInPlugins keeps only well-formed https plugins from the LAST JSON line, and removes its scratch site', async t => {
-  const before = scratchDirs();
+  privateTmpdir(t);
   const plugins = [
     { pluginId: 'github', displayName: 'GitHub', helpUrl: 'https://github.com/settings/tokens' },
     { pluginId: 'plain', displayName: 'Plain', helpUrl: 'http://insecure.example' },
@@ -98,12 +109,12 @@ test('listTokenSignInPlugins keeps only well-formed https plugins from the LAST 
   ];
   const { spawnFn } = fakeSpawn({ code: 0, stdout: `{"plugins":[]}\nlog line\n${JSON.stringify({ plugins })}\n` });
   assert.deepEqual(await listTokenSignInPlugins({ repoRoot: fakeRepoRoot(t), baseEnv: {}, spawnFn }), [{ pluginId: 'github', displayName: 'GitHub', helpUrl: 'https://github.com/settings/tokens' }]);
-  assert.deepEqual(scratchDirs(), before);
+  assert.deepEqual(scratchDirs(), []);
 });
 
 test('listTokenSignInPlugins: a non-zero exit fails with the trimmed stderr, and still removes its scratch site', async t => {
-  const before = scratchDirs();
+  privateTmpdir(t);
   const { spawnFn } = fakeSpawn({ code: 2, stderr: '  boom  \n' });
   await assert.rejects(listTokenSignInPlugins({ repoRoot: fakeRepoRoot(t), baseEnv: {}, spawnFn }), { message: 'tovu agent-plugins token-sign-in failed: boom' });
-  assert.deepEqual(scratchDirs(), before);
+  assert.deepEqual(scratchDirs(), []);
 });
