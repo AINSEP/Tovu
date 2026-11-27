@@ -35,6 +35,19 @@ before building the eventual agent tool catalog. See
 ## LATER (owner 2026-11-22): prune old Claude Code versions
 - `~/.local/share/claude/versions` keeps every installed Claude Code version (~370 MB each); on 11-22 four were still in use by open sessions (2.1.323/325/327/330), so only 2.1.328 was deleted. When no old sessions are open, keep the running version + newest 2 and delete the rest.
 
+## TODO (owner 2026-11-22 ~9:40 PM): visitor assistant chat — show the model + UI pass (Sonnet)
+- Show which model answers the visitor chat (small label in the "Ask this site" panel header or under the composer, e.g. "Gemini 3.8 Flash"). Today it runs 3.8 Flash. Owner 11-23: the ask is only to SHOW the model; the owner changes the model on the backend themselves — do not switch the default. (Label built on `codex/visitor-chat-tovu` 05a4a62096, pending review/combine.)
+- Bugs seen in owner screenshot (tovu.dev, 9:39 PM): (1) answer cut off mid-reply ("Here is the complete list of the 11 posts" then nothing; the model itself says an earlier reply "was cut off accidentally"); (2) the scroll-to-bottom button sits on top of the newest user message bubble ("what model are…" hidden); (3) send button looks disabled/washed out next to the composer; (4) earlier first prompt failed and a retry worked (see open-bugs VISITOR-CHAT intermittent).
+- UI pass with Sonnet (owner): keep the theme's design system (no new fonts/accents), follow the ui-ux-design rules (all states, mobile first, 6-width screenshot gate), verify in the real browser (Claude in Chrome) before calling it done.
+
+## LATER (owner 2026-11-22): leftover disk cleanup that needs apps closed
+- (11-22: Electron, electron-builder and tovu-desktop-updater caches deleted, ~1.1 GB.) Owner: do NOT touch Chrome/Firefox (own browsers) caches. Claude cache: only when no session is open.
+- Browser-helper folders in `~/.npm/_npx` used by running MCP servers (playwright-mcp `9833c18b2d85bc59`, chrome-devtools-mcp `15c61037b1978c83`, `ba38acecdf97096f`) — delete when no MCP helper is running (they re-download on next use).
+- (DONE 11-22: dev desktop caches cleared, 4.3 GB → 41 MB.)
+
+## LATER (owner 2026-11-22): prune old Claude Code versions
+- `~/.local/share/claude/versions` keeps every installed Claude Code version (~370 MB each); on 11-22 four were still in use by open sessions (2.1.323/325/327/330), so only 2.1.328 was deleted. When no old sessions are open, keep the running version + newest 2 and delete the rest.
+
 ## Leon's portfolio: deferred, remind the owner (2026-11-08)
 
 - Create a Calendly booking link and choose a contact email, then wire them to "Start a project" (a dummy button until then).
@@ -2677,3 +2690,10 @@ Today Tovu + all 36 @jini-ai packages are Apache-2.0, which lets anyone run Tovu
 - [x] G7-12 theme `/` layout: parked until the owner designs it.
 - [x] G7-13 page tagging: only on owner request (see WebMCP section).
 - [x] G7-14 browser observability adapter and ffmpeg: off / not bundled by default (no change).
+- [ ] **(LOW PRIORITY, owner 2026-11-24 — do not plan yet) Page editor: send a selected block to the AI.** Highlight text or select a block, then right-click (or a toolbar "Ask AI" button) → "Send to AI chat" or a small prompt box right there ("make the font twice as big", "cut to 2 sentences"). The selected block (exact element ref + HTML + styles, maybe a small screenshot) goes to the existing assistant; one agent tool edits ONLY that block through the GrapesJS API (editor.getSelected / toHTML / setStyle), with before/after preview + undo, then normal Save. Off-the-shelf looked at: GrapesJS Studio SDK AI Chat (commercial, own AI calls), @silexlabs/grapesjs-ai-copilot (OSS, prompt can include the selection — read for prompt ideas), Onlook (separate React editor). Rec: thin glue on our own agent, not a vendor plugin. Est. ~1–2 days.
+
+- [ ] **(LOW PRIORITY, owner 2026-11-24 — not now; maybe its own package later with adapters for AG-UI / future protocols; maintenance cost noted) Standalone chat UI package `@jini-ai/chat-ui`** — our own AG-UI-native package, borrowing assistant-ui ideas, not its code (assistant-ui hard-depends on assistant-cloud → breaks vendor-neutral). Start with the low-risk split of `@jini-ai/chat` UI from server/store (option C, ~4–6 agent-days, one change, no re-export shells), then go headless in stages. Prereq for any option: upgrade `@ag-ui/*` from 0.0.58 to ^1.0.3 (AG-UI is 1.0). After P6-T4: 1-day throwaway check of assistant-ui `react-ag-ui` against `/api/admin/v1/assistant/ag-ui-run` (answers the parked "side by side" question). Report: `ADS-memory/reports/2026-11-24-assistant-ui-standalone-chat.md`.
+
+## LATER (owner 2026-11-26: "skip commerce right now, put it on todos for much later"): commerce coverage
+- merge-28 full coverage: Jini commerce 17.89% lines / 91.18% branches / 69.43% functions (96 files, 65 at 0%; biggest: payments/ledger repo.memory.ts + repo.sql.ts, payments/accounting/apply-evidence.ts). Report: Tovu `integ/merge-28-2026-11-26` cloud-results/merge-28-coverage.md + coverage-28/jini.tsv.
+- Excluded from the current gap-closing rounds on purpose. Still planned code: never excluded from coverage, never cut (10-28 rule stands).
