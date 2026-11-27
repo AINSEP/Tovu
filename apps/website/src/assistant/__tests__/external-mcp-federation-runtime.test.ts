@@ -12,7 +12,7 @@ import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "@jini-ai/m
 import type { FederationDeps } from "../mcp-federation/registrations.js";
 import { createAssistantServerFederation } from "#src/server/runtime/composition/modules/assistant-server-federation";
 import { serverFederationFixture } from "#src/server/runtime/composition/modules/__tests__/helpers/server-federation-fixture";
-import { notifyExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
+import { notifyExternalMcpRosterChanged, onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
 
 /**
  * @file `external-mcp-federation-runtime.ts` — the one federation runtime both the daemon (S3) and
@@ -579,4 +579,46 @@ test("a boot pass rejecting with a non-Error value logs that raw value and still
     warnLines.includes("[assistant-byok] mcp-federation: boot pass failed, continuing without federated tools — roster locked"),
     `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
   );
+});
+
+test("an installed catalog change invalidates discovery without starting federation early", async () => {
+  const events: string[] = [];
+  let changed = true;
+  const reports: AttachFederatedToolsResult["reports"][] = [];
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => { events.push("read-roster"); return []; },
+    beforeReload: async () => { events.push("refresh-installed"); return changed; },
+    onAdmitted: result => { events.push("invalidate-discovery"); reports.push(result.reports); },
+    log: "[cold-discovery]",
+  });
+
+  assert.deepEqual(await runtime.reload(), { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
+  assert.equal(runtime.started, false);
+  assert.deepEqual(events, ["refresh-installed", "invalidate-discovery"]);
+  assert.deepEqual(reports, [[]]);
+
+  changed = false;
+  assert.deepEqual(await runtime.reload(), { newlyAdmittedConnectionIds: [], reports: [], connectFailures: [] });
+  assert.deepEqual(events, ["refresh-installed", "invalidate-discovery", "refresh-installed"]);
+  assert.deepEqual(reports, [[]]);
+});
+
+test("reset detaches both roster listeners and allows a fresh listener under the same key", async t => {
+  resetExternalMcpRosterChangeListenersForTests();
+  t.after(resetExternalMcpRosterChangeListenersForTests);
+  const delivered: string[] = [];
+  onExternalMcpRosterChanged({ key: "byok", listener: async () => { delivered.push("old byok"); } });
+  onExternalMcpRosterChanged({ key: "daemon", listener: async () => { delivered.push("old daemon"); } });
+  await notifyExternalMcpRosterChanged();
+  assert.deepEqual([...delivered].sort(), ["old byok", "old daemon"]);
+
+  resetExternalMcpRosterChangeListenersForTests();
+  await notifyExternalMcpRosterChanged();
+  assert.deepEqual([...delivered].sort(), ["old byok", "old daemon"]);
+
+  onExternalMcpRosterChanged({ key: "byok", listener: async () => { delivered.push("new byok"); } });
+  await notifyExternalMcpRosterChanged();
+  assert.deepEqual([...delivered].sort(), ["new byok", "old byok", "old daemon"]);
 });

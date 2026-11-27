@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { React, act, createRoot, installDom } from './react-dom-harness';
 import { loadSiteAssistantState } from '../session-store';
+import type { AnswerToolConfirmation } from '../tool-confirmation';
 
 const { SiteAssistantWidget } = await import('../SiteAssistantWidget');
+const { useSiteAssistantWidget } = await import('../SiteAssistantWidget.hooks');
+const { useSiteToolConfirmation } = await import('../SiteToolConfirmation.hooks');
 const { ChatSurfacesProvider } = await import('@jini-ai/chat/react');
 const { chatSurfaces } = await import('../jini-surfaces');
 const directive = { kind: 'tool_confirmation', challengeId: 'a'.repeat(22), title: 'Allow search?', summary: 'Search published posts.' };
@@ -70,4 +73,88 @@ for (const allow of [true, false]) test(`React held turn waits for visitor click
   } });
   assert.equal(container.querySelector('.tovu-site-assistant__proposal'), null);
   assert.doesNotMatch(JSON.stringify(loadSiteAssistantState()), /challengeId|aaaaaaaaaaaaaaaaaaaaaa/);
+});
+
+test('unmount aborts the browser page attachment while credentials are still pending', { timeout: 3_000 }, async t => {
+  const { dom, restore } = installDom({ html: `
+    <div id="tovu-site-assistant-root"></div>
+    <script id="tovu-visitor-publication" type="application/json">{"revision":"reviewed","elements":[]}</script>
+    <main data-visitor-page-root data-agent-publication="reviewed"></main>`,
+  }, { url: 'https://site.test/' });
+  const container = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  const root = createRoot(container);
+  let unmounted = false;
+  t.after(async () => {
+    try {
+      if (!unmounted) await act(async () => root.unmount());
+    } finally { restore(); }
+  });
+  let fetched!: (signal: AbortSignal) => void;
+  const request = new Promise<AbortSignal>(resolve => { fetched = resolve; });
+  const send = t.mock.method(globalThis, 'fetch', async (url: Parameters<typeof fetch>[0], options?: RequestInit) => {
+    if (url !== '/api/site-assistant/frontend-sessions/credentials' || options?.method !== 'POST' || !options.signal) {
+      throw new Error(`unexpected page attachment request: ${String(url)}`);
+    }
+    const signal = options.signal;
+    fetched(signal);
+    return new Promise<Response>((_resolve, reject) => {
+      if (signal.aborted) reject(signal.reason);
+      else signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    });
+  });
+  const click = (name: string) => {
+    const button = [...container.querySelectorAll('button')].find(node => (node.getAttribute('aria-label') ?? node.textContent) === name);
+    assert.ok(button, `missing ${name}`);
+    button.click();
+  };
+  await act(async () => root.render(React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) })));
+  act(() => click('Chat with this site'));
+  act(() => click('What can I find on this site?'));
+  await act(async () => click('Send'));
+  const signal = await request;
+  assert.equal(signal.aborted, false);
+  await act(async () => root.unmount());
+  unmounted = true;
+  assert.equal(signal.aborted, true);
+  assert.deepEqual(send.mock.calls.map(call => call.arguments[0]), ['/api/site-assistant/frontend-sessions/credentials']);
+});
+
+test('a failed decision adds localized status and only a second click retries it', async t => {
+  const { dom, restore } = installDom({ html: '<!doctype html><html lang="es"><body><div id="tovu-site-assistant-root" data-chat-open="true"></div></body></html>' }, { url: 'https://site.test/' });
+  const container = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  const root = createRoot(container);
+  t.after(async () => {
+    try { await act(async () => root.unmount()); }
+    finally { restore(); }
+  });
+  const sent: Parameters<AnswerToolConfirmation>[0][] = [];
+  const confirm: AnswerToolConfirmation = async decision => {
+    sent.push(decision);
+    return sent.length === 2;
+  };
+  let receive!: ReturnType<typeof useSiteToolConfirmation>['receive'];
+  function useWidgetWithConfirmation(required: Parameters<typeof useSiteAssistantWidget>[0]) {
+    const widget = useSiteAssistantWidget(required);
+    const toolConfirmation = useSiteToolConfirmation({ confirm });
+    receive = toolConfirmation.receive;
+    return { ...widget, toolConfirmation };
+  }
+  await act(async () => root.render(React.createElement(ChatSurfacesProvider, {
+    surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget, { useSiteAssistantWidgetHook: useWidgetWithConfirmation }),
+  })));
+  act(() => receive({ directive: { kind: 'tool_confirmation', challengeId: 'b'.repeat(22), title: '¿Permitir la búsqueda?', summary: 'Buscar entradas.' } }));
+  const proposal = () => container.querySelector('[role="group"][aria-label="¿Permitir la búsqueda?"]');
+  const status = () => proposal()?.querySelector('[role="status"]')?.textContent;
+  assert.equal(status(), '¿Permitir la búsqueda? Buscar entradas.');
+  const allow = [...proposal()!.querySelectorAll('button')].find(button => button.textContent === 'Allow');
+  assert.ok(allow);
+  await act(async () => { allow.click(); });
+  assert.equal(status(), '¿Permitir la búsqueda? Buscar entradas. No se pudo enviar tu decisión. Inténtalo de nuevo.');
+  assert.deepEqual(sent, [{ challengeId: 'b'.repeat(22), allow: true }]);
+  await act(async () => { allow.click(); });
+  assert.equal(proposal(), null);
+  assert.deepEqual(sent, [
+    { challengeId: 'b'.repeat(22), allow: true },
+    { challengeId: 'b'.repeat(22), allow: true },
+  ]);
 });

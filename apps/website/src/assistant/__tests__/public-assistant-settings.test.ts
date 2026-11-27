@@ -239,3 +239,15 @@ test("the switch is workspace-scoped — enabling one workspace does not enable 
   assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), true);
   assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: OTHER_WORKSPACE }), false);
 });
+
+test("a non-boolean public switch cannot mutate a valid widget selection in the same patch", async () => {
+  const { deps } = await withDefinitions();
+  await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
+  for (const malformed of ["false", 0, null]) {
+    await assert.rejects(
+      setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: malformed as unknown as boolean, widget: "vanilla" }, callerPrincipalId: "principal-1" }),
+      (error: unknown) => error instanceof PublicAssistantSettingsValidationError && error.message === "publicEnabled must be a boolean",
+    );
+    assert.deepEqual(await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE }), { publicEnabled: true, widget: "react" });
+  }
+});

@@ -8,6 +8,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { ASK_CHOICE_TOOL_ID, askChoiceAgentToolCatalog, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
+import { withCustomAnswerReveal } from "../ask-choice-custom-answer.js";
 import { CUSTOM_ANSWER_PARAM, CUSTOM_CHOICE_VALUE } from "@jini-ai/mcp/tools/ask-choice";
 
 /**
@@ -110,4 +111,17 @@ test("the no-emit fallback form omits Something else (its ticket answer cannot c
   const { html } = await openForm(SINGLE, { emit: false });
   assert.match(html, /Blue/);
   assert.doesNotMatch(html, /Something else/);
+});
+
+test("the reveal adapter leaves text without a stylesheet and non-text resources intact", () => {
+  const unequipped = [
+    { type: "text", text: "Choose a colour." },
+    { type: "resource", resource: { uri: "ui://tovu/plain-form", mimeType: "text/html", text: "<form>Choose a colour.</form>" } },
+    { type: "resource", resource: { uri: "ui://tovu/form-image", mimeType: "image/png", blob: "aW1hZ2U=" } },
+  ];
+  for (const ui of unequipped) {
+    const before = structuredClone(ui);
+    assert.equal(withCustomAnswerReveal({ ui }), ui);
+    assert.deepEqual(ui, before);
+  }
 });

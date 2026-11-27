@@ -22,3 +22,9 @@ test('visitor navigation keeps the strict raw grammar: no query, fragment, backs
     assert.equal(allowsVisitorPath({ path }), false, path);
   }
 });
+
+test('visitor navigation allows a decoded public character at the depth limit but rejects unresolved escapes', () => {
+  assert.equal(allowsVisitorPath({ path: '/posts/%2525252541' }), true, 'five decode passes reveal a public segment');
+  assert.equal(allowsVisitorPath({ path: '/posts/%252525252541' }), false, 'a sixth pass would be needed');
+  assert.equal(allowsVisitorPath({ path: '/posts/%252G' }), false, 'the second decode encounters malformed encoding');
+});

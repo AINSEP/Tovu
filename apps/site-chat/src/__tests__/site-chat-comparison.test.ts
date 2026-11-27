@@ -204,3 +204,11 @@ test('both renderers render the same transcript from one recorded AG-UI stream',
     assert.ok(host.shown.includes(PROMPT));
   }
 });
+
+test('an explicit null storage root does not inherit the current comparison pane', t => {
+  const { restore } = installDom({ html: '<div id="tovu-site-assistant-root" data-chat-compare="vanilla"></div>' });
+  t.after(restore);
+  const key = 'tovu.site-assistant.transcript.v1';
+  assert.equal(siteStorageKey({ key }), 'tovu.site-assistant.transcript.v1.compare.vanilla');
+  assert.equal(siteStorageKey({ key }, { root: null }), 'tovu.site-assistant.transcript.v1');
+});

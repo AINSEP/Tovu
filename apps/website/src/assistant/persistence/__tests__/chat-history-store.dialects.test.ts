@@ -78,6 +78,17 @@ describeEachChatDialect("chat history store", stores, (make) => {
     assert.deepEqual((await alice.messages({ conversationId: "c1" })).map((m) => m.id), ["u1", "a1", "u2", "a2", "u3"]);
   });
 
+  test("the default host clock timestamps stored chat history", async t => {
+    const { kernel } = make();
+    t.mock.method(Date, "now", () => T0);
+    const alice = createChatHistoryStore({ kernel, scope: ALICE });
+    await alice.create({ id: "default-clock", title: "Saved at the host clock", titleSource: "manual" });
+    assert.deepEqual(await alice.get({ id: "default-clock" }), {
+      id: "default-clock", title: "Saved at the host clock", titleSource: "manual",
+      messageCount: 0, createdAt: T0, updatedAt: T0,
+    });
+  });
+
   test("create then get and list round-trip every conversation field", async () => {
     const { alice } = make();
     const created = await alice.create({ id: "c1", title: "Hello", titleSource: "manual", expiresAt: T0 + 1000 });

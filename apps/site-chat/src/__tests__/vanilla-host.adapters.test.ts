@@ -81,3 +81,22 @@ test('in the comparison frame, a send relays to the widget and reports busy and 
   assert.equal(await send('third'), 'This pane is already replying.');
   assert.deepEqual(sent, ['hello', 'again']);
 });
+
+test('vanilla mount restores the conversation open state without a page open hint', t => {
+  const { dom, restore } = installDom({ html: PAGE }, { url: 'https://example.test/' });
+  t.after(restore);
+  const element = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  createSiteVanillaArgs({ element }).session.save({ state: {
+    open: true, messages: [{ id: 'previous-question', role: 'user', content: 'Where are the docs?' }],
+  } });
+  const seen: unknown[] = [];
+  const mount: Mount = (args, options) => {
+    seen.push({ element: args.element, open: options.initialOpen, state: args.session.load() });
+    return { controller: { send: async () => {}, getState: () => ({ busy: false, error: null }) } };
+  };
+  mountSiteVanillaChat({ mount });
+  assert.deepEqual(seen, [{
+    element, open: true,
+    state: { open: true, messages: [{ id: 'previous-question', role: 'user', content: 'Where are the docs?' }] },
+  }]);
+});

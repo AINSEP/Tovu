@@ -1,7 +1,7 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistrationScope } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file `executeMetaTool`'s dispatch — the layer that stands between free-form model output and
@@ -1646,3 +1646,33 @@ for (const outcome of ['confirm', 'cancel', 'revoked', 'inactive', 'abort'] as c
     } finally { controller.abort(); }
   });
 }
+
+test("a tool removed from the live registry cannot run under its previously published name", async () => {
+  const reads: unknown[] = [];
+  let revoke!: () => void;
+  const s = createByokToolSurface(Object.assign(fakeRouteDeps(), { reporter: testToolReporter() }), {
+    contributions,
+    registerInstalledExtensions: async ({ deps }) => {
+      assert.ok(deps.executablePluginToolRegistry, "the installed-tool port carries the execution registry");
+      const scope = createToolRegistrationScope({ registry: deps.executablePluginToolRegistry });
+      scope.replace({ registrations: [{
+        descriptor: { id: "fixture.removable", description: "Inspect a removable record", readOnly: true, inputSchema: T2_SCHEMA },
+        policy: { authorize: () => "allow" },
+        handler: async ctx => { reads.push(ctx.input); return "record present"; },
+      }] });
+      revoke = () => scope.replace({ registrations: [] });
+    },
+  });
+  await s.ready;
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  const described = await turn.executeTool(call("describe_tool", { id: "fixture.removable" }));
+  assert.notEqual(described.isError, true);
+  const wireName = turn.getToolSnapshot().find(tool => tool.id === "fixture.removable")?.wireName;
+  assert.ok(wireName, "the existing turn must have published the tool before revocation");
+  assert.deepEqual(await turn.executeTool(call(wireName, { id: "before-removal" })), { content: "record present" });
+
+  revoke();
+  const revoked = await turn.executeTool(call(wireName, { id: "after-removal" }));
+  assert.deepEqual(revoked, { isError: true, content: 'Tool "fixture.removable" is no longer available to this caller.' });
+  assert.deepEqual(reads, [{ id: "before-removal" }]);
+});

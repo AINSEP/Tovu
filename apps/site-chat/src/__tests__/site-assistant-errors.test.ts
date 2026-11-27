@@ -27,3 +27,20 @@ describe("visitorFacingError", () => {
     assert.equal(visitorFacingError({ error: new TypeError("x is not a function") }).message, "Couldn't get an answer: x is not a function. Try again.");
   });
 });
+
+it("normalizes trailing punctuation and preserves the original cause for diagnostics", () => {
+  const original = new Error("  The provider is unavailable!...  ");
+  const error = visitorFacingError({ error: original });
+  assert.equal(error.message, "Couldn't get an answer: The provider is unavailable. Try again.");
+  assert.equal(error.cause, original);
+  const punctuationOnly = visitorFacingError({ error: " .! " });
+  assert.equal(punctuationOnly.message, "Couldn't get an answer from this site. Reload the page and try again.");
+  assert.equal(punctuationOnly.cause, " .! ");
+});
+
+it("does not mistake a server message containing a network phrase for a browser fetch failure", () => {
+  const original = new Error("Load failed because the article was removed.");
+  const error = visitorFacingError({ error: original });
+  assert.equal(error.message, "Couldn't get an answer: Load failed because the article was removed. Try again.");
+  assert.equal(error.cause, original);
+});

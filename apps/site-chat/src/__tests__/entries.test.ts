@@ -44,7 +44,7 @@ test('vanilla-entry mounts the vanilla widget into the page root', async t => {
   assert.ok(root.children.length > 0, 'the widget rendered into the root');
 });
 
-test('main mounts the React widget and creates its own root without replaying stored actions', async t => {
+test('main creates a missing React root, installs the host font, and reuses an existing root', async t => {
   const { dom, restore } = installDom({ html: '<!doctype html><html><body></body></html>' }, { url: 'https://example.test/' });
   t.after(restore);
   let main!: typeof import('../main');
@@ -52,9 +52,24 @@ test('main mounts the React widget and creates its own root without replaying st
   // Otherwise React's scheduled work can outlive this document and crash the next test.
   await act(async () => { main = await import('../main'); });
   try {
-    assert.ok(dom.window.document.getElementById('tovu-site-assistant-root')!.children.length > 0);
+    const el = dom.window.document.getElementById('tovu-site-assistant-root')!;
+    assert.ok(el.children.length > 0);
     assert.equal('executeDrainedAction' in main, false);
+    assert.equal(el.querySelector('button[aria-label="Chat with this site"]')?.getAttribute('aria-controls'), 'tovu-site-assistant-panel');
+    assert.equal(dom.window.document.head.querySelector('link[data-jini-remixicon]')?.getAttribute('href'), '/site-chat/remixicon.css');
   } finally {
     await act(async () => { main.mountedRoot.unmount(); });
+  }
+
+  const existing = dom.window.document.getElementById('tovu-site-assistant-root')!;
+  existing.dataset.chatOpen = 'true';
+  let secondRoot!: ReturnType<typeof main.mount>;
+  await act(async () => { secondRoot = main.mount(); });
+  try {
+    assert.equal(dom.window.document.querySelectorAll('#tovu-site-assistant-root').length, 1);
+    assert.equal(dom.window.document.getElementById('tovu-site-assistant-root'), existing);
+    assert.equal(existing.querySelector('[role="dialog"]')?.hasAttribute('hidden'), false);
+  } finally {
+    await act(async () => { secondRoot.unmount(); });
   }
 });

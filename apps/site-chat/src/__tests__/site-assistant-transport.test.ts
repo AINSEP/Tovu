@@ -973,3 +973,16 @@ it("the React widget hook delivers the same safe refusal reference and settles o
     assert.equal(doneCount(), 1);
   } finally { await act(async () => root.unmount()); globalThis.fetch = savedFetch; restore(); }
 });
+
+it("uses the public no-reply wording for a server-coded NO_REPLY terminal, not the internal detail", async () => {
+  const transport = createSiteAssistantTransport({}, { fetch: answering(wire => [
+    wire.started(), wire.error("the internal reply accumulator had zero turns", "NO_REPLY"), wire.text("late content"),
+  ]) });
+  const { handlers, errors, events, doneCount, donePromise } = makeHandlers();
+  await transport.startRun(baseInput([userMessage("Do you have a guide?")]), handlers);
+  await donePromise;
+  await flushStream();
+  assert.deepEqual(errors.map(error => error.message), [NO_REPLY_MESSAGE]);
+  assert.deepEqual(events, []);
+  assert.equal(doneCount(), 1);
+});

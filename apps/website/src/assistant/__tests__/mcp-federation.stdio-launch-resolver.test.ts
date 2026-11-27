@@ -341,3 +341,14 @@ test("createBundledNodeLaunchResolver: on win32 a bare command is also found as 
   assert.equal(resolved.command, "C:\\tools\\uvx.exe");
   assert.equal("ELECTRON_RUN_AS_NODE" in resolved.launchEnv, false);
 });
+
+test("launch failure guidance recognizes Windows executable suffixes and the uv alias", () => {
+  const uv = 'This server needs "uvx" (from uv), which isn\'t installed on this computer. Tovu includes Node.js (node, npm, npx) but not uv. Install uv from https://docs.astral.sh/uv/ and restart Tovu.';
+  for (const command of ["uv", String.raw`C:\tools\uv.EXE`, String.raw`C:\tools\uvx.cmd`]) {
+    assert.equal(tovuFederationMessages.launchUnavailable({ command, searchedDirs: ["fixtures"] }), uv);
+  }
+  assert.equal(tovuFederationMessages.launchUnavailable({ command: String.raw`C:\tools\docker.EXE`, searchedDirs: ["fixtures"] }),
+    'This server needs "docker", which isn\'t installed or isn\'t on this computer\'s standard paths. Install Docker Desktop, start it, then restart Tovu.');
+  assert.equal(tovuFederationMessages.launchUnavailable({ command: "fixture-launcher", searchedDirs: ["bin-one", "bin-two"] }),
+    'This server\'s command "fixture-launcher" wasn\'t found on this computer. Tovu searched: bin-one, bin-two.');
+});

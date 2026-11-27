@@ -82,9 +82,11 @@ test("hands the bridge the per-run credential minted for that run, never the pro
 });
 
 
-test("HTTP preparation receives only run-scoped inputs", async () => {
+test("HTTP preparation requires sessions and receives only run-scoped inputs", async t => {
+  const warn = t.mock.method(console, "warn", () => {});
   const assembled: unknown[] = [];
   const hosted: unknown[] = [];
+  const sessionModes: unknown[] = [];
   const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub }, { runtime: {
     execPath: "/node", electronVersion: undefined, env: { TOVU_AGENT_DAEMON_TOKEN: "boot-secret" },
     loadHttpMcp: async () => ({ MCP_HTTP_SESSION_MODE_SUPPORTED: true,
@@ -94,6 +96,8 @@ test("HTTP preparation receives only run-scoped inputs", async () => {
       },
       startMcpHttpToolServer: async (input, options) => {
         hosted.push({ input, options });
+        sessionModes.push(options?.sessionMode);
+        options?.warn?.("test listener closed");
         return { url: "http://127.0.0.1:9000/mcp", token: "listener-only", close: async () => {} };
       },
     }),
@@ -103,6 +107,8 @@ test("HTTP preparation receives only run-scoped inputs", async () => {
   assert.deepEqual(assembled, [{ runId: "run-42", url: DAEMON_URL, options: {
     credential: "minted-for-run-42", messageRelayNonce: "a".repeat(48), startupToolIds: ['site_guide'], diagnosticToolIds: ['registered'],
   } }]);
+  assert.deepEqual(sessionModes, [true]);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [["[assistant-mcp] test listener closed"]]);
   assert.equal(JSON.stringify(hosted).includes("boot-secret"), false);
   assert.equal(JSON.stringify(endpoint).includes("minted-for"), false);
 });

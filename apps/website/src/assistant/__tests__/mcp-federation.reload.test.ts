@@ -312,3 +312,42 @@ test("a pass that throws does not wedge a queued follow-up caller behind a perma
   const secondResult = await second; // must still settle — and succeed — despite the first pass throwing
   assert.deepEqual(secondResult.newlyAdmittedConnectionIds, ["higgsfield"]);
 });
+
+test("reload preserves the preset origin of a late connection without reclassifying stored connections", async () => {
+  const registry = fakeRegistry();
+  const makePingConnection = (id: string): ResolvedFederatedConnection => {
+    const candidate = connection(id);
+    return { ...candidate, config: { ...candidate.config, allowedToolNames: ["ping"] } };
+  };
+  const desktop = makePingConnection("late-desktop");
+  const roster = [
+    makePingConnection("stored"),
+    { ...desktop, config: { ...desktop.config, origin: { kind: "preset" as const } } },
+  ];
+  const connected: ResolvedFederatedConnection[] = [];
+  const coordinator = createFederationReloadCoordinator({
+    registry,
+    deps: FEDERATION_DEPS,
+    resolveConnections: async () => roster,
+    connect: async (input) => {
+      connected.push(input);
+      return {
+        listTools: async () => [{ name: "ping", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } }],
+        callTool: async () => ({ content: [] }),
+        close: async () => {},
+      };
+    },
+  }, []);
+
+  assert.deepEqual((await coordinator.reload()).reports.map(({ connectionId, isPreset }) => ({ connectionId, isPreset }))
+    .sort((a, b) => a.connectionId.localeCompare(b.connectionId)), [
+    { connectionId: "late-desktop", isPreset: true },
+    { connectionId: "stored", isPreset: false },
+  ]);
+  assert.deepEqual(connected.map(({ config, launch }) => [config.connectionId, launch]).sort(), [
+    ["late-desktop", { url: "https://example.invalid/late-desktop", headers: {} }],
+    ["stored", { url: "https://example.invalid/stored", headers: {} }],
+  ]);
+  assert.deepEqual((await coordinator.reload()).newlyAdmittedConnectionIds, []);
+  assert.equal(connected.length, 2);
+});

@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
 
-import { createChatStoreFactory, createInMemoryChatHistory } from "../store-factory.js";
+import { createChatBulkDeletionFor, createChatStoreFactory, createInMemoryChatHistory } from "../store-factory.js";
+import { chatKernel } from "#src/platform/db/chat-kernel";
+import { openChatDb } from "#src/platform/db/sqlite/chat-db";
+import { createChatHistoryStore } from "../chat-history-store.js";
 import type { AdminChatPrincipal } from "@jini-ai/chat/store/runtime";
 
 /**
@@ -127,4 +130,30 @@ describe("in-memory idle probe", () => {
     await store.delete({ id: "idle-check" });
     assert.equal(await chatRunLedger.hasActiveRuns({}, {}), false);
   });
+});
+
+it("bulk deletion uses the same owner partition and rechecks which chats are open at apply", async t => {
+  const db = openChatDb({ filePath: ":memory:" });
+  t.after(() => { db.close(); });
+  const kernel = chatKernel({ store: db });
+  const scope = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
+  const alice = createChatHistoryStore({ kernel, scope }, { now: () => 2_000 });
+  const bob = createChatHistoryStore({ kernel, scope: { ...scope, ownerId: "bob" } }, { now: () => 2_000 });
+  await alice.create({ id: "already-open", title: "First open chat" });
+  await alice.create({ id: "opened-later", title: "Second open chat" });
+  await alice.create({ id: "closed", title: "Closed chat" });
+  await bob.create({ id: "bob-private", title: "Bob's private chat" });
+  let open = new Set(["already-open"]);
+  const deletion = createChatBulkDeletionFor({ store: db, now: () => 5_000 })({ scope, openConversations: async () => open });
+
+  assert.deepEqual(await deletion.preview({ before: 3_000 }), {
+    ids: ["closed", "opened-later"], count: 2, bytes: 0, before: 3_000,
+    kept: [{ id: "already-open", title: "First open chat", reason: "open" }],
+  });
+  open = new Set(["already-open", "opened-later"]);
+  assert.deepEqual(await deletion.apply({ ids: ["closed", "opened-later", "bob-private"], before: 3_000 }), {
+    deleted: ["closed"], kept: [{ id: "opened-later", title: "Second open chat", reason: "open" }],
+  });
+  assert.deepEqual((await alice.list()).map(chat => chat.id).sort(), ["already-open", "opened-later"]);
+  assert.deepEqual((await bob.list()).map(chat => chat.id), ["bob-private"]);
 });

@@ -129,6 +129,16 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
     }
   });
 
+  test("startup without explicit options expires against the host clock and preserves the next millisecond", async t => {
+    const { kernel, guest } = make();
+    await guest.create({ id: "expired-by-default", expiresAt: T0 });
+    await guest.create({ id: "not-yet-expired", expiresAt: T0 + 1 });
+    t.mock.method(Date, "now", () => T0);
+    const stop = startChatExpirySweep({ store: kernel });
+    await stop();
+    assert.deepEqual((await guest.list()).map(chat => chat.id), ["not-yet-expired"]);
+  });
+
   test("stop() resolves only after the pass in flight has finished", async () => {
     const { kernel, guest } = make();
     await guest.create({ id: "expired", expiresAt: T0 - 1 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolRegistration } from "@jini-ai/core";
 import type { AdminChartProviderSnapshot } from "@jini-ai/core/contracts/headless/chart-providers";
 
 import { chartCatalogManifests } from "../component-catalog-query.js";
@@ -89,4 +89,21 @@ test("catalog registration reads no chart snapshot during metadata construction"
   await call(registrationFor(registrations, SEARCH_COMPONENTS_TOOL_ID), { query: "chart" });
   await call(registrationFor(registrations, DESCRIBE_COMPONENT_TOOL_ID), { id: "chart.spec" });
   assert.equal(reads, 2, "each request reads its own snapshot; nothing is cached across requests");
+});
+
+test("invalid component search limits are refused before reading the catalog", async () => {
+  const calls: unknown[] = [];
+  const registrations = buildComponentCatalogRegistrations({ readChartSnapshot: async (input, options) => {
+    calls.push([input, options]);
+    return STATIC_TEST_SNAPSHOT;
+  } });
+  const search = registrationFor(registrations, SEARCH_COMPONENTS_TOOL_ID);
+  for (const limit of ["3", Infinity, NaN, null]) {
+    await assert.rejects(() => call(search, { query: "charts.example.bar-chart", limit }), (error: unknown) =>
+      error instanceof ToolInputError && error.message === "'limit' must be a number");
+  }
+  assert.deepEqual(calls, []);
+  const hits = (await call(search, { query: "charts.example.bar-chart", limit: 1 })) as { id: string }[];
+  assert.deepEqual(hits.map(hit => hit.id), ["charts.example.bar-chart"]);
+  assert.deepEqual(calls, [[{}, undefined]]);
 });

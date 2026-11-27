@@ -144,3 +144,121 @@ it("visitor Stop while an approval is parked sends one cancelled resume and runs
   assert.equal(await transport.answerApproval({ challengeId: CHALLENGE, allow: true }), false, "a stopped approval cannot be allowed afterwards");
   assert.equal(calls.length, 2);
 });
+
+it("idle expiry cancels a parked approval and reports one timeout while disposing the resume response", { timeout: 3_000 }, async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const requests: { url: string; init: RequestInit; body: { threadId: string; runId: string } }[] = [];
+  let dispose!: () => void;
+  const disposed = new Promise<void>(resolve => { dispose = resolve; });
+  let show!: () => void;
+  const visible = new Promise<void>(resolve => { show = resolve; });
+  let headersReads = 0;
+  const cards: (ToolConfirmationDirective | null)[] = [];
+  const transport = createSiteAssistantTransport({}, {
+    idleTimeoutMs: 100,
+    frontend: {
+      headers: async () => {
+        if (++headersReads === 1) return { "x-frontend-tab": "binding-before-idle" };
+        throw new Error("lost the page binding");
+      },
+      acceptBrowserInvocation: () => {},
+      finish: () => {},
+    },
+    onToolConfirmation: ({ directive }) => { cards.push(directive); if (directive) show(); },
+    fetch: async (url, init = {}) => {
+      const body = JSON.parse(String(init.body)) as { threadId: string; runId: string };
+      requests.push({ url: String(url), init, body });
+      if (requests.length === 1) {
+        return sse(frame({ type: "RUN_STARTED", threadId: body.threadId, runId: body.runId })
+          + frame({ type: "RUN_FINISHED", threadId: body.threadId, runId: body.runId,
+            outcome: { type: "interrupt", interrupts: [{ id: CHALLENGE, reason: "confirmation", message: "Open the page: Go to /docs" }] } }));
+      }
+      if (requests.length !== 2) throw new Error("unexpected extra approval request");
+      return new Response(new ReadableStream<Uint8Array>({ cancel: dispose }));
+    },
+  });
+  const errors: string[] = [];
+  const seenEvents: AgentEvent[] = [];
+  const completed: AgentEvent[][] = [];
+  await transport.startRun({ history: [{ id: "u1", role: "user", content: "open the docs" }], signal: new AbortController().signal }, {
+    onEvent: event => seenEvents.push(event),
+    onError: error => errors.push(error.message),
+    onDone: events => completed.push(events),
+  });
+  await visible;
+  await new Promise<void>(resolve => setImmediate(resolve));
+  t.mock.timers.tick(99);
+  assert.deepEqual(completed, []);
+  assert.equal(requests.length, 1);
+  t.mock.timers.tick(1);
+  await disposed;
+
+  const initial = requests[0]!;
+  const cancelled = requests[1]!;
+  assert.equal(cancelled.url, "/api/site-assistant/chat");
+  assert.deepEqual(cancelled.body, {
+    threadId: initial.body.threadId, runId: cancelled.body.runId, parentRunId: initial.body.runId,
+    state: null, messages: [], tools: [], context: [],
+    resume: [{ interruptId: CHALLENGE, status: "cancelled" }],
+  });
+  assert.notEqual(cancelled.body.runId, initial.body.runId);
+  const { body, ...requestOptions } = cancelled.init;
+  assert.equal(JSON.parse(String(body)).parentRunId, initial.body.runId);
+  assert.deepEqual(requestOptions, {
+    method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream; agui=1" },
+    credentials: "same-origin", mode: "same-origin", redirect: "error", keepalive: true,
+  });
+  assert.equal(headersReads, 2);
+  assert.deepEqual(errors, ["Couldn't get an answer: the site took too long to respond. Try again."]);
+  assert.deepEqual(seenEvents, []);
+  assert.deepEqual(completed, [[]]);
+  assert.deepEqual(cards, [{ kind: "tool_confirmation", challengeId: CHALLENGE, title: "Open the page", summary: "Go to /docs" }, null]);
+  assert.equal(await transport.answerApproval({ challengeId: CHALLENGE, allow: true }), false);
+  assert.equal(requests.length, 2);
+});
+
+it("Stop aborts an in-flight answer without posting a second cancellation for the same approval", { timeout: 3_000 }, async () => {
+  const decisions: unknown[] = [];
+  let show!: () => void;
+  const visible = new Promise<void>(resolve => { show = resolve; });
+  let beginResume!: (signal: AbortSignal) => void;
+  const resumeStarted = new Promise<AbortSignal>(resolve => { beginResume = resolve; });
+  const transport = createSiteAssistantTransport({}, {
+    onToolConfirmation: ({ directive }) => { if (directive) show(); },
+    fetch: async (url, init = {}) => {
+      if (url !== "/api/site-assistant/chat") throw new Error(`unexpected chat route: ${String(url)}`);
+      const body = JSON.parse(String(init.body)) as { threadId: string; runId: string; resume?: unknown };
+      if (!body.resume) {
+        return sse(frame({ type: "RUN_STARTED", threadId: body.threadId, runId: body.runId })
+          + frame({ type: "RUN_FINISHED", threadId: body.threadId, runId: body.runId,
+            outcome: { type: "interrupt", interrupts: [{ id: CHALLENGE, reason: "confirmation", message: "Open the page: Go to /docs" }] } }));
+      }
+      decisions.push(body.resume);
+      if (decisions.length !== 1) return new Response(null, { status: 204 });
+      const signal = init.signal!;
+      beginResume(signal);
+      return new Promise<Response>((_resolve, reject) => {
+        if (signal.aborted) reject(signal.reason);
+        else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    },
+  });
+  const errors: string[] = [];
+  const completed: AgentEvent[][] = [];
+  const { runId } = await transport.startRun({ history: [{ id: "u1", role: "user", content: "open the docs" }], signal: new AbortController().signal }, {
+    onEvent: () => {},
+    onError: error => errors.push(error.message),
+    onDone: events => completed.push(events),
+  });
+  await visible;
+  const answer = transport.answerApproval({ challengeId: CHALLENGE, allow: true });
+  const signal = await resumeStarted;
+  assert.equal(signal.aborted, false);
+  await transport.stopRun(runId);
+  assert.equal(await answer, false);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(signal.aborted, true);
+  assert.deepEqual(decisions, [[{ interruptId: CHALLENGE, status: "resolved", payload: "allow" }]]);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(completed, [[]]);
+});

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "../tools.js";
+import { readAnonymousPublishedPosts } from "../public-content.js";
 import { listPublishedPosts } from "#src/features/post/index";
 
 /**
@@ -269,4 +270,24 @@ describe("site assistant tools", () => {
       assert.ok(!("error" in result), "a slug outside the search cap must still resolve directly");
     });
   });
+});
+
+it("quarantines malformed membership fields without silently dropping neighboring public posts", async () => {
+  const { calls, port } = fakePort([
+    row({ slug: "legacy-public", status: "published", memberAccessJson: null }),
+    // A corrupt column value can cross the repository's static string type; zero is especially
+    // important because the members parser alone would interpret a falsy raw value as public.
+    row({ slug: "invalid-column", status: "published", memberAccessJson: 0 as unknown as string }),
+    row({ slug: "decoded-null", status: "published", memberAccessJson: "null" }),
+    row({ slug: "bad-json", status: "published", memberAccessJson: "{" }),
+    row({ slug: "explicit-public", status: "published", memberAccessJson: '{"visibility":"public"}' }),
+  ]);
+  const posts = await readAnonymousPublishedPosts({ deps: makeDeps({ postRepo: port as never }) });
+  assert.deepEqual(posts.map(post => post.slug).sort(), ["explicit-public", "legacy-public"]);
+  assert.deepEqual(calls, [{ workspaceId: "ws" }]);
+});
+
+it("a failed workspace read is not reported to callers as an empty site", async () => {
+  const deps = makeDeps({ postRepo: { list: async () => { throw new Error("published catalog unavailable"); } } as never });
+  await assert.rejects(readAnonymousPublishedPosts({ deps }), { name: "Error", message: "published catalog unavailable" });
 });

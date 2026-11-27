@@ -98,3 +98,19 @@ test('without a renderer a challenge remains non-persistent, and late challenges
     assert.equal(prompts.length, onToolConfirmation ? 2 : 0);
   }
 });
+
+test('confirmation defaults to the browser fetch and sends only same-origin JSON credentials', async t => {
+  const send = t.mock.method(globalThis, 'fetch', async (_url: Parameters<typeof fetch>[0], _init?: RequestInit) =>
+    new Response(null, { status: 204 }));
+  const timeout = t.mock.method(AbortSignal, 'timeout');
+  assert.equal(await confirmSiteAssistantTool({ challengeId: directive.challengeId, allow: false }), true);
+  assert.deepEqual(timeout.mock.calls.map(call => call.arguments), [[10_000]]);
+  assert.deepEqual(send.mock.calls.map(call => call.arguments), [[
+    '/api/site-assistant/confirm', {
+      method: 'POST', mode: 'same-origin', redirect: 'error', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeId: directive.challengeId, allow: false }),
+      signal: timeout.mock.calls[0]!.result,
+    },
+  ]]);
+});

@@ -66,8 +66,8 @@ const CLICK_INPUT = { handle: 'menu', __visitorPage: { revision: 'reviewed', app
 const NAVIGATE_INPUT = { page: 'about', __visitorPage: { revision: 'reviewed', approved: true, path: '/about', pages: [{ id: 'about', label: 'About' }] } };
 
 /** One visitor page whose stream attaches at once; every begin and response request is recorded. */
-function visitorPage({ log = [] as string[] } = {}) {
-  const dom = new JSDOM(PAGE_HTML, { url: 'https://example.test/' });
+function visitorPage({ log = [] as string[], html = PAGE_HTML } = {}) {
+  const dom = new JSDOM(html, { url: 'https://example.test/' });
   const constructors = ['Element', 'Text', 'HTMLElement', 'HTMLButtonElement', 'HTMLInputElement', 'HTMLTextAreaElement', 'HTMLSelectElement', 'HTMLDetailsElement'] as const;
   const previous = constructors.map(name => Object.getOwnPropertyDescriptor(globalThis, name));
   for (const name of constructors) Object.defineProperty(globalThis, name, { configurable: true, value: dom.window[name] });
@@ -105,7 +105,7 @@ function visitorPage({ log = [] as string[] } = {}) {
       else delete (globalThis as Record<string, unknown>)[name];
     });
   };
-  return { control, begins, responses, settled, assigned, persisted, log, clicks: () => clicks, restore };
+  return { control, document: dom.window.document, begins, responses, settled, assigned, persisted, log, clicks: () => clicks, restore };
 }
 
 const sseFrame = (event: Record<string, unknown>) => `data: ${JSON.stringify(event)}\n\n`;
@@ -212,4 +212,60 @@ test('navigation persists before the document is replaced and never replays', as
     page.control.finish({ navigation: true, messages: page.persisted.at(-1) });
     assert.deepEqual(page.assigned, ['/about'], 'a terminal alone never repeats the accepted navigation');
   } finally { page.restore(); }
+});
+
+test('closing an attached page drops its live headers and does not reattach on a later read', async t => {
+  const page = visitorPage();
+  t.after(page.restore);
+  assert.deepEqual(page.control.currentHeaders(), {});
+  await page.control.ready;
+  assert.deepEqual(await page.control.headers(), {
+    'x-frontend-tab': 'tab', 'x-visitor-publication': 'reviewed', 'x-frontend-bind-token': 'live-token',
+  });
+  assert.deepEqual(page.control.currentHeaders(), {
+    'x-frontend-tab': 'tab', 'x-visitor-publication': 'reviewed', 'x-frontend-bind-token': 'live-token',
+  });
+  page.control.close();
+  assert.deepEqual(page.control.currentHeaders(), {});
+  assert.deepEqual(await page.control.headers(), {});
+});
+
+test('an approved form submits once, only after its acknowledgement and terminal transcript', { timeout: 3_000 }, async t => {
+  const page = visitorPage({ html: `
+    <script id="tovu-visitor-publication" type="application/json">{"revision":"reviewed","elements":[{"handle":"send","action":"submit","target":{"action":"/contact","method":"get"}}]}</script>
+    <main data-visitor-page-root data-agent-publication="reviewed">
+      <form action="/contact"><button type="submit" data-agent-element="send">Send the form</button></form>
+    </main>` });
+  t.after(page.restore);
+  const form = page.document.querySelector('form')!;
+  const submitters: (string | null)[] = [];
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    page.log.push('submit');
+    submitters.push(event.submitter?.textContent ?? null);
+  });
+  const submitted = new Promise<void>(resolve => form.addEventListener('submit', () => resolve(), { once: true }));
+
+  await page.control.headers();
+  const acknowledged = once(page.settled, 'response', { signal: AbortSignal.timeout(2_000) });
+  page.control.acceptBrowserInvocation({ runId: 'logical-form-run', action: {
+    invocationId: 'submit-contact', capabilityId: 'page.click',
+    input: { handle: 'send', __visitorPage: { revision: 'reviewed', approved: true, pages: [] } },
+  } });
+  await acknowledged;
+
+  assert.deepEqual(page.begins.map(begin => begin.body), [{ sessionId: 's1', runId: 'logical-form-run', invocationId: 'submit-contact' }]);
+  assert.equal(page.responses[0]?.ok, true);
+  assert.deepEqual(page.responses[0]?.output, { accepted: true, terminalSubmission: true });
+  assert.deepEqual(page.log, ['begin:submit-contact', 'prepare', 'response:submit-contact']);
+  assert.deepEqual(submitters, []);
+
+  const messages: ChatMessage[] = [{ id: 'completed', role: 'assistant', content: 'The form is ready to submit.' }];
+  page.control.finish({ navigation: true, messages });
+  await submitted;
+  assert.deepEqual(page.log, ['begin:submit-contact', 'prepare', 'response:submit-contact', 'persist', 'submit']);
+  assert.deepEqual(page.persisted, [undefined, messages]);
+  assert.deepEqual(page.assigned, [], 'native form submission is not a location assignment');
+  page.control.finish({ navigation: true, messages });
+  assert.deepEqual(submitters, ['Send the form']);
 });

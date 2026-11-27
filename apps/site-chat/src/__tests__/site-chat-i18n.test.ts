@@ -51,3 +51,19 @@ test('Hindi, Urdu and Bangla launcher and panel keys resolve without an empty or
   }
   dom.window.close();
 });
+
+test('an unset page language uses English and region-specific translations match case-insensitively', t => {
+  const dom = new JSDOM('<html></html>');
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const defaults = createSiteChatI18n({ document });
+  assert.equal(defaults.locale, 'en');
+  assert.equal(defaults.t('Close chat'), 'Close chat');
+
+  for (const [lang, locale, close] of [['ZH-tw', 'zh-TW', '關閉聊天'], ['ZH-cn', 'zh-CN', '关闭聊天']] as const) {
+    document.documentElement.lang = lang;
+    const translator = createSiteChatI18n({ document });
+    assert.equal(translator.locale, locale);
+    assert.equal(translator.t('Close chat'), close);
+  }
+});

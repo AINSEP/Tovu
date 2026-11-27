@@ -95,3 +95,15 @@ test('A11 responses: without the request facts the gate answers the plain 403 an
   assert.equal(answer.body, 'Forbidden');
   assert.equal(answer.reports.length, 1);
 });
+
+test('the tab identifier cap applies to both request carriers and cannot fall back from an invalid header', () => {
+  const accepted = 't'.repeat(128);
+  const tooLong = accepted + 'x';
+  for (const tabId of [accepted, tooLong]) {
+    const expected = tabId === accepted ? { workspaceId: 'site', principalId: 'owner', tabId: accepted } : null;
+    for (const input of [
+      hookInput({ headers: { [RUN_PRINCIPAL_HEADER]: 'owner', 'x-frontend-tab-id': tabId }, query: { tabId: 'valid-query-tab' } }),
+      hookInput({ headers: { [RUN_PRINCIPAL_HEADER]: 'owner' }, query: { tabId } }),
+    ]) assert.deepEqual(adminFrontendOwner({ ...input, workspaceId: 'site' }), expected);
+  }
+});

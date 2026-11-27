@@ -163,3 +163,8 @@ test("the no-tab fallback resolves the actual Agent Plugins route and validates 
     assert.throws(() => buildAdminScreenPath(input), ToolInputError);
   }
 });
+
+test("a whitespace-only tab is omitted, while padding around a real tab is trimmed", () => {
+  assert.equal(buildAdminScreenPath({ path: "settings", tab: " \t " }), "/admin/settings");
+  assert.equal(buildAdminScreenPath({ path: "settings", tab: "  external mcp  " }), "/admin/settings?tab=external+mcp");
+});
