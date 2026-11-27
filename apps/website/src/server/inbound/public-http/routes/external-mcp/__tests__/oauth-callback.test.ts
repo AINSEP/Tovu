@@ -9,7 +9,7 @@ import type { ExternalMcpOAuthService } from "@jini-ai/integrations/api-connecti
 import { OAuthError } from "@jini-ai/oauth";
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "#src/server/runtime/composition/public-oauth-callbacks";
+import { externalMcpCallbackFailureLine, registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "#src/server/runtime/composition/public-oauth-callbacks";
 import { clearedBrowserBindingCookie, EXTERNAL_MCP_BROWSER_BINDING } from "#src/features/api-connections/browser-binding";
 import type { OAuthCallbackFailureReason } from "@jini-ai/core/contracts/site/oauth-callback-page";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/oauth/callback-page";
@@ -427,4 +427,11 @@ test("wire parity: a repeat success request carrying the page's ETag is answered
     }).on("error", reject);
   });
   assert.deepEqual(again, { status: 304, etag, body: "" });
+});
+
+test("the server-log failure line carries an Error's message, or a non-Error's string form", () => {
+  assert.equal(externalMcpCallbackFailureLine({ error: new OAuthError({ code: "OAUTH_PROVIDER_REJECTED", message: "token endpoint said no", operatorAction: "Try connecting again." }) }),
+    "external-mcp oauth callback failed: token endpoint said no");
+  assert.equal(externalMcpCallbackFailureLine({ error: { reason: "opaque" } }), "external-mcp oauth callback failed: [object Object]");
+  assert.equal(externalMcpCallbackFailureLine({ error: "plain text" }), "external-mcp oauth callback failed: plain text");
 });
