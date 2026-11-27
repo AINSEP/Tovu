@@ -159,3 +159,14 @@ for (const name of ["entry.published", "entry.updated", "entry.unpublished"]) {
     assert.ok(after.some((entry) => entry.loc.endsWith("/sitemap-new-post")));
   });
 }
+
+test("the composed workspace.created subscription logs the event name and payload once, even after a rebuild", async (t) => {
+  const deps = createRouteDeps();
+  createApp(deps);
+  deps.createSiteApp();
+  const logged = t.mock.method(console, "log", () => {});
+  const payload = { workspaceId: deps.workspaceId, name: "Second site" };
+  await deps.bus.publish({ id: "evt-workspace-created", name: "workspace.created", occurredAt: new Date(deps.clock.nowMs()).toISOString(), workspaceId: deps.workspaceId, payload });
+  const handled = logged.mock.calls.filter((call) => call.arguments[0] === "event handled:");
+  assert.deepEqual(handled.map((call) => call.arguments), [["event handled:", "workspace.created", payload]]);
+});
