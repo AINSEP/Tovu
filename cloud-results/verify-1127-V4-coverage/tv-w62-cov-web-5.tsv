@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/website/src/features/settings/site-title-legacy.ts	lines 100.0 br 50.0 fn 0.0	100.00/100.00/100	
+apps/website/src/features/settings/tool-registrations.ts	lines 100.0 br 90.0 fn 100.0	84.85/100.00/40.00	99-109,121-122,132-138
+apps/website/src/features/site-backup/archive-paths.ts	lines 98.9 br 96.15 fn 100.0	70.33/66.67/44.44	41-56,76-79,83-84,87-91
+apps/website/src/features/site-backup/backup-service.ts	lines 100.0 br 92.31 fn 47.37	96.75/100.00/5.26	146-150
+apps/website/src/features/site-backup/bundled-export-file-policy.ts	lines 100.0 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/website/src/features/site-backup/import-backend.ts	lines 100.0 br 85.71 fn 100.0	100.00/100.00/50.00	
+apps/website/src/features/site-backup/import-database.ts	lines 92.0 br 100.0 fn 100.0	92.00/100.00/100.00	25-26
+apps/website/src/features/site-backup/import-plugin-state.ts	lines 100.0 br 83.33 fn 100.0	45.83/100.00/0.00	16-28
+apps/website/src/features/site-backup/import-restore-placement.ts	lines 97.87 br 100.0 fn 100.0	68.09/100.00/0.00	19-26,32-33,39-40,46-48
+apps/website/src/features/site-backup/import-restore.ts	lines 97.33 br 94.74 fn 85.0	73.33/100.00/0.00	47,52-62,66-67,73-75,78-80
+apps/website/src/features/site-backup/import-verifier-projection.ts	lines 92.86 br 100.0 fn 75.0	80.95/100.00/0.00	24-25,34-36,42-44
+apps/website/src/features/site-backup/package-file-inventory.ts	lines 100.0 br 60.0 fn 100.0	100.00/80.00/100.00	
+apps/website/src/features/site-backup/push-manifest.ts	lines 96.77 br 80.0 fn 100.0	35.48/100.00/0.00	16-35
+apps/website/src/features/site-backup/share-expiry.ts	lines 92.86 br 83.33 fn 80.0	97.62/100.00/80.00	42
+apps/website/src/features/site-backup/share-own-folder.ts	lines 90.91 br 100.0 fn 100.0	90.91/100.00/100.00	9
+apps/website/src/features/site-backup/share-policy.ts	lines 95.56 br 100.0 fn 100.0	95.56/100.00/100.00	37,45
+apps/website/src/features/site-backup/share-zip.ts	lines 97.44 br 100.0 fn 100.0	87.18/100.00/60.00	32-33,41-43
+apps/website/src/features/site-backup/sources.ts	lines 98.61 br 100.0 fn 100.0	91.67/83.33/57.14	78-79,82-85
+apps/website/src/features/site-backup/static-download-host.ts	lines 97.37 br 100.0 fn 100.0	78.95/100.00/0.00	26-27,31-32,35-38
+apps/website/src/features/site-backup/static-export-selection.ts	lines 94.74 br 100.0 fn 100.0	68.42/100.00/33.33	7-9,17-19
+apps/website/src/features/site-backup/tool-registrations.ts	lines 100.0 br 100.0 fn 0.0	100.00/100.00/0.00	
+apps/website/src/features/site-evidence/collect-page-evidence.ts	lines 81.21 br 70.0 fn 35.29	98.66/100.00/100.00	1,154
+apps/website/src/features/site-evidence/tool-registrations.ts	lines 96.89 br 86.11 fn 77.78	99.56/100.00/100.00	237
+apps/website/src/features/site-export/export-failure-summary.ts	lines 3.7 br 100.0 fn 100.0	3.70/100.00/0.00	1-51,56
+apps/website/src/features/site-export/export-preflight-copy.ts	lines 95.65 br 50.0 fn 100.0	95.65/91.67/100.00	3
+apps/website/src/features/site-export/index.ts	lines 33.33 br 100.0 fn 100.0	33.33/100.00/100	1-4
+apps/website/src/features/site-export/media-url-bindings.ts	lines 95.24 br 100.0 fn 100.0	57.14/100.00/0.00	18-26
+apps/website/src/features/site-export/site-exporter.ts	lines 96.15 br 100.0 fn 100.0	57.69/100.00/0.00	59-69
+apps/website/src/features/site-export/theme-preview-manifest.ts	lines 100.0 br 88.89 fn 100.0	63.64/100.00/0.00	15-16,19-20,25,27-29
+apps/website/src/features/site-export/theme-preview-report.ts	lines 96.0 br 100.0 fn 100.0	16.00/100.00/0.00	6-26
+apps/website/src/features/site-guide/capability-card.ts	lines 95.24 br 100.0 fn 100.0	95.24/100.00/100	1
+apps/website/src/features/site-guide/contracts.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/features/site-guide/facts.ts	lines 100.0 br 87.5 fn 90.91	27.14/100.00/0.00	19-25,29,31-41,43-49,57,59-82
+apps/website/src/features/site-inspection/admin-screens.generated.ts	lines 84.13 br 100.0 fn 100.0	84.13/100.00/100	1-10
+apps/website/src/features/site-inspection/deps.ts	lines 98.45 br 100.0 fn 83.33	100.00/100.00/100.00	
+apps/website/src/features/site-inspection/index.ts	lines 33.33 br 100.0 fn 100.0	33.33/100.00/100	1-16
+apps/website/src/features/site-inspection/tool-registrations.ts	lines 94.29 br 85.71 fn 50.0	97.14/85.71/50.00	24
+apps/website/src/features/site-search/cms-search-rules.ts	lines 75.0 br 100.0 fn 100.0	75.00/100.00/20.00	1-6
+apps/website/src/features/site-update/approved-handoff.ts	lines 81.25 br 55.56 fn 100.0	81.25/85.71/100.00	1-6
+apps/website/src/features/site-update/candidate-readiness.ts	lines 86.54 br 100.0 fn 100.0	86.54/100.00/100.00	1-5,8,51
+apps/website/src/features/site-update/configured-runtime.ts	lines 67.86 br 100.0 fn 50.0	71.43/100.00/50.00	1-4,25-28
+apps/website/src/features/site-update/github-release-feed.ts	lines 79.17 br 55.56 fn 100.0	83.33/100.00/100.00	1-4
+apps/website/src/features/site-update/host-runtime.ts	lines 73.08 br 100.0 fn 100.0	46.15/100.00/0.00	1-6,26-33
+apps/website/src/features/site-update/operation-update-lock.ts	lines 86.67 br 100.0 fn 100.0	86.67/100.00/100.00	1-4
+apps/website/src/features/site-update/read-status.ts	lines 81.82 br 95.24 fn 100.0	89.09/100.00/100.00	1-6
+apps/website/src/features/site-update/restore-point-backup.ts	lines 88.57 br 100.0 fn 100.0	90.00/100.00/100.00	1-6,11
+apps/website/src/features/site-update/self-hosted-host.ts	lines 61.11 br 100.0 fn 100.0	66.67/100.00/100.00	1-6
+apps/website/src/features/site-update/tools.ts	lines 96.3 br 96.0 fn 93.75	92.59/89.13/87.50	1-5,93-94,171-173
+apps/website/src/features/sites/agent-tools.ts	lines 81.41 br 100.0 fn 100.0	81.41/100.00/100	2-23,29-35
+apps/website/src/features/sites/deps.ts	lines 98.53 br 50.0 fn 100.0	86.76/100.00/0.00	116-124
+apps/website/src/features/sites/index.ts	lines 87.88 br 100.0 fn 100.0	87.88/100.00/100	1-4
+apps/website/src/features/sites/list-tool.ts	lines 66.67 br 100.0 fn 100.0	66.67/100.00/100	1
+apps/website/src/features/sites/site-admin.ts	lines 97.21 br 65.15 fn 100.0	100.00/97.62/100.00	
+apps/website/src/features/sites/site-preview/playwright-site-preview-capture.ts	lines 99.24 br 100.0 fn 100.0	45.04/100.00/0.00	66-72,78-84,86-88,94-127,133-153
+apps/website/src/features/sites/site-preview/site-preview-service.ts	lines 81.9 br 100.0 fn 100.0	10.34/100.00/0.00	1-19,22,60,63-98,105-151
+apps/website/src/features/sites/site-preview/site-preview-store.ts	lines 75.0 br 100.0 fn 100.0	26.14/100.00/0.00	1-21,49-50,56-97
+apps/website/src/features/sites/tool-registrations.ts	lines 89.1 br 92.45 fn 81.25	75.64/97.14/71.43	169-208,261-266,286-312,314-316
+apps/website/src/features/sites/warm-switch.ts	lines 96.88 br 63.64 fn 100.0	96.88/76.92/100.00	1
+apps/website/src/features/skills/install-adapters.ts	lines 85.71 br 100.0 fn 100.0	85.71/100.00/100.00	7
+apps/website/src/features/skills/site-host.ts	lines 80.0 br 100.0 fn 80.0	80.00/100.00/80.00	1-8
+apps/website/src/features/source-control/commit-site.ts	lines 100.0 br 97.87 fn 100.0	44.55/100.00/14.29	90-99,102-123,126-141,144-148,151-158
+apps/website/src/features/source-control/credential-setup.ts	lines 100.0 br 100.0 fn 33.33	100.00/100.00/33.33	
+apps/website/src/features/source-control/index.ts	lines 63.64 br 100.0 fn 100.0	63.64/100.00/100	1-4
+apps/website/src/features/source-control/provider-kit-host.ts	lines 96.0 br 83.33 fn 66.67	92.00/66.67/33.33	18,22
+apps/website/src/features/source-control/provider-registry.ts	lines 100.0 br 93.15 fn 98.0	72.16/79.17/52.94	92-104,139-158,161-164,197-198,208-209,214-215,252,259-265,277-283,287-289,298-304,307,313-319
+apps/website/src/features/source-control/repo.memory.ts	lines 100.0 br 80.0 fn 100.0	100.00/80.00/100.00	
+apps/website/src/features/source-control/store.ts	lines 94.44 br 100.0 fn 100.0	72.22/100.00/0.00	14-15,17-19
+apps/website/src/features/source-control/tool-registrations.ts	lines 100.0 br 100.0 fn 0.0	100.00/100.00/100.00	
+apps/website/src/features/source-control/write-port.ts	lines 75.86 br 85.71 fn 100.0	75.86/100.00/20.00	1-7
+apps/website/src/features/storage/agent-tools.ts	lines 81.48 br 100.0 fn 100.0	81.48/100.00/100	1-5
+apps/website/src/features/storage/cleanup-gate.ts	lines 98.15 br 90.91 fn 100.0	98.15/100.00/100.00	52
+apps/website/src/features/storage/compact-site.ts	lines 90.0 br 66.67 fn 100.0	100.00/88.89/100.00	
+apps/website/src/features/storage/compaction-marker.ts	lines 100.0 br 71.43 fn 83.33	100.00/81.25/100.00	
+apps/website/src/features/storage/compaction-recovery-ports.ts	lines 91.37 br 73.21 fn 100.0	96.40/79.37/100.00	1-5
+apps/website/src/features/storage/compaction-recovery.ts	lines 92.14 br 79.63 fn 100.0	95.00/82.76/100.00	1-14
+apps/website/src/features/storage/compaction-recovery.types.ts	lines MISSING br MISSING fn MISSING	NOT-LOADED	
+apps/website/src/features/storage/measure.ts	lines 91.96 br 100.0 fn 100.0	NOT-LOADED	
+apps/website/src/features/storage/tool-registrations.ts	lines 67.53 br 100.0 fn 33.33	98.70/91.18/100.00	76
+apps/website/src/features/taxonomy/gated-hooks.ts	lines 97.83 br 100.0 fn 100.0	78.26/100.00/0.00	52-61
+apps/website/src/features/theme/active-theme.ts	lines 99.49 br 96.97 fn 57.89	82.74/100.00/20.00	137-153,156-164,195-202
+apps/website/src/features/theme/asset-operations.ts	lines 100.0 br 97.3 fn 95.24	66.21/100.00/35.29	120-122,129-132,135-141,156-174,185-190,205-239
+apps/website/src/features/theme/asset-path-rewrites.ts	lines 50.0 br 75.0 fn 100.0	4.55/100.00/0.00	3-23
+apps/website/src/features/theme/build-conformance.ts	lines 93.46 br 81.25 fn 90.48	99.81/93.75/100.00	516
+apps/website/src/features/theme/capability-card.ts	lines 96.43 br 100.0 fn 100.0	96.43/100.00/100	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	lines 38.02 br 100.0 fn 0.0	73.96/92.19/100.00	1-104,306,389
+apps/website/src/features/theme/duplicate-theme-tool.ts	lines 100.0 br 93.33 fn 100.0	58.29/100.00/0.00	93-102,107-154,157-164,171-177
+apps/website/src/features/theme/duplicate-theme.ts	lines 99.74 br 98.99 fn 100.0	47.24/66.67/5.88	69-72,96-100,109-117,120-128,135-155,178-182,189-199,207-219,227-237,244-263,267-280,293,298-313,329-337,357-394,406-420
+apps/website/src/features/theme/entry-list-markup.ts	lines 61.54 br 75.0 fn 50.0	61.54/100.00/100	25-39
+apps/website/src/features/theme/file-identity-lock.ts	lines 97.82 br 96.55 fn 100.0	70.18/100.00/0.00	76-79,84-87,95-102,127-128,133-134,143-144,153-164,168-169,186-192,204-208,216-223,257-282
+apps/website/src/features/theme/file-mutation-tools.ts	lines 100.0 br 94.74 fn 88.89	38.57/100.00/0.00	32-74

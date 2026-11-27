@@ -1,0 +1,91 @@
+file	before	after(lines/br/fn)	uncovered
+apps/admin/src/App.chrome.tsx	lines 93.33 br 95.0 fn 85.71	93.33/80.00/78.57	40
+apps/admin/src/App.hooks.ts	lines 98.97 br 99.22 fn 97.89	67.69/62.02/66.32	110-112,114,116-119,121,126-128,130,132-133,135,137-139,141,153-154,156,170-172,192,196,199,310-311,354-356,365-366,404,538,553-557,559-560,578-579,593,692,714-715,717,754-755,757-758,760,764-765,787-788,790,792
+apps/admin/src/App.tsx	lines 100.0 br 95.92 fn 100.0	92.98/76.53/93.94	142-143,149,224,239,257,278-279
+apps/admin/src/admin-themes/registry.ts	lines 100.0 br 92.31 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/admin-themes/use-admin-theme.hooks.ts	lines 100.0 br 98.51 fn 100.0	46.48/34.33/44.83	85,118,120-121,123,139-140,152,164-168,173,178-182,184-186,188,192-199,203,209-210,213,219-220,223
+apps/admin/src/components/AssistantDock/assistant-runtime-preferences.adapter.ts	lines 77.78 br 87.5 fn 71.43	100.00/100.00/100.00	
+apps/admin/src/components/AssistantDock/chat-cleanup-copy.ts	lines 100.0 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/components/AssistantDock/chat-cleanup-kit.tsx	lines 100.0 br 75.0 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/components/AssistantDock/hooks/composer-files.hooks.ts	lines 100.0 br 100.0 fn 90.91	80.00/75.00/72.73	62,117,132
+apps/admin/src/components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts	lines 90.91 br 100.0 fn 85.71	86.36/100.00/78.57	84,217,221
+apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.hooks.tsx	lines 66.67 br 85.71 fn 66.67	100.00/85.71/100.00	
+apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts	lines 88.89 br 100.0 fn 83.33	100.00/100/100.00	
+apps/admin/src/features/ai-assistant/hooks/use-admin-execution-mode.hooks.ts	lines 75.0 br 100.0 fn 50.0	100.00/100/100.00	
+apps/admin/src/features/ai-assistant/hooks/use-admin-subagents.hooks.ts	lines 97.5 br 95.0 fn 95.45	100.00/93.33/100.00	
+apps/admin/src/features/ai-assistant/hooks/visitor-tools-dependencies.hooks.ts	lines 50.0 br 0.0 fn 0.0	100.00/100.00/100.00	
+apps/admin/src/features/ai-assistant/visitor-tools-i18n.ts	lines 100.0 br 66.67 fn 100.0	100.00/66.67/100.00	
+apps/admin/src/features/auth/auth-host-binding.tsx	lines 85.71 br 100.0 fn 83.33	42.86/0.00/16.67	25,30,35,43
+apps/admin/src/features/auth/hooks/login-dependencies.hooks.ts	lines 66.67 br 50.0 fn 50.0	66.67/50.00/50.00	11
+apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts	lines 100.0 br 75.0 fn 100.0	16.67/0.00/0.00	32,62-65
+apps/admin/src/features/content-analysis/hooks/content-analysis-dependencies.hooks.ts	lines 83.33 br 75.0 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/email/email-hooks-host.ts	lines 84.62 br 71.43 fn 72.73	84.62/100.00/81.82	39-40
+apps/admin/src/features/email/email-panel.tsx	lines 90.91 br 100.0 fn 50.0	90.91/100/50.00	96
+apps/admin/src/features/fs-files/api/fs-files-api.ts	lines 87.5 br 50.0 fn 100.0	100.00/83.33/100.00	
+apps/admin/src/features/import-export/ImportExport.tsx	lines 100.0 br 85.71 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/library/hooks/library-dependencies.hooks.ts	lines 70.0 br 100.0 fn 66.67	100.00/100.00/100.00	
+apps/admin/src/features/library/hooks/use-wired-library.hooks.ts	lines 100.0 br 87.5 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/media/hooks/media-dependencies.hooks.ts	lines 96.43 br 86.67 fn 95.24	78.57/50.00/76.19	22,49-50,52,66,88
+apps/admin/src/features/media/media-i18n.ts	lines 100.0 br 60.0 fn 100.0	100.00/60.00/100.00	
+apps/admin/src/features/media/upload-size-copy.ts	lines 100.0 br 90.0 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts	lines 100.0 br 50.0 fn 83.33	0.00/0.00/0.00	25-28,33-35,37
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts	lines 50.0 br 0.0 fn 0.0	100.00/50.00/100.00	
+apps/admin/src/features/plugins/AgentPlugins.tsx	lines 50.0 br 100.0 fn 0.0	50.00/100/0.00	41
+apps/admin/src/features/plugins/Plugins.tsx	lines 25.0 br 100.0 fn 0.0	50.00/100/33.33	35,42
+apps/admin/src/features/plugins/hooks/agent-plugins-dependencies.hooks.ts	lines 83.33 br 86.67 fn 66.67	100.00/100.00/100.00	
+apps/admin/src/features/plugins/hooks/plugins-dependencies.hooks.ts	lines 95.95 br 86.59 fn 90.62	90.54/79.27/96.88	119,145,153-154,156-157,159
+apps/admin/src/features/plugins/hooks/use-agent-plugin-details-modal.hooks.ts	lines 0.0 br 0.0 fn 0.0	100.00/100.00/100.00	
+apps/admin/src/features/plugins/hooks/use-agent-plugins.hooks.ts	lines 100.0 br 100.0 fn 75.0	100.00/100/100.00	
+apps/admin/src/features/plugins/hooks/use-plugin-provider-settings.hooks.ts	lines 0.0 br 0.0 fn 0.0	100.00/100.00/100.00	
+apps/admin/src/features/posts/Posts.tsx	lines 66.67 br 100.0 fn 50.0	66.67/100/50.00	24
+apps/admin/src/features/posts/hooks/use-loaded-post-apply.hooks.ts	lines 96.3 br 100.0 fn 87.5	96.30/84.21/100.00	96
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts	lines 98.34 br 95.0 fn 98.28	96.68/91.67/93.10	863,877-883
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts	lines 50.0 br 100.0 fn 0.0	100.00/100/100.00	
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	lines 96.43 br 100.0 fn 93.75	100.00/100.00/100.00	
+apps/admin/src/features/routines/index.ts	lines 0.0 br 0.0 fn 0.0	100.00/100/100.00	
+apps/admin/src/features/routines/routines-i18n.ts	lines 100.0 br 50.0 fn 100.0	100.00/50.00/100.00	
+apps/admin/src/features/routines/use-conversation-deep-link.ts	lines 100.0 br 100.0 fn 50.0	100.00/100/100.00	
+apps/admin/src/features/security/RecoveryCodesCard.hooks.ts	lines 70.0 br 100.0 fn 83.33	100.00/100.00/100.00	
+apps/admin/src/features/security/hooks/access-tokens-dependencies.hooks.ts	lines 95.12 br 96.0 fn 95.12	100.00/100.00/100.00	
+apps/admin/src/features/security/hooks/copy-keys-dependencies.hooks.ts	lines 66.67 br 50.0 fn 50.0	66.67/50.00/50.00	22
+apps/admin/src/features/security/hooks/site-key-dependencies.hooks.ts	lines 100.0 br 100.0 fn 90.91	0.00/0.00/0.00	15-21,25-26,34-36,41-43
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	lines 50.0 br 100.0 fn 0.0	0.00/100/0.00	19,27
+apps/admin/src/features/settings/AdminAppearance.tsx	lines 100.0 br 96.67 fn 100.0	0.00/0.00/0.00	32-37,45,47-51,60,71,73,79-83,89-91,101,111
+apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts	lines 85.71 br 100.0 fn 80.0	100.00/100/100.00	
+apps/admin/src/features/settings/hooks/use-settings-ui.hooks.ts	lines 80.0 br 100.0 fn 40.0	100.00/100/100.00	
+apps/admin/src/features/sites/CredentialWarnings.tsx	lines 100.0 br 88.89 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/sites/SiteExportTab.tsx	lines 100.0 br 97.62 fn 100.0	93.10/85.71/93.94	105,114,212-213
+apps/admin/src/features/sites/SiteImportTab.tsx	lines 98.53 br 98.02 fn 96.88	98.53/97.03/96.88	314
+apps/admin/src/features/sites/Sites.tsx	lines 100.0 br 95.24 fn 100.0	100.00/97.62/100.00	
+apps/admin/src/features/sites/SitesHomeSetting.tsx	lines 18.52 br 17.24 fn 14.29	100.00/100.00/100.00	
+apps/admin/src/features/sites/StaticExportPicker.tsx	lines 95.0 br 100.0 fn 90.91	100.00/100.00/100.00	
+apps/admin/src/features/sites/hooks/site-export-actions.ts	lines 100.0 br 92.31 fn 100.0	100.00/94.87/100.00	
+apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts	lines 95.92 br 95.08 fn 94.29	100.00/91.80/97.14	
+apps/admin/src/features/sites/hooks/site-transfer-rules.ts	lines 100.0 br 92.59 fn 100.0	100.00/92.59/100.00	
+apps/admin/src/features/sites/hooks/sites-dependencies.hooks.ts	lines 90.0 br 94.12 fn 86.67	100.00/100.00/100.00	
+apps/admin/src/features/sites/hooks/use-desktop-import.hooks.ts	lines 100.0 br 91.67 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts	lines 100.0 br 82.35 fn 84.62	100.00/88.24/84.62	
+apps/admin/src/features/sites/hooks/use-share-credential-gate.hooks.ts	lines 100.0 br 81.58 fn 100.0	100.00/84.21/100.00	
+apps/admin/src/features/sites/hooks/use-share-expiry.hooks.ts	lines 100.0 br 90.0 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/sites/hooks/use-site-export-state.hooks.ts	lines 100.0 br 94.12 fn 100.0	95.24/82.35/80.00	35
+apps/admin/src/features/sites/hooks/use-site-import-state.hooks.ts	lines 100.0 br 98.36 fn 100.0	100.00/98.36/100.00	
+apps/admin/src/features/sites/hooks/use-site-list-prefs.hooks.ts	lines 50.0 br 0.0 fn 0.0	100.00/100.00/100.00	
+apps/admin/src/features/sites/hooks/use-sites.hooks.ts	lines 95.12 br 100.0 fn 88.89	97.56/87.88/96.30	177-178
+apps/admin/src/features/sites/hooks/use-static-export-selection.hooks.ts	lines 100.0 br 90.32 fn 100.0	100.00/90.32/100.00	
+apps/admin/src/features/sites/import-handoff-port.ts	lines 100.0 br 88.89 fn 100.0	100.00/88.89/100.00	
+apps/admin/src/features/sites/site-export-error.ts	lines 100.0 br 95.24 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/sites/site-transfer-i18n.ts	lines 100.0 br 50.0 fn 100.0	100.00/50.00/100.00	
+apps/admin/src/features/storage/Storage.tsx	lines 81.82 br 100.0 fn 50.0	100.00/100.00/100.00	
+apps/admin/src/features/storage/storage-i18n.ts	lines 100.0 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/themes/HeldBackThemes.tsx	lines 100.0 br 95.31 fn 100.0	0.00/0.00/0.00	23-25,39-44,49-51,54,61,70-71,80-84,92,104,116-117,122-123,137-140,143,147-148,153,167-168,190-192
+apps/admin/src/features/themes/ThemeExplore.tsx	lines 100.0 br 99.22 fn 100.0	0.00/0.00/0.00	123-124,127,136,150,161,184,186,189,196,200,211,217,233,238,258-261,263-265,279-280,292,350,352,359-360,362,369-370,390,396,401,407,424-427,430,439,458-459,467,525,527-529,540-542,587,591,600,639-640,666-667,695,699,721,725,745,749,773-775,785-786,830,839,889,897,932-934,936,996,1000-1001,1003,1005,1065-1066,1070-1071,1077-1078,1080,1116,1147-1149,1155,1212,1225,1234,1237,1239,1241,1243,1245-1247,1249,1291,1361,1368,1433,1448,1465,1481,1483,1492-1494
+apps/admin/src/features/themes/Themes.tsx	lines 100.0 br 98.81 fn 100.0	0.00/0.00/0.00	42,60,69,98,100,115,125,177-178,190,203,212-213,238,240-241,255-256,284-286,320-321,329,361,368,419-421,423-425,435-436,443-446,460,517,532,547,569-571,603-604,607,613-614,617,622,626,634,671
+apps/admin/src/features/themes/hooks/held-back-themes-dependencies.hooks.ts	lines 95.24 br 96.55 fn 92.86	100.00/93.10/100.00	
+apps/admin/src/features/themes/hooks/use-held-back-themes.hooks.ts	lines 96.3 br 90.0 fn 90.48	98.15/86.67/100.00	86
+apps/admin/src/features/themes/hooks/use-theme-explore-file-groups.hooks.ts	lines 100.0 br 96.97 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts	lines 100.0 br 99.35 fn 100.0	1.14/0.33/0.78	146,170,196-199,338-339,343,354,376,400-402,425-427,430-431,445-446,462,474,500-504,523,534-535,555-556,558,591,605,618,647-649,651,656,664,681-682,694-697,720,750-751,778-779,781,835-836,860-862,871-872,874,893-895,902,905-908,911-914,916-926,931,935,938,942,945-952,954-958,967-968,977-980,984-986,993-995,998-1001,1003,1010,1018,1026-1030,1033,1035-1036,1042,1045,1047-1048,1063-1067,1074-1075,1078-1080,1082-1085,1087-1088,1092-1093,1098-1102,1108-1109,1113-1115,1117-1122,1125,1127-1129,1131-1132,1139,1155,1158-1165,1167-1178,1180-1182,1188-1191,1201-1212,1214-1215,1220-1222,1225-1226,1228,1235-1243,1245-1246,1248,1250,1260-1266,1272-1276,1278-1280,1282-1284,1286-1287,1289,1291,1299-1311,1313-1314,1316,1318-1319,1336,1338-1344,1349,1351-1355,1357-1359,1364,1366-1369,1371-1372,1374-1377,1383,1385-1389,1391-1393,1398-1400,1409-1413,1415-1417,1419-1421,1423-1425,1428-1432,1435-1436,1439-1443,1446,1455,1464,1466-1473,1476-1480,1482-1483,1486-1489,1491,1493-1494,1506,1508-1512,1514-1515,1520,1533-1540,1544-1551,1554-1557,1559,1561,1583,1585-1591,1593-1594,1611,1613-1621,1623,1625,1643,1645-1648,1650-1651,1654,1669,1671,1675-1676,1713-1715
+apps/admin/src/features/themes/theme-preview-refresh.ts	lines 100.0 br 95.0 fn 100.0	8.70/0.00/0.00	15-19,21,27-29,33-34,42-45,47,49,51-52,58,66
+apps/admin/src/features/users/hooks/use-wired-users.hooks.ts	lines 100.0 br 50.0 fn 75.0	0.00/0.00/0.00	20-21,38-39
+apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts	lines 100.0 br 97.83 fn 100.0	100.00/97.83/100.00	
+apps/admin/src/features/workspace/hooks/workspace-dependencies.hooks.ts	lines 75.0 br 100.0 fn 71.43	100.00/100.00/100.00	
+apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts	lines 90.62 br 92.86 fn 78.12	95.31/90.48/87.50	54,57-58

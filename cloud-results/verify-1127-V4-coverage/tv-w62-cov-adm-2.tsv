@@ -1,0 +1,30 @@
+file	before	after(lines/br/fn)	uncovered
+apps/admin/src/hooks/use-admin-execution-credential.hooks.ts	lines 96.0 br 93.33 fn 94.44	100.00/100.00/100.00	
+apps/admin/src/hooks/use-assistant-chats.hooks.ts	lines 100.0 br 80.0 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/analytics-page.ts	lines 0.0 br 0.0 fn 0.0	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/consent-screen.tsx	lines 0.0 br 0.0 fn 0.0	100.00/100/100.00	
+apps/admin/src/integrations/jini-admin/kit.ts	lines 100.0 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/modules.hooks.ts	lines 100.0 br 95.92 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/security-module.hooks.ts	lines 88.24 br 100.0 fn 50.0	100.00/100.00/91.67	
+apps/admin/src/integrations/jini-admin/security-ports.ts	lines 95.0 br 85.71 fn 90.91	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/settings-external-mcp-oauth-connect.hooks.ts	lines 80.0 br 85.71 fn 66.67	100.00/85.71/100.00	
+apps/admin/src/integrations/jini-admin/settings-external-mcp-shared-choice.hooks.ts	lines 75.0 br 66.67 fn 83.33	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/site-update-notice.hooks.ts	lines 91.67 br 100.0 fn 80.0	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-admin/site-update-notice.tsx	lines 100.0 br 61.54 fn 83.33	100.00/100.00/100.00	
+apps/admin/src/integrations/jini-kits.ts	lines 100.0 br 83.33 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/lib/admin-nav-i18n.ts	lines 100.0 br 50.0 fn 100.0	100.00/50.00/100.00	
+apps/admin/src/lib/agent-navigation-entities.ts	lines 66.67 br 64.29 fn 57.14	100.00/92.86/100.00	
+apps/admin/src/lib/assistant-chats.ts	lines 77.27 br 78.95 fn 71.43	100.00/100.00/100.00	
+apps/admin/src/lib/assistant-transport-ag-ui.ts	lines 95.77 br 76.79 fn 94.44	100.00/87.50/100.00	
+apps/admin/src/lib/assistant-transport.ts	lines 100.0 br 80.77 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/lib/browser-telemetry.ts	lines 71.43 br 66.67 fn 66.67	85.71/100.00/83.33	30
+apps/admin/src/lib/chat-attachment-liveness.ts	lines 100.0 br 66.67 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/lib/media-image-extension.tsx	lines 100.0 br 90.48 fn 100.0	100.00/90.48/100.00	
+apps/admin/src/lib/settings-tabs.ts	lines 94.44 br 50.0 fn 66.67	100.00/100.00/100.00	
+apps/admin/src/lib/shell-collaborators.ts	lines 95.45 br 100.0 fn 88.89	95.45/100.00/88.89	42
+apps/admin/src/lib/shell-notices-wiring.tsx	lines 100.0 br 85.71 fn 100.0	100.00/100.00/100.00	
+apps/admin/src/lib/widget-embed-extension.tsx	lines 94.59 br 96.55 fn 91.3	100.00/96.55/100.00	
+apps/admin/src/main.tsx	lines 100.0 br 87.5 fn 66.67	100.00/100.00/66.67	
+apps/admin/src/panel-pages.ts	lines 100.0 br 100.0 fn 84.15	100.00/100/91.46	
+apps/admin/src/panels.tsx	lines 98.8 br 98.73 fn 98.21	100.00/100.00/100.00	
+apps/admin/src/site-section-availability.hooks.ts	lines 100.0 br 97.3 fn 100.0	100.00/97.30/100.00	
