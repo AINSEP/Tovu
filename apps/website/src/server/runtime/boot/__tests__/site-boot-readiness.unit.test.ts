@@ -6,7 +6,7 @@ import test from "node:test";
 import { awaitSiteBootReadiness, SITE_BOOT_READINESS_KEYS } from "../site-boot-readiness.js";
 
 /**
- * @file The boot-readiness list both top-level boot paths (`index.ts`, `cli/commands/serve.ts`)
+ * @file The boot-readiness list both top-level boot paths (`index.ts`, `cli/commands/serve-listen.ts`, reached from `serve.ts`)
  * await before spawning the agent daemon used to be hand-copied into each. A key added to one copy
  * and not the other reopens the first-boot seeding race the list exists to close (see
  * `site-boot-readiness.ts`'s header), so it now lives in one module both call.
@@ -61,7 +61,7 @@ test("awaitSiteBootReadiness rejects with the first rejection so the caller can 
 
 test("both top-level boot paths await the shared list instead of an inline copy", () => {
   const src = path.resolve(import.meta.dirname, "../../../..");
-  for (const file of ["index.ts", "cli/commands/serve.ts"]) {
+  for (const file of ["index.ts", "cli/commands/serve-listen.ts"]) {
     const source = fs.readFileSync(path.join(src, file), "utf8");
     assert.ok(source.includes("awaitSiteBootReadiness({ deps })"), `${file} must await awaitSiteBootReadiness({ deps })`);
     assert.ok(!/Promise\.all\(\[\s*deps\.identityReady/.test(source), `${file} still carries an inline readiness Promise.all copy`);
