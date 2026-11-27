@@ -1,5 +1,5 @@
 file	lines%	branches%	functions%	uncovered_source_lines	uncovered_line_count	line_total	branch_hit/total fn_hit/total
-apps/desktop/src/add-site-pointer.ts	100.0	100.0	100.0		0	208	19/19 6/6
+apps/desktop/src/add-site-pointer.ts	100.0	100.0	100.0		0	208	19/19 9/9
 apps/desktop/src/admin-dev-proxy.ts	100.0	100.0	100.0		0	157	25/25 7/7
 apps/desktop/src/agent-plugin-tokens.ts	100.0	100.0	100.0		0	154	33/33 13/13
 apps/desktop/src/app-version-ipc.ts	90.38	85.71	66.67	13-17	5	52	6/7 2/3
@@ -22,18 +22,18 @@ apps/desktop/src/contracts/working-directory.ts	100.0	100.0	100.0		0	17	1/1 0/0
 apps/desktop/src/contracts/workspace-chat.ts	100.0	100.0	100.0		0	127	9/9 3/3
 apps/desktop/src/contracts/workspace-conversations.ts	100.0	100.0	100.0		0	52	1/1 0/0
 apps/desktop/src/contracts/zoom.ts	100.0	100.0	100.0		0	23	1/1 0/0
-apps/desktop/src/coverage-floors.ts	100.0	92.98	100.0		0	399	106/114 45/45
+apps/desktop/src/coverage-floors.ts	100.0	92.98	100.0		0	399	106/114 46/46
 apps/desktop/src/desktop-agent-service.ts	100.0	80.49	90.0		0	380	99/123 45/50
-apps/desktop/src/desktop-agent-tools.ts	100.0	100.0	100.0		0	187	33/33 11/11
+apps/desktop/src/desktop-agent-tools.ts	100.0	100.0	100.0		0	187	33/33 14/14
 apps/desktop/src/desktop-agent.ts	100.0	98.63	98.39		0	535	144/146 61/62
 apps/desktop/src/desktop-auth.ts	100.0	100.0	100.0		0	316	20/20 12/12
-apps/desktop/src/desktop-capture.ts	100.0	100.0	100.0		0	95	47/47 37/37
+apps/desktop/src/desktop-capture.ts	100.0	100.0	97.5		0	95	47/47 39/40
 apps/desktop/src/desktop-chat-main.ts	100.0	100.0	88.89		0	96	14/14 8/9
 apps/desktop/src/desktop-host-signals.ts	100.0	100.0	100.0		0	31	6/6 2/2
-apps/desktop/src/desktop-i18n.ts	100.0	70.0	100.0		0	184	14/20 5/5
-apps/desktop/src/desktop-mcp-http.ts	100.0	78.95	85.71		0	82	30/38 12/14
-apps/desktop/src/desktop-partition-lock.ts	100.0	88.75	98.15		0	260	71/80 53/54
-apps/desktop/src/desktop-resources.ts	100.0	96.04	95.24		0	237	97/101 40/42
+apps/desktop/src/desktop-i18n.ts	100.0	70.0	100.0		0	184	14/20 4/4
+apps/desktop/src/desktop-mcp-http.ts	100.0	78.95	80.0		0	82	30/38 12/15
+apps/desktop/src/desktop-partition-lock.ts	100.0	88.75	98.18		0	260	71/80 54/55
+apps/desktop/src/desktop-resources.ts	100.0	96.04	97.44		0	237	97/101 38/39
 apps/desktop/src/desktop-update-preference.ts	100.0	100.0	100.0		0	30	6/6 5/5
 apps/desktop/src/desktop-user-data-dir.ts	100.0	100.0	100.0		0	69	10/10 1/1
 apps/desktop/src/dist-import-check.ts	100.0	100.0	100.0		0	38	10/10 3/3
@@ -43,9 +43,9 @@ apps/desktop/src/find-in-page-ipc.ts	100.0	100.0	100.0		0	73	15/15 13/13
 apps/desktop/src/main/boot/boot-failure.ts	100.0	100.0	100.0		0	105	16/16 7/7
 apps/desktop/src/main/boot/boot-sequence.ts	100.0	100.0	100.0		0	194	16/16 6/6
 apps/desktop/src/main/boot/boot-steps.ts	100.0	100.0	100.0		0	183	27/27 11/11
-apps/desktop/src/main/boot/desktop-cache-policy.ts	97.82	81.82	96.15	95-98,185	5	229	36/44 25/26
+apps/desktop/src/main/boot/desktop-cache-policy.ts	97.82	81.82	96.55	95-98,185	5	229	36/44 28/29
 apps/desktop/src/main/boot/desktop-partition-pass.ts	98.39	92.0	86.67	107-108	2	124	23/25 13/15
-apps/desktop/src/main/boot/own-server-boot.ts	100.0	100.0	100.0		0	200	34/34 10/10
+apps/desktop/src/main/boot/own-server-boot.ts	100.0	100.0	100.0		0	200	34/34 11/11
 apps/desktop/src/main/boot/routine-desktop.ts	100.0	100.0	50.0		0	35	3/3 1/2
 apps/desktop/src/main/boot/routine-sites.ts	100.0	100.0	100.0		0	164	47/47 12/12
 apps/desktop/src/main/boot/routine-wake.ts	100.0	100.0	100.0		0	110	22/22 9/9
@@ -55,12 +55,12 @@ apps/desktop/src/main/boot/site-preview.ts	100.0	92.5	100.0		0	116	37/40 10/10
 apps/desktop/src/main/boot/storage-idle-compaction.ts	100.0	96.67	80.0		0	81	29/30 4/5
 apps/desktop/src/main/boot/storage-sheet-binding.ts	100.0	100.0	100.0		0	71	9/9 5/5
 apps/desktop/src/main/boot/storage-sheet-sources.ts	100.0	91.49	96.43		0	143	43/47 27/28
-apps/desktop/src/main/index.ts	46.4	12.5	0.0	230-340,356-428,443-445,448-451,454-457,464-467,487-499,515-520,525-527,530-531,577,596-598,604-606,620-623,626,629-635,638-651,695-703,722-741,752-754,764-769,775-790,793-803,812-817,819-821,824-829,832-835,843-846,849,853-858,861-873,875-877,897,899-901,905-913,916-921,930-937,940-966,975-998,1001-1004,1007-1009,1012-1016,1019-1026,1030-1130,1132-1141,1144-1148,1153-1162,1165-1170,1173-1197,1200-1202,1205-1223,1226-1230,1233-1251,1280-1328,1337-1339,1342,1346	722	1347	1/8 0/124
+apps/desktop/src/main/index.ts	46.4	12.5	0.0	230-340,356-428,443-445,448-451,454-457,464-467,487-499,515-520,525-527,530-531,577,596-598,604-606,620-623,626,629-635,638-651,695-703,722-741,752-754,764-769,775-790,793-803,812-817,819-821,824-829,832-835,843-846,849,853-858,861-873,875-877,897,899-901,905-913,916-921,930-937,940-966,975-998,1001-1004,1007-1009,1012-1016,1019-1026,1030-1130,1132-1141,1144-1148,1153-1162,1165-1170,1173-1197,1200-1202,1205-1223,1226-1230,1233-1251,1280-1328,1337-1339,1342,1346	722	1347	1/8 0/137
 apps/desktop/src/main/spellcheck-labels.ts	100.0	100.0	100.0		0	7	1/1 0/0
 apps/desktop/src/main/updates/desktop-updater.ts	100.0	100.0	100.0		0	67	9/9 6/6
-apps/desktop/src/main/updates/native-notices.ts	100.0	100.0	100.0		0	57	10/10 6/6
+apps/desktop/src/main/updates/native-notices.ts	100.0	100.0	100.0		0	57	10/10 7/7
 apps/desktop/src/main/updates/product-telemetry-boot.ts	100.0	100.0	100.0		0	209	39/39 26/26
-apps/desktop/src/main/updates/settings-menu.ts	100.0	95.0	90.0		0	123	19/20 9/10
+apps/desktop/src/main/updates/settings-menu.ts	100.0	95.0	84.62		0	123	19/20 11/13
 apps/desktop/src/main/updates/site-update-host.ts	100.0	100.0	100.0		0	55	14/14 6/6
 apps/desktop/src/main/windows/app-window.ts	100.0	100.0	100.0		0	66	6/6 3/3
 apps/desktop/src/main/windows/dock-icon.ts	100.0	75.0	100.0		0	26	3/4 2/2
@@ -74,33 +74,33 @@ apps/desktop/src/move-to-applications.ts	100.0	100.0	100.0		0	51	5/5 4/4
 apps/desktop/src/nested-sites-migration.ts	100.0	100.0	100.0		0	88	39/39 10/10
 apps/desktop/src/node-toolchain-host.ts	100.0	100.0	100.0		0	11	1/1 0/0
 apps/desktop/src/owner-store-cli.ts	100.0	91.67	80.0		0	170	55/60 20/25
-apps/desktop/src/owner-store-ipc.ts	100.0	96.15	100.0		0	219	100/104 33/33
+apps/desktop/src/owner-store-ipc.ts	100.0	96.15	100.0		0	219	100/104 40/40
 apps/desktop/src/packaged-gate-isolation.ts	100.0	100.0	100.0		0	22	2/2 1/1
 apps/desktop/src/packaged-paths.ts	100.0	100.0	100.0		0	124	4/4 1/1
-apps/desktop/src/preload/preload.mts	99.12	98.7	100.0	94-95	2	228	76/77 74/74
-apps/desktop/src/product-memory-telemetry.ts	100.0	97.92	100.0		0	98	47/48 12/12
+apps/desktop/src/preload/preload.mts	99.12	98.7	98.68	94-95	2	228	76/77 75/76
+apps/desktop/src/product-memory-telemetry.ts	100.0	97.92	100.0		0	98	47/48 13/13
 apps/desktop/src/product-telemetry-ipc.ts	100.0	98.11	100.0		0	78	52/53 11/11
 apps/desktop/src/product-telemetry-preference.ts	100.0	100.0	100.0		0	96	47/47 10/10
 apps/desktop/src/product-telemetry.ts	100.0	95.0	100.0		0	88	38/40 9/9
-apps/desktop/src/project-ipc.catalog.ts	100.0	98.81	100.0		0	215	83/84 24/24
+apps/desktop/src/project-ipc.catalog.ts	100.0	98.81	100.0		0	215	83/84 26/26
 apps/desktop/src/project-ipc.create.ts	100.0	100.0	100.0		0	160	44/44 7/7
 apps/desktop/src/project-ipc.delete.ts	100.0	96.72	100.0		0	307	59/61 20/20
 apps/desktop/src/project-ipc.import.ts	100.0	95.56	100.0		0	124	43/45 8/8
 apps/desktop/src/project-ipc.records.ts	100.0	100.0	100.0		0	169	66/66 9/9
 apps/desktop/src/project-ipc.rename.ts	100.0	92.0	100.0		0	147	23/25 5/5
-apps/desktop/src/project-ipc.server.ts	100.0	98.59	100.0		0	247	70/71 18/18
-apps/desktop/src/project-ipc.site-lifecycle.ts	99.73	88.18	91.43	255	1	364	97/110 32/35
+apps/desktop/src/project-ipc.server.ts	100.0	98.59	100.0		0	247	70/71 22/22
+apps/desktop/src/project-ipc.site-lifecycle.ts	99.73	88.18	86.84	255	1	364	97/110 33/38
 apps/desktop/src/project-ipc.ts	100.0	97.37	87.8		0	238	74/76 36/41
 apps/desktop/src/project-ipc.types.ts	100.0	100.0	100.0		0	253	1/1 0/0
 apps/desktop/src/renderer/App.hooks.ts	33.33	100.0	100.0	1-30	30	45	1/1 0/0
 apps/desktop/src/renderer/App.tsx	100.0	100.0	92.31		0	402	38/38 24/26
-apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	100.0	100.0	100.0		0	440	34/34 13/13
-apps/desktop/src/renderer/ImportWebsite.tsx	94.94	92.86	69.23	1-8	8	158	26/28 9/13
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	100.0	100.0	100.0		0	440	34/34 19/19
+apps/desktop/src/renderer/ImportWebsite.tsx	94.94	92.86	66.67	1-8	8	158	26/28 10/15
 apps/desktop/src/renderer/ResourcesPanel.tsx	99.4	97.47	100.0	140	1	166	77/79 23/23
 apps/desktop/src/renderer/SharedKeys.hooks.ts	98.71	89.29	100.0	1,147	2	155	50/56 20/20
-apps/desktop/src/renderer/SharedKeys.tsx	99.35	86.27	87.5	1	1	153	44/51 14/16
+apps/desktop/src/renderer/SharedKeys.tsx	99.35	86.27	85.71	1	1	153	44/51 18/21
 apps/desktop/src/renderer/SiteGrid.hooks.ts	86.75	96.0	100.0	1-10,14-23	20	151	48/50 8/8
-apps/desktop/src/renderer/SiteGrid.tsx	100.0	100.0	100.0		0	761	91/91 29/29
+apps/desktop/src/renderer/SiteGrid.tsx	100.0	100.0	100.0		0	761	91/91 42/42
 apps/desktop/src/renderer/SitesFolders.tsx	99.22	100.0	100.0	1	1	129	19/19 6/6
 apps/desktop/src/renderer/app-hooks.test-support.ts	90.79	100.0	100.0	1-6,59	7	76	24/24 21/21
 apps/desktop/src/renderer/app-render-harness.ts	100.0	96.49	58.89		0	131	55/57 53/90
@@ -109,13 +109,13 @@ apps/desktop/src/renderer/app/CreateWebsiteHost.tsx	97.56	100.0	100.0	27	1	41	4/
 apps/desktop/src/renderer/app/LoadedSitesStepper.tsx	80.77	100.0	100.0	1-4,16	5	26	5/5 1/1
 apps/desktop/src/renderer/app/MainArea.tsx	97.3	100.0	100.0	1-3	3	111	14/14 2/2
 apps/desktop/src/renderer/app/MainContent.tsx	98.74	100.0	100.0	1-2	2	159	20/20 4/4
-apps/desktop/src/renderer/app/MainHeader.tsx	98.61	100.0	100.0	15	1	72	15/15 3/3
-apps/desktop/src/renderer/app/SettingsControl.tsx	100.0	97.92	94.12		0	200	47/48 16/17
+apps/desktop/src/renderer/app/MainHeader.tsx	98.61	100.0	100.0	15	1	72	15/15 4/4
+apps/desktop/src/renderer/app/SettingsControl.tsx	100.0	97.92	95.24		0	200	47/48 20/21
 apps/desktop/src/renderer/app/SiteStartPanel.tsx	100.0	100.0	100.0		0	113	28/28 7/7
-apps/desktop/src/renderer/app/SiteWorkspace.tsx	100.0	100.0	100.0		0	361	44/44 11/11
-apps/desktop/src/renderer/app/StorageSheet.tsx	90.74	88.46	92.31	1-9,101	10	108	23/26 12/13
+apps/desktop/src/renderer/app/SiteWorkspace.tsx	100.0	100.0	100.0		0	361	44/44 12/12
+apps/desktop/src/renderer/app/StorageSheet.tsx	90.74	88.46	75.0	1-9,101	10	108	23/26 12/16
 apps/desktop/src/renderer/app/TabCloseAsk.tsx	82.86	87.5	50.0	1-5,11	6	35	7/8 1/2
-apps/desktop/src/renderer/app/TabStrip.tsx	99.1	100.0	100.0	49	1	111	30/30 7/7
+apps/desktop/src/renderer/app/TabStrip.tsx	99.1	100.0	100.0	49	1	111	30/30 8/8
 apps/desktop/src/renderer/app/TopNav.tsx	100.0	100.0	100.0		0	125	20/20 3/3
 apps/desktop/src/renderer/app/component-harness.ts	90.22	92.59	82.76	1-8,102	9	92	25/27 24/29
 apps/desktop/src/renderer/app/find-bar-labels.ts	90.91	100.0	100.0	3	1	11	1/1 0/0
@@ -136,7 +136,7 @@ apps/desktop/src/renderer/site-shell-policy.ts	100.0	100.0	100.0		0	58	51/51 8/8
 apps/desktop/src/renderer/site-status.ts	100.0	100.0	100.0		0	17	2/2 0/0
 apps/desktop/src/renderer/site-theme-preview.hooks.ts	100.0	100.0	100.0		0	53	38/38 7/7
 apps/desktop/src/renderer/sites-home-view.ts	78.87	100.0	100.0	1-4,25-34,86	15	71	26/26 6/6
-apps/desktop/src/renderer/source-test-harness.ts	89.47	91.67	75.0	52-59	8	76	22/24 9/12
+apps/desktop/src/renderer/source-test-harness.ts	89.47	91.67	72.73	52-59	8	76	22/24 8/11
 apps/desktop/src/renderer/storage-sheet-slot.tsx	65.28	92.86	57.14	1-5,44-63	25	72	13/14 4/7
 apps/desktop/src/renderer/theme.ts	86.21	100.0	100.0	1-4	4	29	4/4 3/3
 apps/desktop/src/renderer/tool-icons.tsx	91.25	100.0	100.0	1-7	7	80	3/3 2/2
@@ -178,36 +178,36 @@ apps/desktop/src/renderer/use-zoom.hooks.ts	72.0	100.0	100.0	1-6,20	7	25	4/4 1/1
 apps/desktop/src/renderer/workspace-chat-transport.ts	100.0	99.24	100.0		0	408	130/131 44/44
 apps/desktop/src/resources-ipc.ts	100.0	100.0	100.0		0	30	13/13 3/3
 apps/desktop/src/runner-ipc-stubs.ts	100.0	100.0	100.0		0	117	5/5 3/3
-apps/desktop/src/shared-sites.ts	100.0	98.84	100.0		0	222	85/86 22/22
+apps/desktop/src/shared-sites.ts	100.0	98.84	100.0		0	222	85/86 23/23
 apps/desktop/src/site-archive-import.ts	100.0	90.91	87.5		0	172	40/44 21/24
 apps/desktop/src/site-cache-trim.ts	100.0	100.0	100.0		0	45	10/10 1/1
 apps/desktop/src/site-child-registry.ts	99.31	97.73	95.45	83-84	2	290	43/44 21/22
 apps/desktop/src/site-config.ts	100.0	100.0	100.0		0	166	42/42 6/6
-apps/desktop/src/site-dir-store.ts	100.0	97.0	100.0		0	597	97/100 28/28
+apps/desktop/src/site-dir-store.ts	100.0	97.0	100.0		0	597	97/100 29/29
 apps/desktop/src/site-directory-identity.ts	100.0	96.77	100.0		0	99	30/31 17/17
 apps/desktop/src/site-discovery-scan.ts	100.0	100.0	100.0		0	40	7/7 3/3
 apps/desktop/src/site-discovery-worker.ts	100.0	100.0	100.0		0	6	1/1 0/0
 apps/desktop/src/site-discovery.ts	100.0	100.0	100.0		0	59	25/25 12/12
-apps/desktop/src/site-folders.ts	100.0	100.0	100.0		0	164	64/64 21/21
+apps/desktop/src/site-folders.ts	100.0	100.0	100.0		0	164	64/64 28/28
 apps/desktop/src/site-name-policy.ts	100.0	100.0	100.0		0	32	13/13 6/6
 apps/desktop/src/site-name.ts	100.0	100.0	100.0		0	22	7/7 3/3
 apps/desktop/src/site-power-verify.ts	100.0	100.0	100.0		0	165	33/33 8/8
 apps/desktop/src/site-preview-store.ts	100.0	100.0	100.0		0	214	22/22 9/9
-apps/desktop/src/site-retirement.ts	100.0	86.96	100.0		0	130	20/23 9/9
+apps/desktop/src/site-retirement.ts	100.0	86.96	80.0		0	130	20/23 12/15
 apps/desktop/src/site-scan-policy.ts	100.0	100.0	100.0		0	40	20/20 5/5
 apps/desktop/src/site-theme-preview-ipc.ts	100.0	100.0	100.0		0	75	42/42 9/9
 apps/desktop/src/site-theme-preview.ts	100.0	98.15	100.0		0	123	53/54 15/15
-apps/desktop/src/site-view-preference.ts	100.0	100.0	100.0		0	112	32/32 17/17
+apps/desktop/src/site-view-preference.ts	100.0	100.0	100.0		0	112	32/32 21/21
 apps/desktop/src/sites-mcp-identity.ts	100.0	100.0	100.0		0	10	1/1 0/0
 apps/desktop/src/sites-mcp-tools.ts	100.0	98.08	100.0		0	395	51/52 21/21
 apps/desktop/src/smoke-bridge.ts	100.0	94.68	100.0		0	300	89/94 27/27
 apps/desktop/src/smoke-native.ts	100.0	100.0	100.0		0	309	42/42 11/11
-apps/desktop/src/smoke-packaged-chat-gate.ts	100.0	100.0	100.0		0	428	144/144 38/38
+apps/desktop/src/smoke-packaged-chat-gate.ts	100.0	100.0	100.0		0	428	144/144 42/42
 apps/desktop/src/smoke-packaged-chat.ts	100.0	100.0	100.0		0	202	113/113 25/25
 apps/desktop/src/speech/preload-speech.cts	MISSING	MISSING	MISSING	not-in-lcov			
 apps/desktop/src/speech/speech-host-config.ts	100.0	100.0	100.0		0	45	9/9 7/7
-apps/desktop/src/stage-payload-lib.ts	100.0	99.33	100.0		0	710	149/150 46/46
-apps/desktop/src/stage-payload-run.ts	100.0	97.2	97.56		0	485	104/107 40/41
+apps/desktop/src/stage-payload-lib.ts	100.0	99.33	100.0		0	710	149/150 48/48
+apps/desktop/src/stage-payload-run.ts	100.0	97.2	97.73		0	485	104/107 43/44
 apps/desktop/src/staged-closure-scan.ts	100.0	100.0	100.0		0	22	4/4 2/2
 apps/desktop/src/startup-env.ts	100.0	96.97	100.0		0	95	32/33 7/7
 apps/desktop/src/storage/storage-item-ids.ts	100.0	94.74	100.0		0	67	18/19 7/7
@@ -216,12 +216,12 @@ apps/desktop/src/storage/storage-sheet-actions.ts	100.0	80.77	100.0		0	106	42/52
 apps/desktop/src/storage/storage-sheet-ipc.ts	99.42	86.44	100.0	154	1	171	51/59 19/19
 apps/desktop/src/storage/trash-dismissed-folder.ts	100.0	90.32	100.0		0	64	28/31 7/7
 apps/desktop/src/tovu-server.output.ts	100.0	89.47	100.0		0	63	17/19 4/4
-apps/desktop/src/tovu-server.ts	100.0	96.64	100.0		0	972	115/119 41/41
+apps/desktop/src/tovu-server.ts	100.0	96.64	100.0		0	972	115/119 42/42
 apps/desktop/src/tracked-site-relocation.ts	100.0	100.0	100.0		0	147	44/44 20/20
-apps/desktop/src/tracked-sites.ts	99.86	100.0	97.96	132	1	729	143/143 48/49
+apps/desktop/src/tracked-sites.ts	99.86	100.0	98.25	132	1	729	143/143 56/57
 apps/desktop/src/update-check-now.ts	92.22	88.46	88.89	47-48,86-90	7	90	23/26 8/9
 apps/desktop/src/update-policy.ts	100.0	100.0	100.0		0	21	3/3 2/2
 apps/desktop/src/verify-package-cli.ts	100.0	100.0	100.0		0	180	38/38 15/15
 apps/desktop/src/workspace-chat-ipc.ts	100.0	100.0	100.0		0	243	71/71 32/32
-apps/desktop/src/workspace-conversation-store.ts	100.0	100.0	100.0		0	145	57/57 28/28
+apps/desktop/src/workspace-conversation-store.ts	100.0	100.0	100.0		0	145	57/57 32/32
 apps/desktop/src/zoom-menu.ts	100.0	100.0	100.0		0	51	12/12 7/7

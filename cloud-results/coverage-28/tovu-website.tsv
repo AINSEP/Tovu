@@ -1,0 +1,1520 @@
+file	lines%	branches%	functions%	uncovered_source_lines	uncovered_line_count	line_total	branch_hit/total fn_hit/total
+apps/site-chat/src/SiteAssistantActivation.hooks.ts	100.0	100.0	100.0		0	68	30/30 15/15
+apps/site-chat/src/SiteAssistantHeader.hooks.ts	100.0	100.0	100.0		0	20	11/11 5/5
+apps/site-chat/src/SiteAssistantHeader.tsx	47.37	100.0	100.0	1-2,4-10,12	10	19	3/3 1/1
+apps/site-chat/src/SiteAssistantWidget.hooks.ts	100.0	100.0	86.67		0	78	14/14 13/15
+apps/site-chat/src/SiteAssistantWidget.tsx	48.91	85.71	100.0	1-2,4,6-49	47	92	6/7 3/3
+apps/site-chat/src/SiteToolConfirmation.hooks.ts	100.0	100.0	100.0		0	34	17/17 6/6
+apps/site-chat/src/jini-kits.ts	100.0	100.0	100.0		0	8	1/1 0/0
+apps/site-chat/src/jini-surfaces.ts	66.67	100.0	100.0	1-6	6	18	1/1 0/0
+apps/site-chat/src/loader-entry.ts	100.0	100.0	100.0		0	5	1/1 0/0
+apps/site-chat/src/loader-host.ts	100.0	100.0	100.0		0	54	25/25 6/6
+apps/site-chat/src/main.tsx	44.0	100.0	100.0	1,3-9,11-13,15-29,31-32	28	50	2/2 1/1
+apps/site-chat/src/remixicon-override.ts	13.64	100.0	100.0	1-57	57	66	2/2 1/1
+apps/site-chat/src/session-store.ts	100.0	96.55	100.0		0	143	28/29 14/14
+apps/site-chat/src/site-assistant-errors.ts	75.68	72.73	100.0	1-6,8-9,28	9	37	8/11 1/1
+apps/site-chat/src/site-assistant-transport.ts	89.44	83.09	83.93	1-28,297-303,314-329,402-406,586,592	58	549	113/136 47/56
+apps/site-chat/src/site-chat-comparison.ts	97.3	100.0	100.0	1	1	37	15/15 3/3
+apps/site-chat/src/site-chat-i18n.ts	97.83	93.75	100.0	1	1	46	15/16 6/6
+apps/site-chat/src/tool-confirmation.ts	78.12	37.5	66.67	28-34	7	32	3/8 2/3
+apps/site-chat/src/vanilla-entry.ts	100.0	100.0	100.0		0	7	1/1 0/0
+apps/site-chat/src/vanilla-host.ts	94.67	85.71	71.43	75-78	4	75	18/21 10/14
+apps/site-chat/src/vanilla-tool-confirmation.ts	98.98	97.62	100.0	1	1	98	41/42 15/15
+apps/site-chat/src/visitor-page-control.ts	100.0	68.18	78.05		0	180	45/66 32/41
+apps/site-chat/src/visitor-site-path.ts	97.62	55.56	100.0	39	1	42	5/9 4/4
+apps/website/src/assistant/a2ui-actions-route.ts	98.91	100.0	100.0	97	1	92	2/2 1/1
+apps/website/src/assistant/admin-ag-ui-approvals.ts	66.12	100.0	14.29	68-71,79,81-92,97-99,107,109-116,122-129,136-139	41	121	2/2 1/7
+apps/website/src/assistant/admin-frontend-owner.ts	56.0	100.0	0.0	12-16,22-27	11	25	1/1 0/2
+apps/website/src/assistant/admin-screen-link-tool.ts	100.0	94.44	100.0		0	204	17/18 5/5
+apps/website/src/assistant/agent-daemon-port.ts	76.83	100.0	100.0	1-19	19	82	1/1 0/0
+apps/website/src/assistant/agent-session-preset.ts	87.5	100.0	100.0	1,15	2	16	6/6 5/5
+apps/website/src/assistant/agents.ts	95.8	97.8	100.0	1-9,280	10	238	89/91 32/32
+apps/website/src/assistant/ask-choice-custom-answer.ts	97.5	75.0	100.0	36	1	40	3/4 2/2
+apps/website/src/assistant/ask-choice-tool.ts	100.0	89.06	97.96		0	553	114/128 48/49
+apps/website/src/assistant/ask-choice-ui-resource.ts	96.97	100.0	100.0	31	1	33	15/15 4/4
+apps/website/src/assistant/assistant-permanent-deletes-policy.ts	100.0	100.0	100.0		0	13	10/10 2/2
+apps/website/src/assistant/assistant-tool-approval-policy.ts	100.0	100.0	100.0		0	26	12/12 3/3
+apps/website/src/assistant/assistant-vault-compat.ts	100.0	94.12	100.0		0	51	16/17 5/5
+apps/website/src/assistant/assistant-vault.ts	100.0	94.0	66.67		0	99	47/50 14/21
+apps/website/src/assistant/batch-tool-inputs.ts	100.0	95.45	100.0		0	156	21/22 12/12
+apps/website/src/assistant/byok-credential.ts	73.33	100.0	100.0	1-8	8	30	3/3 2/2
+apps/website/src/assistant/byok-tool-surface.ts	93.54	67.72	86.15	288-289,311-318,320-321,338-345,349,386-387,390-401,617-618,707-714	45	697	86/127 56/65
+apps/website/src/assistant/cli-permission-layer.ts	94.74	100.0	100.0	16	1	19	3/3 2/2
+apps/website/src/assistant/component-catalog-query.ts	99.09	100.0	100.0	94	1	110	26/26 16/16
+apps/website/src/assistant/component-catalog-tool.ts	100.0	93.75	100.0		0	167	15/16 7/7
+apps/website/src/assistant/content-read-tool.ts	98.89	91.3	100.0	275-276,498-499,527-528	6	540	105/115 35/35
+apps/website/src/assistant/content-target-inputs.ts	100.0	98.97	100.0		0	146	96/97 17/17
+apps/website/src/assistant/credential-chat-intake.ts	97.62	95.24	100.0	18	1	42	20/21 2/2
+apps/website/src/assistant/credential-guidance.ts	92.86	100.0	100.0	1	1	14	1/1 0/0
+apps/website/src/assistant/credential-store-fields.ts	94.12	96.3	50.0	12	1	17	26/27 3/6
+apps/website/src/assistant/daemon-access.ts	97.78	86.67	100.0	1,96	2	90	26/30 16/16
+apps/website/src/assistant/daemon-core-protocol.ts	100.0	100.0	100.0		0	29	5/5 4/4
+apps/website/src/assistant/daemon-respawn-policy.ts	63.33	100.0	100.0	1-10,25	11	30	2/2 1/1
+apps/website/src/assistant/demo-a2ui-tool.ts	55.74	100.0	42.86	103-133,135-160,164-210	104	235	4/4 3/7
+apps/website/src/assistant/demo-choices-tool.ts	100.0	100.0	100.0		0	275	29/29 8/8
+apps/website/src/assistant/demo-image-tool.ts	100.0	100.0	100.0		0	90	4/4 3/3
+apps/website/src/assistant/desktop-mcp-runtime.ts	98.68	100.0	90.91	1	1	76	25/25 10/11
+apps/website/src/assistant/duplicate-resource-registry.ts	46.15	100.0	100.0	1-33,39,65	35	65	8/8 4/4
+apps/website/src/assistant/durable-runs/accept.ts	83.33	100.0	100.0	5	1	6	2/2 1/1
+apps/website/src/assistant/execution-credential-repo.sqlite.ts	100.0	100.0	100.0		0	15	3/3 2/2
+apps/website/src/assistant/execution-credential-repo.ts	100.0	100.0	100.0		0	9	3/3 2/2
+apps/website/src/assistant/execution-credential-store.memory.ts	100.0	100.0	100.0		0	34	9/9 6/6
+apps/website/src/assistant/execution-credential-store.ts	100.0	96.23	100.0		0	129	51/53 16/16
+apps/website/src/assistant/execution-mode-settings.ts	100.0	100.0	100.0		0	193	2/2 1/1
+apps/website/src/assistant/external-mcp-call-confirmation.ts	70.71	96.77	100.0	1-29	29	99	30/31 13/13
+apps/website/src/assistant/external-mcp-connection-source.ts	90.23	77.78	50.0	104-109,152-154,160-164,192-194	17	174	21/27 13/26
+apps/website/src/assistant/external-mcp-federation-runtime.ts	100.0	50.0	100.0		0	40	5/10 4/4
+apps/website/src/assistant/external-mcp-reauth-tool.ts	100.0	100.0	100.0		0	357	42/42 12/12
+apps/website/src/assistant/external-mcp-roster-change.ts	97.56	100.0	75.0	43	1	41	4/4 3/4
+apps/website/src/assistant/external-mcp-tool-approval-adapters.ts	100.0	100.0	85.71		0	56	23/23 18/21
+apps/website/src/assistant/external-mcp-tool-approval-ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/assistant/frontend-control-capabilities.ts	53.2	100.0	100.0	1-95	95	203	7/7 3/3
+apps/website/src/assistant/host-contracts.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/assistant/host-ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/assistant/index.ts	83.09	100.0	100.0	1-29,31-36	35	207	1/1 0/0
+apps/website/src/assistant/installed-extension-tools.ts	81.13	84.21	100.0	1-20	20	106	16/19 12/12
+apps/website/src/assistant/lost-frontend-binding.ts	66.67	100.0	100.0	1-11	11	33	1/1 0/0
+apps/website/src/assistant/mcp-federation/adapter.http.ts	100.0	100.0	100.0		0	23	3/3 2/2
+apps/website/src/assistant/mcp-federation/adapter.memory.ts	100.0	100.0	100.0		0	53	7/7 6/6
+apps/website/src/assistant/mcp-federation/bootstrap.ts	100.0	96.3	89.47		0	138	26/27 17/19
+apps/website/src/assistant/mcp-federation/presets.ts	92.68	100.0	85.71	76-81	6	82	11/11 6/7
+apps/website/src/assistant/mcp-federation/registrations.ts	100.0	96.0	100.0		0	191	48/50 19/19
+apps/website/src/assistant/mcp-federation/reload-adapter.ts	94.74	53.85	54.55	1,20	2	38	7/13 6/11
+apps/website/src/assistant/mcp-injection.ts	52.05	100.0	25.0	1-21,45-47,72-82	35	73	2/2 1/4
+apps/website/src/assistant/mcp-services.ts	75.0	100.0	100.0	1	1	4	1/1 0/0
+apps/website/src/assistant/mcp-ui-sandbox-proxy-route.ts	100.0	100.0	100.0		0	81	3/3 2/2
+apps/website/src/assistant/mcp-ui-tool-calls-route.ts	100.0	100.0	100.0		0	133	4/4 3/3
+apps/website/src/assistant/mcp-ui-tool-calls.ts	100.0	100.0	100.0		0	90	11/11 3/3
+apps/website/src/assistant/mcp-ui.ts	95.0	100.0	100.0	21	1	20	2/2 1/1
+apps/website/src/assistant/permanent-delete-settings.ts	93.75	88.89	100.0	34-35	2	32	8/9 5/5
+apps/website/src/assistant/permanent-delete-tool-gate.ts	100.0	100.0	100.0		0	42	18/18 11/11
+apps/website/src/assistant/persistence/agent-session-store.ts	94.44	100.0	100.0	1-2	2	36	3/3 2/2
+apps/website/src/assistant/persistence/chat-expiry-sweep.ts	83.33	100.0	66.67	9-10	2	12	3/3 2/3
+apps/website/src/assistant/persistence/chat-history-store.ts	83.33	100.0	100.0	6	1	6	3/3 2/2
+apps/website/src/assistant/persistence/conversation-tool-approval-store.ts	91.3	100.0	100.0	1-6	6	69	10/10 8/8
+apps/website/src/assistant/persistence/durable-run-store.ts	100.0	100.0	100.0		0	6	3/3 2/2
+apps/website/src/assistant/persistence/run-ledger.ts	92.0	62.5	75.0	24-25	2	25	5/8 3/4
+apps/website/src/assistant/persistence/store-factory.ts	100.0	100.0	88.89		0	75	9/9 8/9
+apps/website/src/assistant/persistence/tenant-scope.ts	98.28	100.0	100.0	49	1	58	5/5 2/2
+apps/website/src/assistant/public-assistant-availability.ts	100.0	91.67	33.33		0	24	11/12 1/3
+apps/website/src/assistant/public-assistant-settings.ts	100.0	95.65	46.15		0	210	22/23 6/13
+apps/website/src/assistant/read-only-tool-constraint.ts	66.46	100.0	100.0	1-53,168	54	161	9/9 8/8
+apps/website/src/assistant/render-ui-tool.ts	100.0	100.0	100.0		0	87	2/2 1/1
+apps/website/src/assistant/rewrap-page-navigate-error.ts	27.27	100.0	100.0	1-23,26	24	33	2/2 1/1
+apps/website/src/assistant/run-active-context.ts	33.33	100.0	50.0	1-20,24,33	22	33	2/2 1/2
+apps/website/src/assistant/run-page-context.ts	99.4	100.0	100.0	186	1	167	54/54 12/12
+apps/website/src/assistant/run-start-context.ts	99.32	100.0	100.0	134	1	146	50/50 9/9
+apps/website/src/assistant/runtime-preferences.ts	97.78	100.0	100.0	1	1	45	14/14 3/3
+apps/website/src/assistant/server-federation-diagnosis.ts	93.33	100.0	100.0	1	1	15	6/6 3/3
+apps/website/src/assistant/site-credential-repo.sqlite.ts	100.0	100.0	100.0		0	15	3/3 2/2
+apps/website/src/assistant/site-credential-repo.ts	100.0	100.0	100.0		0	9	3/3 2/2
+apps/website/src/assistant/site-credential-store.memory.ts	100.0	77.78	100.0		0	31	7/9 6/6
+apps/website/src/assistant/site-credential-store.ts	98.17	91.11	66.67	106-107	2	109	41/45 14/21
+apps/website/src/assistant/site-guide-pointer.ts	8.0	100.0	100.0	1-2,5-25	23	25	1/1 0/0
+apps/website/src/assistant/site/capability-card.ts	93.33	100.0	100.0	3	1	15	1/1 0/0
+apps/website/src/assistant/site/capability-registry.ts	99.29	100.0	100.0	153	1	140	17/17 10/10
+apps/website/src/assistant/site/history.ts	78.72	100.0	100.0	1-19,88	20	94	27/27 3/3
+apps/website/src/assistant/site/mode.ts	70.0	100.0	100.0	1-2,10	3	10	8/8 1/1
+apps/website/src/assistant/site/public-content.ts	75.0	66.67	100.0	5-10,29,55-57	10	40	4/6 2/2
+apps/website/src/assistant/site/public-errors.ts	100.0	78.57	100.0		0	63	11/14 4/4
+apps/website/src/assistant/site/tools.ts	80.0	67.65	100.0	1-47,150-152	50	250	23/34 16/16
+apps/website/src/assistant/site/visitor-ag-ui-resume.ts	57.33	100.0	10.0	51-53,56-64,83-86,91-92,96-101,110-117,123,125-132,142,145-165,172	64	150	2/2 1/10
+apps/website/src/assistant/site/visitor-browser-invocation.ts	79.59	86.67	100.0	1-9,42	10	49	13/15 3/3
+apps/website/src/assistant/site/visitor-confirmation-gate.ts	100.0	92.86	100.0		0	81	26/28 12/12
+apps/website/src/assistant/site/visitor-confirmations.ts	100.0	100.0	100.0		0	28	6/6 5/5
+apps/website/src/assistant/site/visitor-execution-ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/assistant/site/visitor-executor.ts	97.75	91.67	100.0	3,123-125	4	178	99/108 27/27
+apps/website/src/assistant/site/visitor-frontend-control.ts	99.22	83.67	95.0	1	1	129	41/49 19/20
+apps/website/src/assistant/site/visitor-page-tools.ts	98.78	81.4	100.0	72	1	82	35/43 15/15
+apps/website/src/assistant/site/visitor-request-origin.ts	100.0	100.0	100.0		0	38	17/17 3/3
+apps/website/src/assistant/site/visitor-tool-budgets.ts	100.0	100.0	100.0		0	48	14/14 5/5
+apps/website/src/assistant/site/visitor-tool-presentation.ts	81.4	100.0	100.0	3-10	8	43	1/1 0/0
+apps/website/src/assistant/site/visitor-tool-settings.ts	95.0	100.0	100.0	1	1	20	6/6 1/1
+apps/website/src/assistant/site/visitor-turn-dedupe.ts	72.0	76.19	88.89	1-27,29	28	100	16/21 8/9
+apps/website/src/assistant/subagent-settings.ts	100.0	93.33	100.0		0	68	28/30 9/9
+apps/website/src/assistant/surface-answer.ts	80.0	50.0	50.0	1-5,31-32	7	35	2/4 1/2
+apps/website/src/assistant/surface-route-host.ts	58.82	100.0	50.0	1-7	7	17	2/2 1/2
+apps/website/src/assistant/tool-approval-policy.ts	100.0	99.02	95.83		0	119	101/102 23/24
+apps/website/src/assistant/tool-audit-preset.ts	92.31	100.0	100.0	1,33	2	26	11/11 7/7
+apps/website/src/assistant/tool-catalog-principal-scope.ts	78.38	100.0	100.0	1-8	8	37	12/12 4/4
+apps/website/src/assistant/tool-catalog-query.ts	99.43	89.74	100.0	181	1	176	35/39 18/18
+apps/website/src/assistant/tool-contribution-registry.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/assistant/tool-gaps-tool.ts	100.0	75.0	100.0		0	27	6/8 4/4
+apps/website/src/assistant/tool-recovery-preset.ts	95.19	96.3	86.67	1,95-96,100-101	5	104	26/27 13/15
+apps/website/src/assistant/tool-registrations.ts	99.1	91.6	97.87	599-602	4	446	109/119 46/47
+apps/website/src/assistant/tool-search-doc2query.ts	100.0	100.0	100.0		0	15	1/1 0/0
+apps/website/src/assistant/tool-search-keywords.ts	100.0	95.83	100.0		0	141	23/24 10/10
+apps/website/src/cli/commands/adopt.ts	70.47	36.36	33.33	72-78,88-95,116-118,126-131,140-153,175-177,179-181,183-184,188-198	57	193	4/11 3/9
+apps/website/src/cli/commands/agent-plugin-tokens.ts	92.16	64.29	77.78	47-48,59-62,92-93	8	102	9/14 7/9
+apps/website/src/cli/commands/deploy-config.ts	100.0	94.12	100.0		0	166	32/34 11/11
+apps/website/src/cli/commands/export.ts	92.39	41.38	100.0	76-77,79-80,82-83,107-110,181-184	14	184	12/29 6/6
+apps/website/src/cli/commands/import-local.ts	100.0	86.89	84.21		0	155	53/61 16/19
+apps/website/src/cli/commands/import-site.ts	100.0	100.0	100.0		0	51	33/33 4/4
+apps/website/src/cli/commands/init.ts	95.12	86.36	87.5	121-122,129-130,132-133	6	123	38/44 7/8
+apps/website/src/cli/commands/introspect.ts	95.12	50.0	100.0	42-43	2	41	3/6 2/2
+apps/website/src/cli/commands/owner-store-import.ts	100.0	83.33	86.67		0	87	25/30 13/15
+apps/website/src/cli/commands/owner-store-mapping.ts	88.24	40.0	100.0	15-16	2	17	2/5 1/1
+apps/website/src/cli/commands/owner-store.ts	100.0	78.24	91.18		0	361	133/170 62/68
+apps/website/src/cli/commands/plugin/install.ts	100.0	76.92	100.0		0	67	20/26 9/9
+apps/website/src/cli/commands/reset-owner.ts	100.0	85.71	100.0		0	24	6/7 1/1
+apps/website/src/cli/commands/serve-listen.ts	49.0	80.0	46.15	36-39,54-81,84-100,103-139,142-156,197	102	200	8/10 6/13
+apps/website/src/cli/commands/serve.ts	97.17	82.69	94.74	127-128,350-357	10	353	43/52 18/19
+apps/website/src/cli/commands/site-rename.ts	100.0	66.67	50.0		0	15	2/3 1/2
+apps/website/src/cli/commands/stdin-input.ts	21.43	100.0	0.0	4-14	11	14	1/1 0/1
+apps/website/src/cli/commands/storage-maintenance.ts	38.87	100.0	0.0	74-94,96-99,102-119,121-125,129-133,135-146,150-151,155-161,176-188,190-202,204-207,212-220,231-256,263-270,273-276	151	247	1/1 0/17
+apps/website/src/cli/commands/storage-move.ts	100.0	100.0	100.0		0	51	17/17 4/4
+apps/website/src/cli/commands/storage-program.ts	75.0	75.0	33.33	50,69-71,78-79,84-99	22	88	3/4 2/6
+apps/website/src/cli/commands/storage-report.ts	46.28	100.0	0.0	45-69,71-73,75-80,83-85,87-89,94-100,109-110,112-121,128-133	65	121	1/1 0/10
+apps/website/src/cli/commands/theme/generate-index.ts	100.0	100.0	100.0		0	39	8/8 2/2
+apps/website/src/cli/commands/theme/migrate.ts	95.77	90.0	100.0	55-57	3	71	18/20 5/5
+apps/website/src/cli/commands/theme/normalize-build.ts	100.0	100.0	100.0		0	70	14/14 5/5
+apps/website/src/cli/commands/theme/sync-originals.ts	100.0	100.0	100.0		0	44	9/9 4/4
+apps/website/src/cli/commands/theme/validate.ts	100.0	100.0	100.0		0	82	17/17 5/5
+apps/website/src/cli/errors.ts	100.0	100.0	100.0		0	213	42/42 12/12
+apps/website/src/cli/help.ts	32.35	100.0	100.0	3-24,26	23	34	3/3 2/2
+apps/website/src/cli/introspect.ts	60.61	100.0	50.0	1-10,34-36	13	33	2/2 1/2
+apps/website/src/cli/main.ts	73.33	50.0	100.0	1,28-29,34-42	12	45	2/4 1/1
+apps/website/src/cli/program.ts	98.37	88.89	85.29	45-47,152,303	5	306	32/36 29/34
+apps/website/src/contracts/core/agent-permission-mode.ts	97.5	90.91	33.33	34	1	40	10/11 1/3
+apps/website/src/contracts/core/approval-i18n.ts	96.88	80.0	100.0	29	1	32	4/5 1/1
+apps/website/src/contracts/core/assistant-run-events.ts	98.33	100.0	100.0	1	1	60	18/18 15/15
+apps/website/src/contracts/core/chat-delete-grant.ts	100.0	88.89	62.5		0	22	8/9 5/8
+apps/website/src/contracts/core/consent-refusal.ts	90.0	100.0	75.0	5	1	10	4/4 3/4
+apps/website/src/contracts/core/credential-store.ts	100.0	100.0	100.0		0	8	3/3 2/2
+apps/website/src/contracts/core/credential-token.ts	100.0	80.0	60.0		0	9	4/5 3/5
+apps/website/src/contracts/core/entry-refs/unindexed-ref-warning.ts	9.09	100.0	100.0	1-8,11-12	10	11	2/2 1/1
+apps/website/src/contracts/core/events/outbox-drainer.ts	100.0	100.0	100.0		0	64	2/2 1/1
+apps/website/src/contracts/core/events/outbox-retry-policies.ts	95.45	100.0	100.0	23	1	22	7/7 2/2
+apps/website/src/contracts/core/events/outbox-trace-parent.ts	97.22	100.0	100.0	35	1	36	4/4 3/3
+apps/website/src/contracts/core/events/outbox-worker.ts	100.0	100.0	100.0		0	60	3/3 2/2
+apps/website/src/contracts/core/gated-mutations/composition.ts	97.97	100.0	75.0	147,157,160	3	148	10/10 6/8
+apps/website/src/contracts/core/gated-mutations/gateway.ts	54.0	100.0	100.0	1-91,212	92	200	10/10 7/7
+apps/website/src/contracts/core/gated-mutations/ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/contracts/core/gated-mutations/token.ts	100.0	100.0	93.75		0	133	19/19 15/16
+apps/website/src/contracts/core/human-confirm.ts	100.0	94.74	85.0		0	145	36/38 17/20
+apps/website/src/contracts/core/operation-lock.ts	100.0	100.0	100.0		0	5	1/1 0/0
+apps/website/src/contracts/core/page-html.ts	95.48	100.0	100.0	149-155	7	155	9/9 3/3
+apps/website/src/contracts/core/plugin-credential-card.ts	88.89	100.0	100.0	9	1	9	3/3 2/2
+apps/website/src/contracts/core/publish-trust-wire.ts	40.0	100.0	100.0	1-6,8-10	9	15	1/1 0/0
+apps/website/src/contracts/core/rate-limit/rate-limit.ts	100.0	90.0	27.78		0	212	9/10 5/18
+apps/website/src/contracts/core/renamed-bundled-plugin-ids.ts	50.0	100.0	100.0	1-5,7	6	12	1/1 0/0
+apps/website/src/contracts/core/runtime-mode.ts	100.0	91.67	50.0		0	28	11/12 3/6
+apps/website/src/contracts/core/settings-vocabulary.ts	77.78	100.0	100.0	1-2	2	9	1/1 0/0
+apps/website/src/contracts/core/theme-ids.ts	100.0	85.71	33.33		0	59	6/7 2/6
+apps/website/src/contracts/core/tool-failure-diagnostics.ts	77.78	100.0	100.0	1-2	2	9	3/3 2/2
+apps/website/src/contracts/core/tool-metadata/agent-pause.ts	100.0	66.67	50.0		0	9	2/3 1/2
+apps/website/src/contracts/core/tool-metadata/content-read.ts	100.0	80.0	60.0		0	116	4/5 3/5
+apps/website/src/contracts/core/tool-metadata/index.ts	100.0	66.67	14.29		0	165	2/3 1/7
+apps/website/src/contracts/core/tool-metadata/storage.ts	100.0	75.0	66.67		0	21	3/4 2/3
+apps/website/src/contracts/core/tool-metadata/theme.ts	100.0	75.0	50.0		0	235	3/4 2/4
+apps/website/src/contracts/headless/assistant-permanent-deletes-policy.ts	100.0	80.0	20.0		0	37	4/5 2/10
+apps/website/src/contracts/headless/assistant-tool-approval-policy.ts	98.18	92.86	25.0	54	1	55	13/14 2/8
+apps/website/src/contracts/headless/index.ts	100.0	66.67	5.88		0	4	2/3 1/17
+apps/website/src/contracts/headless/plugin-install-source.ts	100.0	100.0	100.0		0	5	1/1 0/0
+apps/website/src/contracts/headless/secret-form-cards.ts	100.0	50.0	0.0		0	11	1/2 0/4
+apps/website/src/contracts/site-assistant/visitor-tools.ts	94.74	95.74	90.0	92-96	5	95	45/47 9/10
+apps/website/src/features/agent-plugins/access-token-tool.ts	88.7	91.67	40.91	98-99,103-107,116-120,123	13	115	11/12 9/22
+apps/website/src/features/agent-plugins/activation-effects.ts	83.33	100.0	100.0	1-3	3	18	2/2 1/1
+apps/website/src/features/agent-plugins/admin-surfaces/issued-sign-ins.ts	100.0	100.0	100.0		0	14	3/3 2/2
+apps/website/src/features/agent-plugins/admin-surfaces/public-config.ts	100.0	100.0	100.0		0	51	14/14 4/4
+apps/website/src/features/agent-plugins/admin-surfaces/surfaces.ts	100.0	94.44	100.0		0	92	17/18 11/11
+apps/website/src/features/agent-plugins/apply-connect-defaults.ts	90.91	100.0	100.0	1-5,76	6	66	15/15 7/7
+apps/website/src/features/agent-plugins/apply-tool-renames.ts	83.33	100.0	100.0	1-3	3	18	6/6 4/4
+apps/website/src/features/agent-plugins/automatic-agent-plugins.ts	98.15	100.0	80.0	1	1	54	5/5 4/5
+apps/website/src/features/agent-plugins/bundled-catalog.ts	99.42	78.57	40.0	156	1	172	11/14 6/15
+apps/website/src/features/agent-plugins/bundled-contribution-sources.ts	100.0	50.0	33.33		0	11	2/4 1/3
+apps/website/src/features/agent-plugins/bundled-id-upgrade.ts	51.92	100.0	100.0	1-24,47	25	52	4/4 3/3
+apps/website/src/features/agent-plugins/card-host-bindings.ts	92.86	100.0	100.0	1	1	14	1/1 0/0
+apps/website/src/features/agent-plugins/connect-bindings.ts	100.0	100.0	100.0		0	112	22/22 20/20
+apps/website/src/features/agent-plugins/connect-card-ui.ts	84.62	100.0	100.0	1-3,29	4	26	5/5 4/4
+apps/website/src/features/agent-plugins/connect-destination.ts	77.78	100.0	100.0	1-3,18	4	18	2/2 1/1
+apps/website/src/features/agent-plugins/connect-sign-in-wait.ts	75.0	100.0	50.0	1-3,13	4	16	2/2 1/2
+apps/website/src/features/agent-plugins/customize-tool.ts	84.21	100.0	100.0	1-3	3	19	1/1 0/0
+apps/website/src/features/agent-plugins/enable-access.ts	80.0	80.0	75.0	1-5,28	6	30	4/5 3/4
+apps/website/src/features/agent-plugins/executable-tools/approval-bindings.ts	100.0	100.0	100.0		0	6	1/1 0/0
+apps/website/src/features/agent-plugins/executable-tools/approval.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/agent-plugins/executable-tools/host-bindings.ts	100.0	92.86	100.0		0	55	13/14 10/10
+apps/website/src/features/agent-plugins/executable-tools/register.ts	100.0	100.0	100.0		0	7	2/2 1/1
+apps/website/src/features/agent-plugins/exports/bindings.ts	100.0	100.0	100.0		0	11	3/3 2/2
+apps/website/src/features/agent-plugins/exports/runtime.ts	100.0	100.0	100.0		0	13	3/3 2/2
+apps/website/src/features/agent-plugins/federate-mcp.ts	82.98	100.0	80.0	1-5,44-45,47	8	47	9/9 8/10
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts	91.3	83.33	81.82	1-3,55	4	46	10/12 9/11
+apps/website/src/features/agent-plugins/host-overlays-dir.ts	94.44	75.0	33.33	16	1	18	3/4 1/3
+apps/website/src/features/agent-plugins/host-tool-ports.ts	91.78	100.0	93.33	1-6	6	73	16/16 14/15
+apps/website/src/features/agent-plugins/identity-read-policy.ts	100.0	66.67	33.33		0	15	2/3 1/3
+apps/website/src/features/agent-plugins/import-access-token.ts	90.0	100.0	87.5	1-4,49	5	50	8/8 7/8
+apps/website/src/features/agent-plugins/install-tool.ts	100.0	100.0	60.0		0	75	4/4 3/5
+apps/website/src/features/agent-plugins/install-upload.ts	100.0	100.0	87.5		0	58	8/8 7/8
+apps/website/src/features/agent-plugins/layout.ts	100.0	100.0	42.86		0	20	5/5 3/7
+apps/website/src/features/agent-plugins/lifecycle.ts	97.43	94.02	94.29	69-72,104-105,325-326,348	9	350	110/117 66/70
+apps/website/src/features/agent-plugins/mail-adapter-registry.ts	100.0	100.0	100.0		0	38	6/6 4/4
+apps/website/src/features/agent-plugins/mcp-host-bindings.ts	95.74	100.0	100.0	1,48	2	47	13/13 5/5
+apps/website/src/features/agent-plugins/memory-tools.ts	81.82	100.0	100.0	1-2	2	11	2/2 1/1
+apps/website/src/features/agent-plugins/memory.ts	100.0	85.71	83.33		0	24	6/7 5/6
+apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts	97.56	90.91	100.0	39	1	41	10/11 9/9
+apps/website/src/features/agent-plugins/provider-plugin-link.ts	100.0	85.71	100.0		0	31	6/7 5/5
+apps/website/src/features/agent-plugins/search-provider-registry.ts	100.0	100.0	100.0		0	51	4/4 3/3
+apps/website/src/features/agent-plugins/set-enabled.ts	100.0	100.0	100.0		0	64	3/3 2/2
+apps/website/src/features/agent-plugins/switch-on-saved-token.ts	86.49	100.0	100.0	1-4,47	5	37	9/9 5/5
+apps/website/src/features/agent-plugins/token-sign-in.ts	86.96	100.0	100.0	1-2,20	3	23	3/3 2/2
+apps/website/src/features/agent-plugins/tool-registrations.ts	98.73	90.91	94.44	45-46	2	157	20/22 17/18
+apps/website/src/features/agent-plugins/uninstall-confirmation-ui.ts	98.15	66.67	100.0	39	1	54	2/3 1/1
+apps/website/src/features/agent-plugins/update-effects.ts	100.0	100.0	100.0		0	18	3/3 2/2
+apps/website/src/features/agent-plugins/write-note-tool.ts	90.91	100.0	100.0	1-2	2	22	3/3 2/2
+apps/website/src/features/analytics/salt-context.ts	33.33	100.0	100.0	1-5,8-12	10	15	1/1 0/0
+apps/website/src/features/analytics/warn.ts	29.17	100.0	0.0	1-7,11-18,24-25	17	24	1/1 0/2
+apps/website/src/features/api-connections/browser-binding.ts	85.94	100.0	87.5	1-5,39-41,63	9	64	22/22 7/8
+apps/website/src/features/api-connections/byo-client.ts	96.43	90.91	100.0	33	1	28	10/11 6/6
+apps/website/src/features/api-connections/connect-bindings.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/features/api-connections/connect.ts	90.0	100.0	100.0	13	1	10	3/3 2/2
+apps/website/src/features/api-connections/contribution.ts	96.0	100.0	100.0	17	1	25	4/4 3/3
+apps/website/src/features/api-connections/host-bindings.ts	96.36	100.0	90.0	73-74	2	55	16/16 9/10
+apps/website/src/features/api-connections/host.ts	100.0	100.0	100.0		0	11	2/2 1/1
+apps/website/src/features/api-connections/oauth-bindings.ts	94.44	100.0	100.0	1	1	18	1/1 0/0
+apps/website/src/features/api-connections/plugin-state-bindings.ts	91.67	100.0	100.0	1	1	12	4/4 2/2
+apps/website/src/features/api-connections/plugin-state.ts	100.0	100.0	100.0		0	7	2/2 1/1
+apps/website/src/features/api-connections/shared-owner.ts	96.0	100.0	57.14	22	1	25	5/5 4/7
+apps/website/src/features/api-connections/surface-connection-bindings.ts	78.79	84.62	76.92	23,34-39	7	33	11/13 10/13
+apps/website/src/features/api-connections/surface-connections.ts	90.91	100.0	100.0	6	1	11	8/8 1/1
+apps/website/src/features/api-connections/vault-store-binding.ts	98.61	100.0	100.0	83	1	72	16/16 13/13
+apps/website/src/features/asset-transfer/asset-sources.ts	51.52	100.0	0.0	1-3,50-57,61-64,68-71,76-88	32	66	1/1 0/4
+apps/website/src/features/comments/index.ts	77.78	100.0	100.0	1-12	12	54	7/7 3/3
+apps/website/src/features/comments/tool-registrations.ts	100.0	100.0	100.0		0	79	13/13 12/12
+apps/website/src/features/consent/host-bindings.ts	100.0	85.71	41.67		0	43	6/7 5/12
+apps/website/src/features/consent/privacy-defaults-reporter.ts	94.12	100.0	100.0	15	1	17	2/2 1/1
+apps/website/src/features/content-duplication/copy-naming-policy.ts	96.15	100.0	100.0	21	1	26	4/4 3/3
+apps/website/src/features/content-types/content-type-repo.ts	100.0	100.0	100.0		0	15	2/2 1/1
+apps/website/src/features/content-types/tool-registrations.ts	100.0	100.0	100.0		0	66	3/3 2/2
+apps/website/src/features/content-types/write-service.ts	100.0	80.0	50.0		0	23	4/5 3/6
+apps/website/src/features/custom-credentials/agent-tools.ts	100.0	100.0	100.0		0	74	1/1 0/0
+apps/website/src/features/custom-credentials/credential-copy-tool.ts	100.0	100.0	100.0		0	55	5/5 2/2
+apps/website/src/features/custom-credentials/credential-save-tool.ts	100.0	100.0	100.0		0	11	1/1 0/0
+apps/website/src/features/custom-credentials/credentialed-request.ts	100.0	100.0	100.0		0	661	15/15 14/14
+apps/website/src/features/custom-credentials/custom-credential-repo.ts	100.0	100.0	100.0		0	17	7/7 4/4
+apps/website/src/features/custom-credentials/extract-s8-c2p1-ports.type-pin.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/custom-credentials/index.ts	89.74	100.0	100.0	1-4	4	39	1/1 0/0
+apps/website/src/features/custom-credentials/plugin-credential-card.ts	75.0	100.0	100.0	4	1	4	2/2 1/1
+apps/website/src/features/custom-credentials/repo.memory.ts	100.0	100.0	100.0		0	7	3/3 2/2
+apps/website/src/features/custom-credentials/repository-target.ts	83.33	100.0	100.0	5	1	6	4/4 1/1
+apps/website/src/features/custom-credentials/store.ts	100.0	100.0	100.0		0	66	9/9 8/8
+apps/website/src/features/custom-credentials/tool-registrations.copy.ts	100.0	92.31	77.78		0	138	12/13 7/9
+apps/website/src/features/custom-credentials/tool-registrations.ts	100.0	95.56	100.0		0	308	43/45 40/40
+apps/website/src/features/custom-credentials/tovu-credential-card-identity.ts	74.07	100.0	100.0	1-7	7	27	1/1 0/0
+apps/website/src/features/custom-credentials/tovu-credential-sets.ts	100.0	100.0	94.12		0	59	19/19 16/17
+apps/website/src/features/custom-credentials/types.ts	70.67	100.0	100.0	4-11,67,71-83	22	75	2/2 1/1
+apps/website/src/features/custom-credentials/vault-repo.ts	100.0	100.0	100.0		0	33	17/17 5/5
+apps/website/src/features/database-transfer/copy-engine.ts	89.47	75.0	100.0	1,15	2	19	3/4 2/2
+apps/website/src/features/database-transfer/destination-exchange.ts	100.0	100.0	100.0		0	45	26/26 7/7
+apps/website/src/features/database-transfer/destination-repo.ts	100.0	100.0	100.0		0	8	3/3 2/2
+apps/website/src/features/database-transfer/destination-store-host.ts	100.0	100.0	81.82		0	55	10/10 9/11
+apps/website/src/features/database-transfer/destination-ui.ts	98.28	100.0	100.0	50	1	58	7/7 3/3
+apps/website/src/features/database-transfer/exclusions.ts	87.95	100.0	100.0	1-10	10	83	2/2 1/1
+apps/website/src/features/database-transfer/table-catalog.ts	99.16	100.0	95.45	123	1	119	28/28 21/22
+apps/website/src/features/database-transfer/tool-registrations.ts	99.02	93.33	100.0	1	1	102	28/30 17/17
+apps/website/src/features/database/agent-tools.ts	100.0	100.0	100.0		0	7	2/2 1/1
+apps/website/src/features/database/db-messages.ts	100.0	100.0	100.0		0	15	1/1 0/0
+apps/website/src/features/database/gated-hooks.ts	75.0	100.0	100.0	1,7	2	8	3/3 2/2
+apps/website/src/features/database/tool-registrations.ts	100.0	100.0	100.0		0	44	4/4 3/3
+apps/website/src/features/deployments/capability-card.ts	96.97	100.0	100.0	1	1	33	1/1 0/0
+apps/website/src/features/deployments/deploy-config-registry.ts	98.51	100.0	83.33	65	1	67	6/6 5/6
+apps/website/src/features/deployments/deploy-config.ts	99.58	83.33	100.0	236	1	237	5/6 4/4
+apps/website/src/features/deployments/deploy-ops/agent-tools.ts	100.0	100.0	100.0		0	14	5/5 3/3
+apps/website/src/features/deployments/deploy-ops/registry.ts	100.0	100.0	100.0		0	35	8/8 7/7
+apps/website/src/features/deployments/deploy-ops/run-ops.ts	83.72	94.12	88.24	43-48,73	7	43	16/17 15/17
+apps/website/src/features/deployments/deploy-ops/secrets.ts	100.0	100.0	66.67		0	5	3/3 2/3
+apps/website/src/features/deployments/deploy-ops/tool-registrations.ts	100.0	100.0	100.0		0	40	7/7 5/5
+apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts	95.45	100.0	100.0	25	1	22	7/7 5/5
+apps/website/src/features/deployments/deploy-targets/host-kit-binding.ts	97.56	93.33	80.0	33	1	41	14/15 8/10
+apps/website/src/features/deployments/deploy-targets/registry.ts	100.0	100.0	100.0		0	21	6/6 5/5
+apps/website/src/features/deployments/export-run-binding.ts	100.0	100.0	0.0		0	17	1/1 0/1
+apps/website/src/features/deployments/index.ts	46.88	100.0	100.0	1-6,8-11,13-16,30-32	17	32	1/1 0/0
+apps/website/src/features/deployments/publish-agent-tools.ts	100.0	100.0	85.71		0	170	7/7 6/7
+apps/website/src/features/deployments/publish-credentials/store.ts	97.92	100.0	100.0	50	1	48	10/10 9/9
+apps/website/src/features/deployments/publish-tool-deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/deployments/static-publish/adapter.ts	95.24	100.0	100.0	20	1	21	4/4 3/3
+apps/website/src/features/deployments/static-publish/credentials.ts	100.0	100.0	100.0		0	23	11/11 10/10
+apps/website/src/features/deployments/static-publish/domain-publish-tool.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/deployments/static-publish/publish-consent.ts	100.0	100.0	100.0		0	9	4/4 1/1
+apps/website/src/features/deployments/static-publish/publish-run.ts	82.35	100.0	66.67	13-15	3	17	3/3 2/3
+apps/website/src/features/deployments/static-publish/verify.ts	80.0	100.0	66.67	19,21-23	4	20	3/3 2/3
+apps/website/src/features/deployments/tool-registrations.ts	100.0	100.0	100.0		0	14	3/3 2/2
+apps/website/src/features/email-templates/tool-registrations.ts	100.0	100.0	100.0		0	22	5/5 4/4
+apps/website/src/features/entries/entry-repo.ts	100.0	100.0	100.0		0	24	5/5 4/4
+apps/website/src/features/entries/unreadable-owner-entries-repair.ts	80.82	87.5	81.82	52-77,145-146	28	146	14/16 9/11
+apps/website/src/features/external-mcp/contracts.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/external-mcp/external-mcp-host-copy.ts	81.82	100.0	100.0	1-10	10	55	6/6 4/4
+apps/website/src/features/external-mcp/external-mcp-oauth.ts	98.85	87.5	77.27	85-86	2	174	21/24 17/22
+apps/website/src/features/external-mcp/external-mcp-repo.sqlite.ts	100.0	100.0	100.0		0	20	4/4 3/3
+apps/website/src/features/external-mcp/external-mcp-revocation.ts	100.0	100.0	100.0		0	34	15/15 9/9
+apps/website/src/features/external-mcp/external-mcp-store.memory.ts	100.0	100.0	100.0		0	10	3/3 2/2
+apps/website/src/features/external-mcp/external-mcp-store.ts	93.1	100.0	83.33	54-57	4	58	6/6 5/6
+apps/website/src/features/external-mcp/external-mcp-vault.ts	100.0	100.0	80.0		0	42	9/9 8/10
+apps/website/src/features/external-mcp/tool-registrations.ts	99.01	92.86	70.0	48	1	101	13/14 7/10
+apps/website/src/features/form-destinations/key-store.ts	98.53	100.0	100.0	65	1	68	15/15 11/11
+apps/website/src/features/form-destinations/registry.ts	100.0	100.0	100.0		0	55	7/7 6/6
+apps/website/src/features/forms/form-file-maintenance.ts	99.28	96.26	98.73	1	1	138	103/107 78/79
+apps/website/src/features/forms/form-file-purge.ts	72.73	90.0	84.62	65-78,84-93	24	88	18/20 11/13
+apps/website/src/features/forms/index.ts	73.33	91.3	92.86	1-39,159	40	150	21/23 13/14
+apps/website/src/features/forms/protect-existing-files.ts	100.0	100.0	100.0		0	22	9/9 8/8
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	76.47	66.67	33.33	13-15,30-34	8	34	2/3 1/3
+apps/website/src/features/forms/submission-ip-retention.ts	100.0	100.0	100.0		0	13	3/3 2/2
+apps/website/src/features/forms/tool-registrations.ts	90.91	100.0	100.0	1-8	8	88	20/20 19/19
+apps/website/src/features/fs-files/fs-files.ts	92.89	100.0	75.0	1-5,172-173,226-234	16	225	7/7 6/8
+apps/website/src/features/fs-files/layout.ts	97.2	100.0	100.0	1-3,145	4	143	4/4 1/1
+apps/website/src/features/fs-files/site-file-request.ts	98.75	96.88	100.0	71	1	80	31/32 8/8
+apps/website/src/features/fs-files/tool-registrations.ts	94.83	100.0	85.71	49-51	3	58	14/14 12/14
+apps/website/src/features/identity/api-key-binding.ts	100.0	50.0	0.0		0	15	1/2 0/5
+apps/website/src/features/identity/boot-session-token-binding.ts	100.0	50.0	0.0		0	15	1/2 0/3
+apps/website/src/features/identity/default-credential-exposure.ts	77.71	100.0	100.0	1-35	35	157	28/28 8/8
+apps/website/src/features/identity/first-owner-password.ts	98.31	93.75	55.56	48	1	59	15/16 5/9
+apps/website/src/features/identity/repo.sqlite.ts	100.0	96.15	63.16		0	107	25/26 24/38
+apps/website/src/features/identity/tool-registrations.ts	100.0	100.0	100.0		0	36	3/3 2/2
+apps/website/src/features/identity/trash-user-binding.ts	100.0	100.0	100.0		0	12	1/1 0/0
+apps/website/src/features/identity/wiring.ts	100.0	89.19	70.83		0	306	33/37 17/24
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	100.0	100.0	100.0		0	15	4/4 3/3
+apps/website/src/features/mail-status/provider-operations.ts	92.86	100.0	100.0	8	1	14	6/6 5/5
+apps/website/src/features/mail-status/provider-tool-registrations.ts	100.0	80.0	75.0		0	17	4/5 3/4
+apps/website/src/features/mail-status/tool-registrations.ts	100.0	100.0	100.0		0	13	3/3 2/2
+apps/website/src/features/mail/index.ts	71.43	100.0	100.0	1-3,12	4	14	2/2 1/1
+apps/website/src/features/media-generation/host-media-providers.ts	100.0	81.82	100.0		0	91	9/11 5/5
+apps/website/src/features/media-generation/provider-card-host.ts	100.0	95.0	92.86		0	56	19/20 13/14
+apps/website/src/features/media-generation/tool-registrations.ts	100.0	83.33	100.0		0	27	5/6 4/4
+apps/website/src/features/media-import/fetch-image.ts	64.25	95.65	100.0	1-63,187	64	179	22/23 9/9
+apps/website/src/features/media-import/tool-registrations.ts	100.0	100.0	100.0		0	46	2/2 1/1
+apps/website/src/features/media/chat-attachment-reader-host.ts	93.75	85.71	100.0	5	1	16	6/7 5/5
+apps/website/src/features/media/import-video-conversion.ts	64.71	100.0	66.67	15-20	6	17	5/5 2/3
+apps/website/src/features/media/index.ts	90.91	100.0	100.0	1-8	8	88	1/1 0/0
+apps/website/src/features/media/large-upload-routing-copy.ts	100.0	100.0	100.0		0	20	1/1 0/0
+apps/website/src/features/media/media-provider-credential-repo.ts	100.0	100.0	100.0		0	26	7/7 6/6
+apps/website/src/features/media/public-urls.ts	100.0	100.0	100.0		0	26	4/4 1/1
+apps/website/src/features/media/publish-content.ts	100.0	100.0	100.0		0	9	1/1 0/0
+apps/website/src/features/media/tool-registrations.ts	100.0	82.86	92.31		0	213	29/35 12/13
+apps/website/src/features/member-login/bindings.ts	76.19	100.0	40.0	1,26-31,34-38,55,61-62	15	63	5/5 4/10
+apps/website/src/features/members/mail-transport.ts	72.73	100.0	100.0	1-3	3	11	1/1 0/0
+apps/website/src/features/members/repo.sqlite.ts	100.0	100.0	93.75		0	99	16/16 15/16
+apps/website/src/features/members/tool-registrations.ts	100.0	100.0	100.0		0	13	3/3 2/2
+apps/website/src/features/navigation/migrate-footer-page-links.ts	100.0	100.0	100.0		0	93	57/57 17/17
+apps/website/src/features/navigation/page-target-resolver.ts	100.0	100.0	100.0		0	25	13/13 2/2
+apps/website/src/features/navigation/tool-registrations.ts	100.0	100.0	100.0		0	60	3/3 2/2
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	100.0	100.0	75.0		0	28	4/4 3/4
+apps/website/src/features/newsletter/deps-builders.ts	98.82	100.0	100.0	64	1	85	12/12 9/9
+apps/website/src/features/newsletter/repo.sqlite.ts	100.0	100.0	92.86		0	96	14/14 13/14
+apps/website/src/features/newsletter/tool-registrations.ts	100.0	100.0	100.0		0	17	6/6 4/4
+apps/website/src/features/object-storage/media-store.ts	100.0	100.0	100.0		0	44	4/4 3/3
+apps/website/src/features/observability/test-error-message.ts	20.0	100.0	100.0	1-4	4	5	1/1 0/0
+apps/website/src/features/origin/configured-origin.ts	85.51	100.0	100.0	1-10	10	69	13/13 7/7
+apps/website/src/features/pages/html-document-store.sqlite.ts	100.0	100.0	100.0		0	43	18/18 16/16
+apps/website/src/features/pages/index.ts	34.78	100.0	100.0	1-15	15	23	1/1 0/0
+apps/website/src/features/pages/permissions.ts	32.03	100.0	100.0	3-99,101-107	104	153	2/2 1/1
+apps/website/src/features/pages/skeleton.ts	36.07	100.0	100.0	1-22,42-44,46-48,50-52,54-61	39	61	1/1 0/0
+apps/website/src/features/pages/tool-host.ts	100.0	100.0	100.0		0	50	14/14 4/4
+apps/website/src/features/permanent-delete/tool-registrations.ts	100.0	100.0	100.0		0	21	4/4 3/3
+apps/website/src/features/plugin-runtime/agent-plugin-tool-binding.ts	98.28	96.23	100.0	1	1	58	51/53 21/21
+apps/website/src/features/plugin-runtime/built-ins/content-analyzer/index.ts	100.0	100.0	0.0		0	109	1/1 0/1
+apps/website/src/features/plugin-runtime/built-ins/content-analyzer/plugin.ts	55.0	100.0	100.0	1-9	9	20	1/1 0/0
+apps/website/src/features/plugin-runtime/built-ins/word-count/index.ts	70.15	100.0	100.0	1-20	20	67	2/2 1/1
+apps/website/src/features/plugin-runtime/capability-tool-registrations.ts	99.01	100.0	100.0	1	1	101	14/14 12/12
+apps/website/src/features/plugin-runtime/declarative-content-types.ts	71.79	100.0	100.0	1-22	22	78	6/6 5/5
+apps/website/src/features/plugin-runtime/host-binding.ts	94.19	77.78	91.67	59-62,88	5	86	14/18 11/12
+apps/website/src/features/plugin-runtime/host-install-source.ts	100.0	100.0	85.71		0	21	9/9 6/7
+apps/website/src/features/plugin-runtime/host-tool-binding.ts	100.0	96.77	100.0		0	77	30/31 15/15
+apps/website/src/features/plugin-runtime/install-archive.ts	39.13	100.0	0.0	1-8,19-24	14	23	1/1 0/2
+apps/website/src/features/plugin-runtime/install-tool-binding.ts	96.3	75.0	100.0	1	1	27	12/16 6/6
+apps/website/src/features/plugin-runtime/install-tool.ts	100.0	100.0	66.67		0	35	3/3 2/3
+apps/website/src/features/plugin-runtime/install.ts	95.45	100.0	100.0	21	1	22	6/6 2/2
+apps/website/src/features/plugin-runtime/invocation-core-deps.ts	60.53	100.0	100.0	1-15	15	38	3/3 2/2
+apps/website/src/features/plugin-runtime/plugin-host-copy.ts	71.43	100.0	100.0	1-8	8	28	1/1 0/0
+apps/website/src/features/plugin-runtime/provider-status-tool.ts	100.0	100.0	0.0		0	10	1/1 0/1
+apps/website/src/features/plugin-runtime/repo.sqlite.ts	100.0	100.0	100.0		0	19	2/2 1/1
+apps/website/src/features/plugin-runtime/sdk-resolver.ts	100.0	100.0	100.0		0	33	4/4 2/2
+apps/website/src/features/plugin-runtime/service-ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/plugin-runtime/site-plugin-vocabulary.ts	100.0	100.0	100.0		0	20	1/1 0/0
+apps/website/src/features/plugin-runtime/source-tools.ts	100.0	100.0	100.0		0	11	4/4 3/3
+apps/website/src/features/plugin-runtime/tool-registrations.ts	96.0	100.0	100.0	1	1	25	7/7 4/4
+apps/website/src/features/post/index.ts	100.0	100.0	100.0		0	9	1/1 0/0
+apps/website/src/features/post/post-catalog-host.ts	100.0	100.0	100.0		0	12	1/1 0/0
+apps/website/src/features/post/post-schema-binding.ts	100.0	100.0	100.0		0	15	1/1 0/0
+apps/website/src/features/post/post-tool-policy.ts	100.0	100.0	100.0		0	66	1/1 0/0
+apps/website/src/features/post/post-tool-view-deps.ts	97.56	100.0	100.0	36	1	41	5/5 2/2
+apps/website/src/features/post/preview-tool.ts	100.0	100.0	100.0		0	11	1/1 0/0
+apps/website/src/features/post/repo.memory.ts	83.33	100.0	100.0	6	1	6	2/2 1/1
+apps/website/src/features/post/repo.sqlite.ts	100.0	100.0	100.0		0	21	4/4 3/3
+apps/website/src/features/post/repo.ts	100.0	100.0	100.0		0	15	2/2 1/1
+apps/website/src/features/post/search-host-config.ts	50.0	100.0	100.0	3-7	5	10	1/1 0/0
+apps/website/src/features/post/search-scratch-host.ts	97.87	100.0	100.0	38	1	47	11/11 10/10
+apps/website/src/features/post/template-options.ts	100.0	100.0	100.0		0	26	7/7 1/1
+apps/website/src/features/post/tiptap-doc-schema.ts	100.0	100.0	100.0		0	222	1/1 0/0
+apps/website/src/features/post/tool-registrations.ts	100.0	100.0	100.0		0	10	3/3 2/2
+apps/website/src/features/presentation/index.ts	57.89	100.0	100.0	1-8	8	19	1/1 0/0
+apps/website/src/features/presentation/repo.sqlite.ts	100.0	100.0	100.0		0	18	3/3 2/2
+apps/website/src/features/presentation/set-active-theme.ts	100.0	66.67	100.0		0	19	6/9 1/1
+apps/website/src/features/project-keys/host-bindings.ts	100.0	88.89	100.0		0	57	16/18 9/9
+apps/website/src/features/project-keys/shared-oauth-disconnect.ts	100.0	100.0	100.0		0	13	4/4 3/3
+apps/website/src/features/project-keys/vault-policy.ts	97.06	80.0	100.0	12	1	34	4/5 2/2
+apps/website/src/features/publish-content/apply-port.ts	100.0	100.0	100.0		0	66	6/6 5/5
+apps/website/src/features/publish-content/backstop-policy.ts	100.0	98.39	100.0		0	120	61/62 9/9
+apps/website/src/features/publish-content/backstop-service.ts	100.0	50.0	100.0		0	22	1/2 0/0
+apps/website/src/features/publish-content/backstop-sqlite-binding.ts	95.45	100.0	87.5	10	1	22	8/8 7/8
+apps/website/src/features/publish-content/destination-credential.ts	100.0	100.0	75.0		0	37	4/4 3/4
+apps/website/src/features/publish-content/disconnect-tool.ts	100.0	100.0	100.0		0	22	3/3 2/2
+apps/website/src/features/publish-content/peer-transport-binding.ts	100.0	100.0	100.0		0	27	4/4 1/1
+apps/website/src/features/publish-content/peers.ts	100.0	100.0	80.0		0	41	9/9 8/10
+apps/website/src/features/publish-content/publish-content-peer-repo.sqlite.ts	100.0	100.0	100.0		0	8	2/2 1/1
+apps/website/src/features/publish-content/publish-content-peer-repo.ts	100.0	100.0	100.0		0	10	3/3 2/2
+apps/website/src/features/publish-content/publish-readiness-copy.ts	74.29	100.0	100.0	3-9,11-12	9	35	6/6 3/3
+apps/website/src/features/publish-content/publish-tool.ts	92.59	100.0	0.0	21-22	2	27	1/1 0/1
+apps/website/src/features/publish-content/pull.ts	100.0	100.0	100.0		0	24	2/2 1/1
+apps/website/src/features/publish-content/push-plan.ts	100.0	100.0	100.0		0	16	1/1 0/0
+apps/website/src/features/publish-content/raw-file-contributor.ts	100.0	75.0	100.0		0	23	3/4 1/1
+apps/website/src/features/publish-content/raw-row-contributor.ts	92.86	50.0	100.0	3	1	14	1/2 0/0
+apps/website/src/features/publish-content/tool-deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/publish-content/tool-registrations.ts	100.0	88.89	87.5		0	37	8/9 7/8
+apps/website/src/features/publish-content/tovu-publish-ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/publish-content/type-registry.ts	100.0	100.0	100.0		0	37	1/1 0/0
+apps/website/src/features/publish-content/ui/host-binding.ts	65.45	100.0	33.33	1-6,40-41,45-46,50-51,54-60	19	55	3/3 2/6
+apps/website/src/features/publish-content/ui/index.ts	40.0	100.0	100.0	1-24	24	40	1/1 0/0
+apps/website/src/features/publish-content/ui/policy.ts	98.05	100.0	100.0	1-8	8	411	15/15 6/6
+apps/website/src/features/publish-content/ui/sections.ts	76.27	100.0	100.0	1-13,59	14	59	5/5 4/4
+apps/website/src/features/publish-trust/candidate-policy.ts	36.84	100.0	100.0	1-5,7-13	12	19	1/1 0/0
+apps/website/src/features/publish-trust/host-settings.ts	80.95	100.0	100.0	1-5,7-9	8	42	3/3 1/1
+apps/website/src/features/recovery/capability-card.ts	96.15	100.0	100.0	1	1	26	1/1 0/0
+apps/website/src/features/recovery/gated-hooks.ts	88.89	100.0	100.0	1	1	9	3/3 2/2
+apps/website/src/features/recovery/tool-registrations.ts	100.0	100.0	100.0		0	53	2/2 1/1
+apps/website/src/features/redirects/repo.sqlite.ts	100.0	100.0	100.0		0	24	2/2 1/1
+apps/website/src/features/routines/classify-routine-approval.ts	72.55	96.0	100.0	3-12,14,26,39,60	14	51	24/25 3/3
+apps/website/src/features/routines/routine-approval-observer.ts	100.0	80.56	84.62		0	94	29/36 11/13
+apps/website/src/features/routines/routine-commands.ts	88.44	94.83	90.0	5-21,27,32,152	20	173	55/58 18/20
+apps/website/src/features/routines/routine-host.ts	100.0	88.89	75.0		0	121	24/27 18/24
+apps/website/src/features/routines/routine-run-handler.ts	98.55	88.41	100.0	171-172	2	138	61/69 19/19
+apps/website/src/features/routines/routine-tool-registrations.ts	53.72	100.0	16.0	99-103,112-115,118-121,123-128,134-144,147-152,161-168,172-175,177-182,184-198,201-204,206-221,223-237,241-245,254,267-268	112	242	5/5 4/25
+apps/website/src/features/routines/routine-wake-receiver.ts	59.09	100.0	60.0	1-11,44-50	18	44	6/6 3/5
+apps/website/src/features/routines/routines-paths.ts	100.0	100.0	100.0		0	18	2/2 1/1
+apps/website/src/features/seo/index.ts	95.73	100.0	91.3	1-5	5	117	25/25 21/23
+apps/website/src/features/server-logs/process-source.ts	100.0	100.0	100.0		0	6	2/2 1/1
+apps/website/src/features/settings/index.ts	89.19	100.0	100.0	1-8,12-15	12	111	9/9 2/2
+apps/website/src/features/settings/repo.sqlite.ts	100.0	100.0	100.0		0	23	3/3 2/2
+apps/website/src/features/settings/settings-write-policies.ts	95.95	100.0	100.0	72,76-77	3	74	10/10 6/6
+apps/website/src/features/settings/site-title-legacy.ts	100.0	50.0	0.0		0	32	1/2 0/4
+apps/website/src/features/settings/tool-registrations.ts	100.0	90.0	100.0		0	132	9/10 7/7
+apps/website/src/features/settings/visitor-tools-agent-tools.ts	100.0	100.0	100.0		0	40	2/2 1/1
+apps/website/src/features/settings/visitor-tools-permissions.ts	100.0	100.0	100.0		0	13	3/3 1/1
+apps/website/src/features/site-backup/archive-extensions.ts	100.0	100.0	100.0		0	24	4/4 3/3
+apps/website/src/features/site-backup/archive-manifest.ts	100.0	100.0	100.0		0	12	1/1 0/0
+apps/website/src/features/site-backup/archive-media.ts	100.0	100.0	100.0		0	21	2/2 1/1
+apps/website/src/features/site-backup/archive-paths.ts	98.9	96.15	100.0	87	1	91	50/52 11/11
+apps/website/src/features/site-backup/backup-service.ts	100.0	92.31	47.37		0	154	12/13 9/19
+apps/website/src/features/site-backup/bundled-export-file-policy.ts	100.0	66.67	100.0		0	18	2/3 1/1
+apps/website/src/features/site-backup/download-html-source-edits.ts	100.0	100.0	100.0		0	5	1/1 0/0
+apps/website/src/features/site-backup/import-archive-reader.ts	100.0	100.0	100.0		0	71	28/28 10/10
+apps/website/src/features/site-backup/import-backend.ts	100.0	85.71	100.0		0	48	6/7 4/4
+apps/website/src/features/site-backup/import-database.ts	92.0	100.0	100.0	25-26	2	25	4/4 3/3
+apps/website/src/features/site-backup/import-plugin-state.ts	100.0	83.33	100.0		0	24	5/6 4/4
+apps/website/src/features/site-backup/import-restore-placement.ts	97.87	100.0	100.0	46	1	47	8/8 6/6
+apps/website/src/features/site-backup/import-restore.ts	97.33	94.74	85.0	47,78	2	75	18/19 17/20
+apps/website/src/features/site-backup/import-verifier-projection.ts	92.86	100.0	75.0	42-44	3	42	4/4 3/4
+apps/website/src/features/site-backup/import-verifier.ts	100.0	100.0	100.0		0	47	6/6 5/5
+apps/website/src/features/site-backup/package-file-inventory.ts	100.0	60.0	100.0		0	26	3/5 2/2
+apps/website/src/features/site-backup/plan-content.ts	100.0	100.0	100.0		0	12	1/1 0/0
+apps/website/src/features/site-backup/push-manifest.ts	96.77	80.0	100.0	16	1	31	4/5 3/3
+apps/website/src/features/site-backup/share-backend.ts	100.0	100.0	100.0		0	46	10/10 9/9
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	100.0	100.0	100.0		0	40	9/9 8/8
+apps/website/src/features/site-backup/share-expiry.ts	92.86	83.33	80.0	38-39,42	3	42	5/6 4/5
+apps/website/src/features/site-backup/share-file-policy.ts	100.0	100.0	100.0		0	9	1/1 0/0
+apps/website/src/features/site-backup/share-hosting.ts	100.0	100.0	100.0		0	20	1/1 0/0
+apps/website/src/features/site-backup/share-own-folder.ts	90.91	100.0	100.0	9	1	11	3/3 1/1
+apps/website/src/features/site-backup/share-policy.ts	95.56	100.0	100.0	37,45	2	45	12/12 3/3
+apps/website/src/features/site-backup/share-preparation.ts	100.0	100.0	100.0		0	23	3/3 1/1
+apps/website/src/features/site-backup/share-registry.ts	100.0	100.0	100.0		0	22	6/6 3/3
+apps/website/src/features/site-backup/share-service.ts	100.0	100.0	100.0		0	8	1/1 0/0
+apps/website/src/features/site-backup/share-steps.ts	100.0	100.0	100.0		0	18	2/2 1/1
+apps/website/src/features/site-backup/share-zip.ts	97.44	100.0	100.0	41	1	39	6/6 5/5
+apps/website/src/features/site-backup/sources.ts	98.61	100.0	100.0	82	1	72	10/10 7/7
+apps/website/src/features/site-backup/static-download-host.ts	97.37	100.0	100.0	35	1	38	4/4 3/3
+apps/website/src/features/site-backup/static-export-selection.ts	94.74	100.0	100.0	17	1	19	4/4 3/3
+apps/website/src/features/site-backup/static-site-packager.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/features/site-backup/tool-registrations.ts	100.0	100.0	0.0		0	39	1/1 0/1
+apps/website/src/features/site-evidence/collect-page-evidence.ts	81.21	70.0	35.29	1,52-54,58-60,63-66,69-83,86,154	28	149	7/10 6/17
+apps/website/src/features/site-evidence/tool-registrations.ts	96.89	86.11	77.78	191-196,218	7	225	31/36 7/9
+apps/website/src/features/site-export/export-failure-summary.ts	3.7	100.0	100.0	1-51,56	52	54	2/2 1/1
+apps/website/src/features/site-export/export-preflight-copy.ts	95.65	50.0	100.0	3	1	23	3/6 2/2
+apps/website/src/features/site-export/index.ts	33.33	100.0	100.0	1-4	4	6	1/1 0/0
+apps/website/src/features/site-export/media-url-bindings.ts	95.24	100.0	100.0	18	1	21	4/4 3/3
+apps/website/src/features/site-export/route-manifest.ts	100.0	100.0	100.0		0	189	16/16 9/9
+apps/website/src/features/site-export/site-exporter.ts	96.15	100.0	100.0	59	1	26	7/7 6/6
+apps/website/src/features/site-export/theme-preview-manifest.ts	100.0	88.89	100.0		0	22	8/9 4/4
+apps/website/src/features/site-export/theme-preview-report.ts	96.0	100.0	100.0	6	1	25	27/27 14/14
+apps/website/src/features/site-guide/capability-card.ts	95.24	100.0	100.0	1	1	21	1/1 0/0
+apps/website/src/features/site-guide/cms-capability-cards.ts	100.0	100.0	100.0		0	19	1/1 0/0
+apps/website/src/features/site-guide/contracts.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/site-guide/facts.ts	100.0	87.5	90.91		0	70	35/40 10/11
+apps/website/src/features/site-guide/index.ts	100.0	100.0	100.0		0	5	1/1 0/0
+apps/website/src/features/site-guide/plugin-contributions.ts	100.0	100.0	100.0		0	26	5/5 3/3
+apps/website/src/features/site-inspection/admin-screens.generated.ts	84.13	100.0	100.0	1-10	10	63	1/1 0/0
+apps/website/src/features/site-inspection/catalog-host.ts	100.0	100.0	100.0		0	86	1/1 0/0
+apps/website/src/features/site-inspection/deps.ts	98.45	100.0	83.33	158,174	2	129	15/15 10/12
+apps/website/src/features/site-inspection/index.ts	33.33	100.0	100.0	1-16	16	24	1/1 0/0
+apps/website/src/features/site-inspection/tool-registrations.ts	94.29	85.71	50.0	31-32	2	35	6/7 5/10
+apps/website/src/features/site-search/cms-search-rules.ts	75.0	100.0	100.0	1-6	6	24	6/6 5/5
+apps/website/src/features/site-update/approved-handoff.ts	81.25	55.56	100.0	1-6	6	32	5/9 1/1
+apps/website/src/features/site-update/candidate-readiness.ts	86.54	100.0	100.0	1-5,8,51	7	52	15/15 7/7
+apps/website/src/features/site-update/configured-runtime.ts	67.86	100.0	50.0	1-4,25-28,34	9	28	6/6 1/2
+apps/website/src/features/site-update/github-release-feed.ts	79.17	55.56	100.0	1-4,27	5	24	5/9 3/3
+apps/website/src/features/site-update/host-runtime.ts	73.08	100.0	100.0	1-6,26	7	26	6/6 1/1
+apps/website/src/features/site-update/operation-update-lock.ts	86.67	100.0	100.0	1-4	4	30	4/4 2/2
+apps/website/src/features/site-update/read-status.ts	81.82	95.24	100.0	1-6,61-64	10	55	20/21 3/3
+apps/website/src/features/site-update/restore-point-backup.ts	88.57	100.0	100.0	1-6,11,69	8	70	20/20 8/8
+apps/website/src/features/site-update/self-hosted-host.ts	61.11	100.0	100.0	1-6,23	7	18	5/5 2/2
+apps/website/src/features/site-update/tools.ts	96.3	96.0	93.75	1-5	5	135	48/50 15/16
+apps/website/src/features/sites/agent-tools.ts	81.41	100.0	100.0	2-23,29-35	29	156	1/1 0/0
+apps/website/src/features/sites/deps.ts	98.53	50.0	100.0	116	1	68	2/4 1/1
+apps/website/src/features/sites/index.ts	87.88	100.0	100.0	1-4	4	33	1/1 0/0
+apps/website/src/features/sites/list-tool.ts	66.67	100.0	100.0	1	1	3	1/1 0/0
+apps/website/src/features/sites/site-admin.ts	97.21	65.15	100.0	181-183,211-212,274-275	7	251	43/66 12/12
+apps/website/src/features/sites/site-preview/playwright-site-preview-capture.ts	99.24	100.0	100.0	133	1	131	26/26 15/15
+apps/website/src/features/sites/site-preview/site-preview-service.ts	81.9	100.0	100.0	1-19,22,105	21	116	45/45 16/16
+apps/website/src/features/sites/site-preview/site-preview-store.ts	75.0	100.0	100.0	1-21,56	22	88	21/21 8/8
+apps/website/src/features/sites/tool-registrations.ts	89.1	92.45	81.25	118-121,146-151,154-157,219-226,230-241	34	312	49/53 26/32
+apps/website/src/features/sites/warm-switch.ts	96.88	63.64	100.0	1	1	32	7/11 3/3
+apps/website/src/features/skills/install-adapters.ts	85.71	100.0	100.0	7	1	7	2/2 1/1
+apps/website/src/features/skills/site-host.ts	80.0	100.0	80.0	1-8	8	40	5/5 4/5
+apps/website/src/features/source-control/commit-site.ts	100.0	97.87	100.0		0	110	46/47 15/15
+apps/website/src/features/source-control/credential-setup.ts	100.0	100.0	33.33		0	21	2/2 1/3
+apps/website/src/features/source-control/index.ts	63.64	100.0	100.0	1-4	4	11	1/1 0/0
+apps/website/src/features/source-control/provider-kit-host.ts	96.0	83.33	66.67	18	1	25	5/6 2/3
+apps/website/src/features/source-control/provider-registry.ts	100.0	93.15	98.0		0	273	68/73 49/50
+apps/website/src/features/source-control/repo.memory.ts	100.0	80.0	100.0		0	13	4/5 3/3
+apps/website/src/features/source-control/source-control-credential-repo.sqlite.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/features/source-control/source-control-credential-repo.ts	100.0	100.0	100.0		0	14	5/5 3/3
+apps/website/src/features/source-control/store.ts	94.44	100.0	100.0	17	1	18	5/5 4/4
+apps/website/src/features/source-control/tool-registrations.ts	100.0	100.0	0.0		0	28	1/1 0/2
+apps/website/src/features/source-control/write-port.ts	75.86	85.71	100.0	1-7	7	29	6/7 5/5
+apps/website/src/features/storage/agent-tools.ts	81.48	100.0	100.0	1-5	5	27	1/1 0/0
+apps/website/src/features/storage/cleanup-gate.ts	98.15	90.91	100.0	52	1	54	10/11 5/5
+apps/website/src/features/storage/compact-site.ts	90.0	66.67	100.0	35-37	3	30	8/12 3/3
+apps/website/src/features/storage/compaction-marker.ts	100.0	71.43	83.33		0	42	10/14 5/6
+apps/website/src/features/storage/compaction-recovery-ports.ts	91.37	73.21	100.0	1-5,31-33,53-55,135	12	139	41/56 34/34
+apps/website/src/features/storage/compaction-recovery.ts	92.14	79.63	100.0	1-14,183-186,237-240	22	280	86/108 26/26
+apps/website/src/features/storage/compaction-recovery.types.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/storage/measure.ts	91.96	100.0	100.0	1-9	9	112	33/33 14/14
+apps/website/src/features/storage/tool-registrations.ts	67.53	100.0	33.33	34-43,52-57,62-67,81-83	25	77	4/4 3/9
+apps/website/src/features/taxonomy/gated-hooks.ts	97.83	100.0	100.0	52	1	46	3/3 2/2
+apps/website/src/features/taxonomy/tool-registrations.ts	100.0	100.0	100.0		0	145	26/26 23/23
+apps/website/src/features/theme/active-theme-publish-content.ts	100.0	100.0	100.0		0	100	37/37 14/14
+apps/website/src/features/theme/active-theme.ts	99.49	96.97	57.89	195	1	197	32/33 11/19
+apps/website/src/features/theme/agent-tools.ts	100.0	100.0	100.0		0	470	5/5 4/4
+apps/website/src/features/theme/asset-operations.ts	100.0	97.3	95.24		0	219	36/37 20/21
+apps/website/src/features/theme/asset-path-rewrites.ts	50.0	75.0	100.0	3-13	11	22	3/4 2/2
+apps/website/src/features/theme/build-conformance.ts	93.46	81.25	90.48	301-307,322-325,328-329,396-401,405-410,474-479,516,537-538	34	520	65/80 19/21
+apps/website/src/features/theme/capability-card.ts	96.43	100.0	100.0	1	1	28	1/1 0/0
+apps/website/src/features/theme/catalog.ts	100.0	100.0	100.0		0	2	1/1 0/0
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	38.02	100.0	0.0	1-104,160-173,176-185,197-203,231-266,277-296,298-306,310,312-318,324-330,343-346,387-418	251	405	1/1 0/10
+apps/website/src/features/theme/duplicate-theme-tool.ts	100.0	93.33	100.0		0	175	28/30 7/7
+apps/website/src/features/theme/duplicate-theme.ts	99.74	98.99	100.0	406	1	381	98/99 26/26
+apps/website/src/features/theme/entry-list-markup.ts	61.54	75.0	50.0	25-39	15	39	3/4 2/4
+apps/website/src/features/theme/file-identity-lock.ts	97.82	96.55	100.0	262-267	6	275	56/58 15/15
+apps/website/src/features/theme/file-mutation-tools.ts	100.0	94.74	88.89		0	70	18/19 8/9
+apps/website/src/features/theme/font-links.ts	100.0	90.91	84.62		0	33	20/22 11/13
+apps/website/src/features/theme/handlebars-allowlist.ts	99.75	89.55	71.43	391	1	407	60/67 15/21
+apps/website/src/features/theme/hardcoded-link-lists.ts	99.15	84.85	100.0	107	1	117	28/33 6/6
+apps/website/src/features/theme/held-back-choice.ts	95.78	88.68	100.0	84,103-105,113,130,164	7	166	47/53 14/14
+apps/website/src/features/theme/held-back-gated-hooks.ts	97.73	100.0	100.0	38	1	44	4/4 3/3
+apps/website/src/features/theme/held-back-themes.ts	99.17	81.01	100.0	104,146	2	242	64/79 19/19
+apps/website/src/features/theme/import-theme-file-tool.ts	100.0	93.33	88.89		0	176	14/15 8/9
+apps/website/src/features/theme/index.ts	100.0	100.0	100.0		0	153	1/1 0/0
+apps/website/src/features/theme/liquid-allowlist.ts	99.66	95.24	61.54	159	1	290	40/42 8/13
+apps/website/src/features/theme/migration/migrate-theme.ts	88.37	55.26	82.35	67,127,151-156,239-240,242-247,300-314,354-355,357-358,360-361,370-372	40	344	21/38 14/17
+apps/website/src/features/theme/migration/theme-migration-plan.ts	61.98	52.63	40.0	1-15,79-80,105,139-150,160-163,167-178,183-187,192-198,202-213,220-234,254-265,271,277-278	100	263	10/19 6/15
+apps/website/src/features/theme/page-publication.ts	98.44	100.0	100.0	43	1	64	17/17 6/6
+apps/website/src/features/theme/page-publish-tool.ts	98.15	85.71	100.0	49	1	54	12/14 3/3
+apps/website/src/features/theme/preview-policy.ts	83.33	80.0	75.0	1	1	6	4/5 3/4
+apps/website/src/features/theme/preview-switcher-html.ts	100.0	100.0	84.21		0	120	61/61 16/19
+apps/website/src/features/theme/preview-switcher-tools.ts	100.0	100.0	100.0		0	71	13/13 7/7
+apps/website/src/features/theme/preview-switcher.ts	99.15	97.5	72.97	118	1	118	78/80 27/37
+apps/website/src/features/theme/public-page-security-headers.ts	96.15	100.0	100.0	14	1	26	10/10 3/3
+apps/website/src/features/theme/public-theme-resources.ts	97.14	83.33	50.0	32	1	35	5/6 3/6
+apps/website/src/features/theme/publish-content.ts	91.53	62.16	84.62	105,113-115,261-262,304-305,317-318,491-492,519-536,577-582,626-630,634-637,647-649,689-690,697-700,704-706,727-729,739-744	66	779	92/148 55/65
+apps/website/src/features/theme/render-contract.ts	99.07	90.0	55.56	295	1	107	9/10 5/9
+apps/website/src/features/theme/rendering.ts	100.0	100.0	100.0		0	9	1/1 0/0
+apps/website/src/features/theme/save-theme-original.ts	98.08	100.0	100.0	39	1	52	8/8 1/1
+apps/website/src/features/theme/set-active-theme-tool.ts	99.44	65.0	100.0	153	1	179	13/20 6/6
+apps/website/src/features/theme/static-asset-contract.ts	99.13	94.74	57.14	112	1	115	18/19 8/14
+apps/website/src/features/theme/static-page-shell.ts	99.39	76.0	71.43	143	1	163	19/25 5/7
+apps/website/src/features/theme/static-portability-index.ts	94.37	84.21	53.33	63-65,103-107,149-152,218	13	231	16/19 8/15
+apps/website/src/features/theme/static-render-content.ts	99.42	93.22	66.67	167	1	172	55/59 14/21
+apps/website/src/features/theme/static-render-menus.ts	100.0	100.0	88.46		0	244	95/95 23/26
+apps/website/src/features/theme/static-render-previews.ts	100.0	93.75	63.64		0	111	30/32 7/11
+apps/website/src/features/theme/static-render.ts	99.59	91.89	77.78	244	1	241	34/37 14/18
+apps/website/src/features/theme/static-template-choice.ts	99.44	86.36	55.56	175	1	178	19/22 5/9
+apps/website/src/features/theme/static-template-resolution.ts	99.26	95.45	50.0	112	1	135	21/22 2/4
+apps/website/src/features/theme/structure-only-theme.ts	98.15	96.0	100.0	30	1	54	24/25 8/8
+apps/website/src/features/theme/sync-originals.ts	99.48	100.0	100.0	186	1	192	20/20 10/10
+apps/website/src/features/theme/theme-discovery.ts	99.56	93.88	67.65	223	1	229	46/49 23/34
+apps/website/src/features/theme/theme-file-errors.ts	100.0	100.0	100.0		0	21	3/3 2/2
+apps/website/src/features/theme/theme-file-identity-tools.ts	93.64	52.17	100.0	29-30,64-65,67-68,75-76,112-113,142	11	173	12/23 8/8
+apps/website/src/features/theme/theme-file-import.ts	87.79	95.24	100.0	1-21	21	172	20/21 6/6
+apps/website/src/features/theme/theme-file-listing.ts	96.1	71.43	100.0	28-30	3	77	15/21 5/5
+apps/website/src/features/theme/theme-file-policy.ts	100.0	96.67	53.85		0	196	29/30 7/13
+apps/website/src/features/theme/theme-file-trash-tools.ts	100.0	96.3	100.0		0	139	26/27 8/8
+apps/website/src/features/theme/theme-file-write-ports.ts	92.68	85.71	83.33	40-42	3	41	6/7 5/6
+apps/website/src/features/theme/theme-file-writing.ts	97.12	94.44	100.0	20-21,94	3	104	17/18 6/6
+apps/website/src/features/theme/theme-files.ts	97.29	82.5	100.0	144-145,150-151,218-219	6	221	33/40 9/9
+apps/website/src/features/theme/theme-generated-restore.ts	98.48	100.0	100.0	34	1	66	14/14 4/4
+apps/website/src/features/theme/theme-manifest-fields.ts	100.0	88.1	65.22		0	107	37/42 15/23
+apps/website/src/features/theme/theme-manifest.ts	100.0	98.18	83.33		0	172	54/55 10/12
+apps/website/src/features/theme/theme-page-eligibility.ts	98.68	93.75	50.0	68	1	76	15/16 3/6
+apps/website/src/features/theme/theme-preview-image.ts	66.02	70.0	40.0	37-46,64-73,80,86-95,104,112-114	35	103	7/10 2/5
+apps/website/src/features/theme/theme-read-content.ts	84.38	33.33	100.0	1-4,41-43,54,57-58	10	64	4/12 3/3
+apps/website/src/features/theme/theme-read-tools.ts	82.26	84.38	68.75	42-50,71-81,104,120	22	124	27/32 11/16
+apps/website/src/features/theme/theme-reset-file-tool.ts	99.17	100.0	100.0	87	1	120	18/18 5/5
+apps/website/src/features/theme/theme-roster-ports.ts	100.0	50.0	0.0		0	4	1/2 0/2
+apps/website/src/features/theme/theme-static-assets.ts	100.0	87.69	78.95		0	222	57/65 15/19
+apps/website/src/features/theme/theme-template-sources.ts	100.0	98.11	72.73		0	133	52/53 8/11
+apps/website/src/features/theme/theme-tool-catalog.ts	100.0	100.0	100.0		0	6	1/1 0/0
+apps/website/src/features/theme/theme-tool-editing.ts	86.76	66.67	100.0	17-18,49-50,60-61,63-64,66	9	68	14/21 5/5
+apps/website/src/features/theme/theme-tool-view.ts	56.1	100.0	100.0	1,4-20	18	41	6/6 1/1
+apps/website/src/features/theme/theme-trash-binding.ts	65.85	100.0	42.86	14-16,20-26,34-35,40-41	14	41	4/4 3/7
+apps/website/src/features/theme/theme-watch-bindings.ts	47.06	100.0	0.0	9-14,16-18	9	17	1/1 0/2
+apps/website/src/features/theme/theme-write-tools.ts	99.0	80.0	100.0	61	1	100	12/15 7/7
+apps/website/src/features/theme/theme.ts	78.06	93.88	83.33	30,33-83	52	237	46/49 10/12
+apps/website/src/features/theme/token-aliases.ts	98.08	80.0	66.67	44	1	52	8/10 4/6
+apps/website/src/features/theme/tool-registrations.ts	77.7	100.0	100.0	1-31	31	139	5/5 4/4
+apps/website/src/features/theme/trash-theme-tool.ts	71.11	100.0	50.0	77-85,103-121,134-138,151-169	52	180	5/5 4/8
+apps/website/src/features/theme/validation/markup.ts	93.55	87.5	61.54	69-72,77-79,116	8	124	14/16 8/13
+apps/website/src/features/theme/validation/profiles.ts	64.29	90.91	100.0	1-10,12-25,30-34,72	30	84	10/11 1/1
+apps/website/src/features/theme/validation/references.ts	99.04	100.0	100.0	96	1	104	25/25 5/5
+apps/website/src/features/theme/validation/structure.ts	99.66	89.66	100.0	291	1	298	52/58 9/9
+apps/website/src/features/theme/validation/validate-theme-package.ts	99.59	100.0	100.0	237	1	246	46/46 16/16
+apps/website/src/features/theme/validation/webmcp-markup.ts	99.0	87.62	100.0	49,197	2	201	92/105 29/29
+apps/website/src/features/theme/verify-active-theme.ts	100.0	100.0	100.0		0	64	10/10 1/1
+apps/website/src/features/theme/visitor-publication.ts	55.56	63.16	35.29	33-44,56-57,66-68,94-101,103-107,115-118,121-127,130-156	68	153	24/38 12/34
+apps/website/src/features/tool-audit/repo.sqlite.ts	100.0	100.0	100.0		0	66	5/5 4/4
+apps/website/src/features/trash/adapters/comment.ts	78.08	100.0	100.0	1-15,29	16	73	5/5 4/4
+apps/website/src/features/trash/adapters/redirect.ts	85.71	100.0	100.0	6	1	7	2/2 1/1
+apps/website/src/features/trash/adapters/user.ts	100.0	100.0	100.0		0	5	1/1 0/0
+apps/website/src/features/trash/agent-delete-policy.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/trash/db-port.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/features/trash/index.ts	83.67	100.0	0.0	1-8	8	49	1/1 0/1
+apps/website/src/features/trash/member-credential-ports.ts	100.0	100.0	100.0		0	6	2/2 1/1
+apps/website/src/features/trash/permissions.ts	100.0	100.0	100.0		0	59	1/1 0/0
+apps/website/src/features/trash/registry.ts	89.02	100.0	100.0	1-21,24-31	29	264	10/10 9/9
+apps/website/src/features/trash/repo.sqlite.ts	97.22	100.0	100.0	32	1	36	5/5 4/4
+apps/website/src/features/trash/tool-kinds.ts	100.0	66.67	100.0		0	39	2/3 1/1
+apps/website/src/features/trash/tool-registrations.ts	100.0	100.0	57.14		0	62	5/5 4/7
+apps/website/src/features/trash/trash-item-tool.ts	100.0	100.0	100.0		0	113	1/1 0/0
+apps/website/src/features/vendor-credentials/index.ts	33.33	100.0	100.0	1-6	6	9	1/1 0/0
+apps/website/src/features/vendor-credentials/repo.memory.ts	100.0	100.0	100.0		0	9	3/3 2/2
+apps/website/src/features/vendor-credentials/vault-adapter.ts	100.0	100.0	66.67		0	15	5/5 4/6
+apps/website/src/features/vendor-credentials/vendor-credential-repo.sqlite.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/features/vendor-credentials/vendor-credential-repo.ts	100.0	100.0	100.0		0	8	3/3 2/2
+apps/website/src/features/web-screenshot/catalog-host.ts	100.0	100.0	100.0		0	12	1/1 0/0
+apps/website/src/features/web/agent-tools.ts	100.0	100.0	100.0		0	23	1/1 0/0
+apps/website/src/features/web/policy.ts	42.86	100.0	100.0	3-6	4	7	1/1 0/0
+apps/website/src/features/web/web-page.ts	96.88	100.0	100.0	2	1	32	3/3 2/2
+apps/website/src/features/webhooks/keyring.env.ts	100.0	93.33	43.48		0	155	14/15 10/23
+apps/website/src/features/webhooks/site-key-read-bindings.ts	100.0	66.67	23.08		0	24	4/6 3/13
+apps/website/src/features/webhooks/tool-registrations.ts	92.66	100.0	100.0	1-8	8	109	13/13 12/12
+apps/website/src/features/webhooks/wire-headers.ts	28.57	100.0	100.0	3-7	5	7	1/1 0/0
+apps/website/src/features/webmcp/published-html.ts	94.74	66.67	33.33	6	1	19	6/9 1/3
+apps/website/src/features/widgets/deps.ts	99.28	95.83	76.19	174	1	138	23/24 16/21
+apps/website/src/features/widgets/media-html-log.ts	92.31	80.0	75.0	12	1	13	4/5 3/4
+apps/website/src/features/widgets/tool-registrations.ts	100.0	100.0	100.0		0	64	7/7 6/6
+apps/website/src/index.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/db/chat-kernel.ts	100.0	87.5	42.86		0	45	7/8 3/7
+apps/website/src/platform/db/client/open-site-db-client.ts	97.5	86.21	91.67	125-127	3	120	25/29 11/12
+apps/website/src/platform/db/content-database.generated.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/db/content-kernel.ts	100.0	87.5	50.0		0	32	7/8 3/6
+apps/website/src/platform/db/content-tables.ts	100.0	100.0	100.0		0	27	1/1 0/0
+apps/website/src/platform/db/keep-stored-revocation.ts	94.12	66.67	33.33	15	1	17	2/3 1/3
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	100.0	87.5	26.67		0	33	7/8 4/15
+apps/website/src/platform/db/kernel/drivers/pglite-socket.ts	88.89	100.0	100.0	1	1	9	2/2 1/1
+apps/website/src/platform/db/kernel/drivers/pglite.ts	100.0	75.0	50.0		0	10	3/4 2/4
+apps/website/src/platform/db/kernel/drivers/postgres.ts	88.89	100.0	50.0	8	1	9	3/3 2/4
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	98.11	100.0	55.0	52	1	53	12/12 11/20
+apps/website/src/platform/db/kernel/index.ts	100.0	66.67	10.0		0	9	2/3 1/10
+apps/website/src/platform/db/kernel/ops.ts	97.22	100.0	50.0	35	1	36	15/15 5/10
+apps/website/src/platform/db/kernel/stopped-database.ts	84.62	100.0	100.0	1,11	2	13	3/3 2/2
+apps/website/src/platform/db/key-dependent-data.ts	100.0	100.0	63.64		0	105	27/27 7/11
+apps/website/src/platform/db/migration/manifest.ts	82.64	89.74	80.0	1-65,462-467,503-506,554-563,589-600,649-653,713-740,836-843	138	795	35/39 16/20
+apps/website/src/platform/db/migrations/0000_legacy_baseline.postgres.ts	100.0	66.67	33.33		0	265	2/3 1/3
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	100.0	92.86	66.67		0	46	13/14 6/9
+apps/website/src/platform/db/migrations/0001_post_search.ts	100.0	88.89	60.0		0	37	8/9 3/5
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	100.0	76.92	60.0		0	37	10/13 3/5
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	100.0	87.5	60.0		0	23	7/8 3/5
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	100.0	83.33	60.0		0	34	5/6 3/5
+apps/website/src/platform/db/migrations/0005_media_createdby.ts	100.0	80.0	75.0		0	10	4/5 3/4
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	94.59	80.0	77.78	40-41,52-53	4	74	12/15 7/9
+apps/website/src/platform/db/migrations/0007_publish_backstop.ts	100.0	87.5	75.0		0	19	7/8 3/4
+apps/website/src/platform/db/migrations/0008_posts_publish_at_featured_media.ts	100.0	80.0	75.0		0	13	4/5 3/4
+apps/website/src/platform/db/migrations/0009_posts_author.ts	100.0	87.5	60.0		0	21	7/8 3/5
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	100.0	80.0	60.0		0	15	4/5 3/5
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	100.0	96.3	72.73		0	68	26/27 8/11
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	100.0	96.15	75.0		0	214	25/26 6/8
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	100.0	95.83	85.71		0	334	138/144 24/28
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	100.0	95.0	75.0		0	62	19/20 6/8
+apps/website/src/platform/db/migrations/0014_media_library.ts	100.0	83.33	60.0		0	15	5/6 3/5
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	100.0	90.0	66.67		0	22	9/10 4/6
+apps/website/src/platform/db/migrations/0016_publish_destination_history.ts	100.0	80.0	75.0		0	13	4/5 3/4
+apps/website/src/platform/db/migrations/0017_publish_history_kind.ts	100.0	80.0	75.0		0	11	4/5 3/4
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	100.0	80.0	60.0		0	17	4/5 3/5
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	100.0	83.33	60.0		0	31	5/6 3/5
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	97.26	76.92	62.5	33-34	2	73	10/13 5/8
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	100.0	85.71	66.67		0	18	6/7 4/6
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	100.0	83.33	50.0		0	29	5/6 3/6
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	100.0	83.33	50.0		0	41	5/6 3/6
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	100.0	83.33	50.0		0	34	5/6 3/6
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	100.0	80.0	50.0		0	28	4/5 3/6
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	100.0	80.0	50.0		0	27	4/5 3/6
+apps/website/src/platform/db/migrations/0027_search_index.ts	100.0	83.33	50.0		0	36	5/6 3/6
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	100.0	80.0	50.0		0	26	4/5 3/6
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	100.0	96.0	82.61		0	61	24/25 19/23
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	100.0	95.45	80.0		0	54	21/22 16/20
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	100.0	90.0	63.64		0	44	9/10 7/11
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	100.0	80.0	60.0		0	16	4/5 3/5
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	100.0	80.0	60.0		0	16	4/5 3/5
+apps/website/src/platform/db/migrations/0034_member_auth.ts	100.0	90.0	66.67		0	22	9/10 4/6
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	100.0	83.33	60.0		0	23	5/6 3/5
+apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts	100.0	87.5	75.0		0	15	7/8 3/4
+apps/website/src/platform/db/migrations/0037_media_source_metadata.ts	100.0	88.89	80.0		0	10	8/9 4/5
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	100.0	85.71	62.5		0	23	6/7 5/8
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	100.0	90.0	72.73		0	25	9/10 8/11
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	100.0	95.45	84.21		0	43	21/22 16/19
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	100.0	94.44	80.0		0	24	17/18 12/15
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	100.0	85.71	50.0		0	37	6/7 4/8
+apps/website/src/platform/db/migrations/0043_webhook_subscription_creator_kind.ts	100.0	80.0	50.0		0	27	4/5 3/6
+apps/website/src/platform/db/migrations/0044_agent_pause_creator_kind.ts	100.0	83.33	50.0		0	35	5/6 3/6
+apps/website/src/platform/db/migrations/0045_media_captions.ts	100.0	83.33	50.0		0	31	5/6 3/6
+apps/website/src/platform/db/migrations/0046_media_description.ts	100.0	80.0	50.0		0	29	4/5 3/6
+apps/website/src/platform/db/migrations/0047_change_set_actor_kind.ts	100.0	80.0	50.0		0	30	4/5 3/6
+apps/website/src/platform/db/migrations/0048_blob_gc_journal.ts	100.0	83.33	50.0		0	40	5/6 3/6
+apps/website/src/platform/db/migrations/0050_ledger_actor_kind.ts	100.0	83.33	50.0		0	35	5/6 3/6
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	100.0	88.89	60.0		0	79	8/9 3/5
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	100.0	88.89	50.0		0	76	8/9 3/6
+apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts	100.0	91.67	66.67		0	31	11/12 4/6
+apps/website/src/platform/db/migrations/chat/0003_active_run_index.ts	100.0	88.89	66.67		0	16	8/9 4/6
+apps/website/src/platform/db/migrations/chat/0004_chat_pinned.ts	100.0	93.75	66.67		0	22	15/16 4/6
+apps/website/src/platform/db/migrations/chat/0049_scrub_assistant_chat_titles.ts	100.0	81.82	66.67		0	28	9/11 4/6
+apps/website/src/platform/db/migrations/checksums.ts	100.0	75.0	66.67		0	77	3/4 2/3
+apps/website/src/platform/db/migrations/commerce/0000_catalog.ts	100.0	83.33	60.0		0	53	5/6 3/5
+apps/website/src/platform/db/migrations/index.ts	100.0	83.33	31.58		0	191	10/12 6/19
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	96.09	85.42	67.65	111-112,200-204	7	179	41/48 23/34
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	100.0	71.43	50.0		0	52	5/7 3/6
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	100.0	71.43	50.0		0	65	5/7 3/6
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	100.0	83.33	60.0		0	18	5/6 3/5
+apps/website/src/platform/db/migrations/runner.ts	95.65	100.0	42.86	25	1	23	5/5 3/7
+apps/website/src/platform/db/migrations/source-digests.ts	88.33	100.0	100.0	1-7	7	60	1/1 0/0
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	94.74	100.0	57.14	81-82,85-86	4	76	11/11 4/7
+apps/website/src/platform/db/prepare-content-store.ts	100.0	97.22	71.43		0	78	35/36 10/14
+apps/website/src/platform/db/publish-backstop-tables.ts	14.29	100.0	100.0	1-6	6	7	1/1 0/0
+apps/website/src/platform/db/repos/analytics-sink.ts	83.48	100.0	30.0	95-96,99-100,103-105,108-119	19	115	4/4 3/10
+apps/website/src/platform/db/repos/blob-gc-journal.ts	100.0	94.12	100.0		0	70	16/17 14/14
+apps/website/src/platform/db/repos/external-mcp-tool-approval-repo.ts	100.0	100.0	100.0		0	69	16/16 13/13
+apps/website/src/platform/db/repos/form-delivery-binding.ts	100.0	100.0	100.0		0	8	2/2 1/1
+apps/website/src/platform/db/repos/media-grid-query.ts	37.36	100.0	0.0	41-46,49-54,57-59,67-80,83-85,88-94,103-120,123-139,147-158,162-171,173-185	109	174	1/1 0/11
+apps/website/src/platform/db/repos/media-record-row.ts	84.09	63.64	100.0	6-9,11-12,42	7	44	7/11 1/1
+apps/website/src/platform/db/repos/media-repo.ts	98.75	82.21	95.45	281-282,726-732	9	721	134/163 84/88
+apps/website/src/platform/db/repos/oauth-pending-store.ts	100.0	94.12	80.0		0	106	16/17 12/15
+apps/website/src/platform/db/repos/origin-repo.ts	100.0	84.62	100.0		0	82	11/13 5/5
+apps/website/src/platform/db/repos/publish-content-run-repo.ts	100.0	94.12	100.0		0	86	16/17 12/12
+apps/website/src/platform/db/repos/publish-history-repo.ts	100.0	96.3	100.0		0	144	52/54 24/24
+apps/website/src/platform/db/schema.postgres.ts	98.98	100.0	100.0	1-13	13	1278	79/79 76/76
+apps/website/src/platform/db/schema.sqlite.ts	100.0	98.78	46.51		0	2462	81/82 80/172
+apps/website/src/platform/db/site-store-copy.ts	93.33	75.0	15.38	17	1	15	3/4 2/13
+apps/website/src/platform/db/sqlite/analytics-sink.sqlite.ts	100.0	100.0	100.0		0	14	3/3 2/2
+apps/website/src/platform/db/sqlite/change-set-repo.sqlite.ts	100.0	100.0	100.0		0	77	12/12 6/6
+apps/website/src/platform/db/sqlite/chat-db.ts	94.59	88.89	100.0	55-57,68	4	74	8/9 3/3
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	84.0	58.33	41.67	108-112,118-120,140-159	28	175	7/12 5/12
+apps/website/src/platform/db/sqlite/content-db.ts	97.78	75.0	61.11	175-177,199	4	180	18/24 11/18
+apps/website/src/platform/db/sqlite/copy-coordinator.ts	98.01	69.57	61.29	176-178	3	151	32/46 19/31
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	100.0	97.4	100.0		0	309	75/77 23/23
+apps/website/src/platform/db/sqlite/database-journal-db.ts	100.0	100.0	100.0		0	45	4/4 2/2
+apps/website/src/platform/db/sqlite/db-ops.ts	100.0	100.0	100.0		0	102	11/11 9/9
+apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.ts	100.0	100.0	100.0		0	17	3/3 2/2
+apps/website/src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite.ts	100.0	100.0	100.0		0	15	3/3 2/2
+apps/website/src/platform/db/sqlite/fresh-content-db.ts	99.38	96.0	96.77	84-85	2	323	96/100 60/62
+apps/website/src/platform/db/sqlite/gated-mutation-token-repo.sqlite.ts	100.0	100.0	100.0		0	71	9/9 8/8
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	100.0	100.0	100.0		0	98	9/9 2/2
+apps/website/src/platform/db/sqlite/media-repo.sqlite.ts	100.0	100.0	100.0		0	46	11/11 10/10
+apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts	100.0	100.0	100.0		0	15	2/2 1/1
+apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts	97.5	100.0	100.0	40	1	40	5/5 4/4
+apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts	100.0	85.71	100.0		0	76	6/7 5/5
+apps/website/src/platform/db/sqlite/publish-content-baseline-repo.sqlite.ts	100.0	100.0	100.0		0	17	3/3 2/2
+apps/website/src/platform/db/sqlite/publish-content-bundle-repo.sqlite.ts	100.0	100.0	100.0		0	17	3/3 2/2
+apps/website/src/platform/db/sqlite/publish-content-run-repo.sqlite.ts	100.0	100.0	100.0		0	14	3/3 2/2
+apps/website/src/platform/db/sqlite/publish-history-repo.sqlite.ts	100.0	100.0	100.0		0	14	3/3 2/2
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	100.0	100.0	44.44		0	82	11/11 4/9
+apps/website/src/platform/db/sqlite/restore-point-prune-warning.ts	88.89	100.0	100.0	7	1	9	2/2 1/1
+apps/website/src/platform/db/sqlite/routines-db.ts	41.38	66.67	100.0	3-14,16,27-30	17	29	2/3 1/1
+apps/website/src/platform/db/sqlite/webhook-repo.sqlite.ts	100.0	100.0	100.0		0	34	5/5 4/4
+apps/website/src/platform/db/vault-credential-inventory.ts	100.0	98.37	78.57		0	237	121/123 33/42
+apps/website/src/platform/db/vault-credential-recovery.ts	100.0	94.29	100.0		0	131	66/70 18/18
+apps/website/src/platform/db/write-watermark-tables.ts	16.67	100.0	100.0	1-5	5	6	1/1 0/0
+apps/website/src/platform/dev-host/dev-tls.ts	100.0	100.0	100.0		0	104	15/15 4/4
+apps/website/src/platform/dev-host/warm-site-agent.ts	61.54	50.0	50.0	1,16-24	10	26	2/4 1/2
+apps/website/src/platform/dev-supervisor/dev-restart.ts	100.0	94.59	81.82		0	98	35/37 9/11
+apps/website/src/platform/dev-supervisor/index.ts	50.0	100.0	100.0	1	1	2	1/1 0/0
+apps/website/src/platform/express/async-route.ts	100.0	85.71	66.67		0	33	6/7 4/6
+apps/website/src/platform/express/jini-routes.ts	97.12	77.19	100.0	1-6	6	208	44/57 23/23
+apps/website/src/platform/express/public-origin.ts	98.96	95.0	50.0	87	1	96	19/20 5/10
+apps/website/src/platform/express/request-facts.ts	97.14	83.33	50.0	35	1	35	5/6 4/8
+apps/website/src/platform/headless-browser/desktop-render.ts	84.21	75.0	100.0	1-3	3	19	3/4 2/2
+apps/website/src/platform/headless-browser/playwright-loader.ts	43.59	100.0	50.0	10-31	22	39	2/2 1/2
+apps/website/src/platform/html/menu-render.ts	98.53	100.0	80.0	82	1	68	36/36 8/10
+apps/website/src/platform/html/published-webmcp-strip.ts	98.51	81.82	70.0	56	1	67	18/22 7/10
+apps/website/src/platform/http/client.ts	95.0	86.67	100.0	1-2,40-41	4	80	13/15 7/7
+apps/website/src/platform/http/egress-policies.ts	90.03	88.89	100.0	1-25,28-32	30	301	8/9 5/5
+apps/website/src/platform/http/index.ts	33.33	100.0	100.0	1-5,8-10	8	12	1/1 0/0
+apps/website/src/platform/http/ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/http/test-origin-allowlist.ts	78.3	100.0	100.0	1-23	23	106	31/31 9/9
+apps/website/src/platform/mail/adapter-module.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/mail/adapters/smtp.nodemailer.ts	90.0	100.0	50.0	1,24	2	20	2/2 1/2
+apps/website/src/platform/mail/delivery-availability.ts	84.62	100.0	100.0	1,12	2	13	2/2 1/1
+apps/website/src/platform/mail/index.ts	61.54	100.0	100.0	1-5	5	13	1/1 0/0
+apps/website/src/platform/mail/sender-identity.ts	100.0	100.0	100.0		0	48	8/8 6/6
+apps/website/src/platform/markdown/frontmatter.ts	98.41	64.71	100.0	48	1	63	11/17 4/4
+apps/website/src/platform/oauth/endpoint-safety.ts	100.0	100.0	100.0		0	195	58/58 14/14
+apps/website/src/platform/oauth/index.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/oauth/legacy-endpoint-error.ts	96.88	75.0	100.0	21	1	32	3/4 1/1
+apps/website/src/platform/publish-contracts.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/routing/adapter.ts	100.0	75.0	10.53		0	18	3/4 2/19
+apps/website/src/platform/routing/index.ts	100.0	66.67	12.5		0	9	2/3 1/8
+apps/website/src/platform/secrets/startup-secrets.ts	97.5	85.71	100.0	1	1	40	12/14 4/4
+apps/website/src/platform/secrets/vault-api-connection-meta.ts	97.06	93.33	22.22	23	1	34	14/15 2/9
+apps/website/src/platform/secrets/vault-kinds.ts	100.0	97.56	77.27		0	90	40/41 17/22
+apps/website/src/platform/secrets/vault-meta-rules.ts	100.0	98.85	73.91		0	140	86/87 17/23
+apps/website/src/platform/server-logs/index.ts	99.21	100.0	100.0	116	1	126	35/35 21/21
+apps/website/src/platform/server-logs/log-buffer.ts	71.43	69.23	87.5	1-16,80-89	26	91	9/13 7/8
+apps/website/src/platform/server-logs/log-file.ts	94.16	70.59	91.67	86-88,92-93,116-117,140	8	137	24/34 11/12
+apps/website/src/platform/site-dir/active-site.ts	91.45	44.44	50.0	118,123-131	10	117	4/9 3/6
+apps/website/src/platform/site-dir/boot-site-dir.ts	100.0	96.77	100.0		0	192	30/31 5/5
+apps/website/src/platform/site-dir/duplicate-content-db.ts	100.0	100.0	60.0		0	181	14/14 3/5
+apps/website/src/platform/site-dir/duplicate-pglite-store.ts	43.53	50.0	0.0	28-37,41-58,68-87	48	85	1/2 0/5
+apps/website/src/platform/site-dir/duplicate-site.ts	97.03	83.33	80.0	119-120,292-298	9	303	25/30 8/10
+apps/website/src/platform/site-dir/errors.ts	100.0	93.33	65.0		0	62	14/15 13/20
+apps/website/src/platform/site-dir/index.ts	100.0	75.0	3.64		0	114	3/4 2/55
+apps/website/src/platform/site-dir/init-site.ts	99.77	94.17	73.08	489	1	429	97/103 19/26
+apps/website/src/platform/site-dir/key-only-site-meta.ts	75.64	60.0	28.0	90-91,107-113,118-120,125-126,129-131,140-151,161-164,166-168,171-181,197-202,235-238	57	234	12/20 7/25
+apps/website/src/platform/site-dir/layout.ts	99.33	100.0	22.22	148	1	150	3/3 2/9
+apps/website/src/platform/site-dir/local-admin-bundle.ts	98.88	93.94	81.48	30,136	2	178	62/66 22/27
+apps/website/src/platform/site-dir/local-site-child.ts	95.3	93.33	100.0	1-3,146-148,180	7	149	42/45 21/21
+apps/website/src/platform/site-dir/local-site-intent.ts	98.39	93.33	72.73	60	1	62	28/30 8/11
+apps/website/src/platform/site-dir/local-site-supervisor.ts	86.69	61.11	64.52	89-91,96-103,111-121,176-183,186-187,190-196,231,234-235,259-260,280-282	47	353	77/126 40/62
+apps/website/src/platform/site-dir/move-sites-home.ts	99.61	99.13	100.0	1	1	259	114/115 33/33
+apps/website/src/platform/site-dir/moves.ts	50.0	100.0	100.0	1	1	2	1/1 0/0
+apps/website/src/platform/site-dir/nested-sites-root.ts	100.0	95.83	69.23		0	58	23/24 9/13
+apps/website/src/platform/site-dir/new-site-owner.ts	100.0	90.0	50.0		0	26	9/10 2/4
+apps/website/src/platform/site-dir/ports.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/site-dir/product-root.ts	97.14	94.59	64.71	20-24	5	175	35/37 11/17
+apps/website/src/platform/site-dir/read-applied-schema-identity.ts	100.0	100.0	70.0		0	111	24/24 7/10
+apps/website/src/platform/site-dir/read-site-dir.ts	100.0	97.87	73.68		0	170	46/47 14/19
+apps/website/src/platform/site-dir/read-template.ts	100.0	88.89	50.0		0	82	8/9 2/4
+apps/website/src/platform/site-dir/repair-site.ts	90.97	60.87	66.67	228-232,236-240,242-246,313-323	26	288	14/23 12/18
+apps/website/src/platform/site-dir/resolve-workspace.ts	100.0	100.0	100.0		0	73	16/16 6/6
+apps/website/src/platform/site-dir/schema-guard.ts	100.0	85.71	50.0		0	91	12/14 4/8
+apps/website/src/platform/site-dir/seed-site-themes.ts	99.38	100.0	55.56	178	1	161	35/35 5/9
+apps/website/src/platform/site-dir/seed-starter-title.ts	100.0	83.33	60.0		0	36	10/12 3/5
+apps/website/src/platform/site-dir/site-databases.ts	99.32	96.88	68.75	134	1	146	62/64 11/16
+apps/website/src/platform/site-dir/site-key-dependent-data.ts	84.15	64.71	50.0	43-44,53-57,78-83	13	82	11/17 3/6
+apps/website/src/platform/site-dir/site-registry.ts	99.38	95.59	73.58	165-166,526	3	482	130/136 39/53
+apps/website/src/platform/site-dir/site-root.ts	96.0	84.62	33.33	90-92,99	4	100	11/13 3/9
+apps/website/src/platform/site-dir/site-running.ts	100.0	96.97	72.22		0	71	32/33 13/18
+apps/website/src/platform/site-dir/site-storage.ts	98.88	96.88	44.44	74	1	89	31/32 4/9
+apps/website/src/platform/site-dir/site-store.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/site-dir/site-switcher-enabled.ts	96.43	87.5	50.0	23	1	28	7/8 2/4
+apps/website/src/platform/site-dir/site-trash.ts	99.55	97.3	75.0	211	1	221	72/74 21/28
+apps/website/src/platform/site-dir/sites-home.ts	97.62	100.0	44.44	45	1	42	10/10 4/9
+apps/website/src/platform/site-dir/sites-project-references.ts	98.28	98.04	78.95	57	1	58	50/51 15/19
+apps/website/src/platform/site-dir/sites-workspace-options.ts	100.0	96.0	63.64		0	35	24/25 7/11
+apps/website/src/platform/site-dir/types.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/platform/temp/site-temp-roots.ts	100.0	100.0	83.33		0	60	7/7 5/6
+apps/website/src/platform/test-home-isolation.ts	100.0	93.33	85.71		0	23	14/15 6/7
+apps/website/src/server/error-mapping/respond.ts	43.75	100.0	0.0	1,10-17	9	16	1/1 0/1
+apps/website/src/server/http/request-cookie.ts	100.0	75.0	33.33		0	12	3/4 1/3
+apps/website/src/server/inbound/admin-http/admin-dev-proxy.ts	100.0	100.0	100.0		0	28	5/5 1/1
+apps/website/src/server/inbound/admin-http/admin-json-route-ports.ts	100.0	91.81	70.21		0	468	157/171 33/47
+apps/website/src/server/inbound/admin-http/admin-raw-route-ports.ts	100.0	91.3	70.0		0	95	21/23 7/10
+apps/website/src/server/inbound/admin-http/admin-request-facts.ts	98.86	92.0	64.29	97	1	88	23/25 9/14
+apps/website/src/server/inbound/admin-http/admin-static.ts	100.0	100.0	100.0		0	109	17/17 8/8
+apps/website/src/server/inbound/admin-http/authorize-guard.ts	100.0	92.86	57.14		0	80	13/14 4/7
+apps/website/src/server/inbound/admin-http/dev-auth.ts	98.13	92.68	81.48	469-473,566-568,622-626	13	697	152/164 66/81
+apps/website/src/server/inbound/admin-http/http/plugin-hook-error.ts	100.0	100.0	100.0		0	32	5/5 4/4
+apps/website/src/server/inbound/admin-http/http/widgets.ts	98.7	90.91	100.0	77	1	77	10/11 5/5
+apps/website/src/server/inbound/admin-http/local-admin-request.ts	96.15	94.44	66.67	19	1	26	17/18 4/6
+apps/website/src/server/inbound/admin-http/owner-mfa-routes.ts	100.0	88.89	35.29		0	54	8/9 6/17
+apps/website/src/server/inbound/admin-http/owner-passkey-routes.ts	100.0	94.44	68.18		0	47	17/18 15/22
+apps/website/src/server/inbound/admin-http/owner-recovery-routes.ts	100.0	92.31	88.89		0	65	24/26 16/18
+apps/website/src/server/inbound/admin-http/publish-trust-auth.ts	99.55	96.05	71.43	222,444	2	443	73/76 20/28
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/install-response.ts	97.83	80.0	100.0	44	1	46	8/10 7/7
+apps/website/src/server/inbound/admin-http/routes/analytics/recent-hits.ts	90.74	71.43	80.0	35-39	5	54	5/7 4/5
+apps/website/src/server/inbound/admin-http/routes/api-keys/create-principal.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/server/inbound/admin-http/routes/api-keys/deps.ts	100.0	100.0	83.33		0	81	6/6 5/6
+apps/website/src/server/inbound/admin-http/routes/api-keys/issue.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/server/inbound/admin-http/routes/api-keys/revoke.ts	100.0	100.0	100.0		0	10	2/2 1/1
+apps/website/src/server/inbound/admin-http/routes/assistant/stored-credential-probe.ts	89.74	100.0	33.33	32-33,36-37	4	39	2/2 1/3
+apps/website/src/server/inbound/admin-http/routes/external-mcp/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts	93.52	100.0	33.33	60-61,66,69-70,104-105	7	108	8/8 7/21
+apps/website/src/server/inbound/admin-http/routes/forms/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts	100.0	100.0	100.0		0	64	7/7 5/5
+apps/website/src/server/inbound/admin-http/routes/fs-files/folder-picker.ts	100.0	100.0	88.89		0	84	13/13 8/9
+apps/website/src/server/inbound/admin-http/routes/media/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/media/list.ts	100.0	100.0	100.0		0	30	6/6 5/5
+apps/website/src/server/inbound/admin-http/routes/media/original.ts	100.0	100.0	100.0		0	72	16/16 2/2
+apps/website/src/server/inbound/admin-http/routes/media/route-guards.ts	83.33	66.67	50.0	19-20,27-29	5	30	2/3 1/2
+apps/website/src/server/inbound/admin-http/routes/members/deps.ts	64.0	100.0	100.0	1-8,36	9	25	2/2 1/1
+apps/website/src/server/inbound/admin-http/routes/newsletter/deps.ts	79.22	100.0	100.0	1-15,128	16	77	10/10 9/9
+apps/website/src/server/inbound/admin-http/routes/plugins/chart-providers.ts	60.0	100.0	25.0	28-36,39-44,47-51	20	50	2/2 1/4
+apps/website/src/server/inbound/admin-http/routes/plugins/install.ts	93.75	100.0	94.12	35-37	3	48	17/17 16/17
+apps/website/src/server/inbound/admin-http/routes/plugins/local-installer.ts	100.0	100.0	100.0		0	15	7/7 1/1
+apps/website/src/server/inbound/admin-http/routes/posts/template-preview-render.ts	100.0	100.0	100.0		0	46	13/13 12/12
+apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts	100.0	100.0	100.0		0	68	12/12 10/10
+apps/website/src/server/inbound/admin-http/routes/publish-content/blobs-probe.ts	100.0	100.0	100.0		0	25	2/2 1/1
+apps/website/src/server/inbound/admin-http/routes/publish-content/deps.ts	99.07	100.0	50.0	130	1	107	2/2 1/2
+apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts	97.73	100.0	100.0	42	1	44	11/11 5/5
+apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts	100.0	76.19	100.0		0	107	16/21 15/15
+apps/website/src/server/inbound/admin-http/routes/settings/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/settings/shared.ts	99.41	95.45	100.0	163	1	170	21/22 14/14
+apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts	78.87	68.75	90.91	2-13,49-51	15	71	11/16 10/11
+apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts	93.75	47.62	100.0	1,42-44	4	64	10/21 6/6
+apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts	100.0	100.0	100.0		0	22	3/3 2/2
+apps/website/src/server/inbound/admin-http/routes/system/mail-providers.ts	100.0	100.0	88.89		0	77	11/11 8/9
+apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts	99.03	100.0	90.0	105,181	2	207	29/29 27/30
+apps/website/src/server/inbound/admin-http/routes/system/site-key.ts	95.64	84.68	97.06	228-232,302-304,333-334,472-475,610-619	24	550	105/124 33/34
+apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts	100.0	93.26	95.24		0	150	83/89 20/21
+apps/website/src/server/inbound/admin-http/routes/system/sites.ts	95.11	92.31	91.67	213-223	11	225	48/52 11/12
+apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/admin-http/routes/themes/explore.ts	96.93	88.89	94.74	1-3,511,541-542,555-559,570-575	17	554	56/63 18/19
+apps/website/src/server/inbound/admin-http/routes/themes/held-back.ts	100.0	89.29	92.86		0	101	25/28 13/14
+apps/website/src/server/inbound/admin-http/routes/themes/preview.ts	100.0	100.0	80.0		0	49	8/8 4/5
+apps/website/src/server/inbound/admin-http/routes/users/deps.ts	100.0	90.0	57.14		0	73	9/10 4/7
+apps/website/src/server/inbound/admin-http/routes/widgets/preview-render.ts	100.0	100.0	100.0		0	28	8/8 1/1
+apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts	97.22	84.21	97.3	1-2,41-42	4	144	48/57 36/37
+apps/website/src/server/inbound/assistant/agent-daemon-idle-park.ts	74.71	52.94	70.0	1,3,44-53,57-62,64-65,77-78	22	87	9/17 7/10
+apps/website/src/server/inbound/assistant/agent-daemon-run-launch.ts	95.92	71.67	90.48	124-128,146-147,203	8	196	43/60 19/21
+apps/website/src/server/inbound/assistant/agent-daemon-run-session.ts	98.55	73.53	75.0	69,72,209	3	207	25/34 9/12
+apps/website/src/server/inbound/assistant/agent-daemon-run-start.ts	95.87	61.11	81.82	1,195-196,239-243,280-281,315,356-357,364-365	15	363	33/54 18/22
+apps/website/src/server/inbound/assistant/agent-daemon-run-tool-access.ts	94.32	78.46	80.77	29-31,93-96,112-114	10	176	51/65 21/26
+apps/website/src/server/inbound/assistant/agent-daemon-scope-attachments.ts	99.52	91.89	100.0	203	1	208	34/37 16/16
+apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts	98.39	81.82	83.33	1	1	62	18/22 5/6
+apps/website/src/server/inbound/assistant/agent-daemon-scope-http.ts	82.76	100.0	41.38	58-62,65-68,105-108,136-139,149-160,213-220,227,277-283	45	261	15/15 12/29
+apps/website/src/server/inbound/assistant/agent-daemon-scope-lifetime.ts	96.43	85.71	100.0	1-2	2	56	18/21 9/9
+apps/website/src/server/inbound/assistant/agent-daemon-scope-runtime.ts	76.22	100.0	28.57	1,48-50,74-94,120-125,168,170-176	39	164	5/5 4/14
+apps/website/src/server/inbound/assistant/agent-daemon-scope-tools.ts	97.14	62.5	33.33	83-84,98-99	4	140	5/8 3/9
+apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	98.45	78.95	44.0	199,341-342,345-346	5	323	15/19 11/25
+apps/website/src/server/inbound/assistant/agent-daemon-server.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts	93.09	74.63	78.79	1,152-158,167-168,225-229	15	217	50/67 26/33
+apps/website/src/server/inbound/assistant/agent-plugin-preflight-events.ts	96.97	87.5	100.0	1	1	33	7/8 3/3
+apps/website/src/server/inbound/assistant/agent-plugin-prompt-variants.ts	92.86	90.0	100.0	1-3	3	42	9/10 6/6
+apps/website/src/server/inbound/assistant/assistant-browser-lease.ts	70.0	100.0	100.0	1-4,7-8	6	20	7/7 4/4
+apps/website/src/server/inbound/assistant/assistant-filesystem-notices.ts	75.0	50.0	100.0	3-5	3	12	3/6 1/1
+apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts	100.0	72.73	100.0		0	34	16/22 4/4
+apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts	97.78	76.92	100.0	47	1	45	20/26 5/5
+apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts	93.53	84.62	92.86	1-3,156-163	11	170	33/39 13/14
+apps/website/src/server/inbound/assistant/assistant-system-overlay.ts	99.38	88.89	100.0	88-89	2	323	24/27 12/12
+apps/website/src/server/inbound/assistant/assistant-tool-access.ts	98.44	86.49	100.0	56	1	64	32/37 11/11
+apps/website/src/server/inbound/assistant/assistant-tool-consent.ts	100.0	91.67	90.91		0	75	33/36 10/11
+apps/website/src/server/inbound/assistant/attempt-process-identity.ts	100.0	100.0	100.0		0	23	11/11 4/4
+apps/website/src/server/inbound/assistant/byok-message-attachments.ts	96.0	100.0	100.0	13	1	25	10/10 5/5
+apps/website/src/server/inbound/assistant/capability-manifest-prefix.ts	67.03	100.0	100.0	1-30	30	91	13/13 2/2
+apps/website/src/server/inbound/assistant/chat-attachment-directory.ts	97.78	66.67	33.33	39	1	45	2/3 1/3
+apps/website/src/server/inbound/assistant/daemon-origin-policy.ts	72.22	57.14	100.0	1-10	10	36	4/7 3/3
+apps/website/src/server/inbound/assistant/daemon-runtime-ports.ts	100.0	100.0	100.0		0	23	2/2 1/1
+apps/website/src/server/inbound/assistant/durable-run-routes.ts	100.0	100.0	100.0		0	95	70/70 13/13
+apps/website/src/server/inbound/assistant/early-run-session.ts	100.0	100.0	100.0		0	44	32/32 5/5
+apps/website/src/server/inbound/assistant/federation-admissions-route.ts	34.67	100.0	100.0	5-53	49	75	5/5 2/2
+apps/website/src/server/inbound/assistant/federation-reload-route.ts	100.0	75.0	100.0		0	48	3/4 2/2
+apps/website/src/server/inbound/assistant/index.ts	42.86	100.0	100.0	1-8	8	14	1/1 0/0
+apps/website/src/server/inbound/assistant/plugin-prompt-assembly.ts	27.27	100.0	100.0	1-8	8	11	4/4 1/1
+apps/website/src/server/inbound/assistant/plugin-prompt-prefix.ts	32.14	100.0	0.0	1-14,36-37,43-64	38	56	1/1 0/1
+apps/website/src/server/inbound/assistant/run-has-write-access.ts	74.51	78.57	100.0	3-15	13	51	11/14 5/5
+apps/website/src/server/inbound/assistant/run-lifecycle-tracing.ts	100.0	60.0	28.57		0	25	3/5 2/7
+apps/website/src/server/inbound/assistant/run-log-lines.ts	88.57	100.0	100.0	7-10	4	35	20/20 3/3
+apps/website/src/server/inbound/assistant/subagent-dispatch-marker.ts	100.0	100.0	100.0		0	48	5/5 3/3
+apps/website/src/server/inbound/assistant/tool-access-lowering-route.ts	92.59	75.0	100.0	26-27	2	27	6/8 4/4
+apps/website/src/server/inbound/public-http/http/members.ts	100.0	66.67	33.33		0	8	2/3 1/3
+apps/website/src/server/inbound/public-http/http/site/bare-page.ts	92.31	66.67	33.33	11	1	13	2/3 1/3
+apps/website/src/server/inbound/public-http/http/site/form-feedback-policy.ts	97.67	85.71	55.56	34	1	43	12/14 5/9
+apps/website/src/server/inbound/public-http/http/site/form-wire-policy.ts	100.0	87.5	50.0		0	87	7/8 6/12
+apps/website/src/server/inbound/public-http/http/site/handlebars-render.ts	100.0	100.0	70.0		0	180	16/16 7/10
+apps/website/src/server/inbound/public-http/http/site/handlebars-sandbox.ts	100.0	100.0	100.0		0	71	2/2 1/1
+apps/website/src/server/inbound/public-http/http/site/handlebars-worker.ts	90.32	25.0	0.0	27-29	3	31	1/4 0/1
+apps/website/src/server/inbound/public-http/http/site/liquid-render.ts	100.0	96.0	76.47		0	164	24/25 13/17
+apps/website/src/server/inbound/public-http/http/site/liquid-sandbox.ts	100.0	100.0	100.0		0	52	2/2 1/1
+apps/website/src/server/inbound/public-http/http/site/liquid-worker.ts	100.0	33.33	0.0		0	21	1/3 0/1
+apps/website/src/server/inbound/public-http/http/site/render-site.ts	94.44	66.67	77.78	22,44	2	36	8/12 7/9
+apps/website/src/server/inbound/public-http/http/site/render/blocks.ts	96.43	90.0	66.67	29	1	28	9/10 6/9
+apps/website/src/server/inbound/public-http/http/site/render/components/entry-lists.ts	94.44	85.71	62.5	18	1	18	6/7 5/8
+apps/website/src/server/inbound/public-http/http/site/render/components/registry.ts	100.0	90.0	80.0		0	34	9/10 8/10
+apps/website/src/server/inbound/public-http/http/site/render/content-html.ts	100.0	83.33	57.14		0	19	5/6 4/7
+apps/website/src/server/inbound/public-http/http/site/render/document-shell.ts	100.0	90.0	66.67		0	56	9/10 4/6
+apps/website/src/server/inbound/public-http/http/site/render/page-body.ts	88.89	80.0	75.0	7	1	9	4/5 3/4
+apps/website/src/server/inbound/public-http/http/site/render/post-body.ts	100.0	80.0	60.0		0	16	4/5 3/5
+apps/website/src/server/inbound/public-http/http/site/render/site-assistant-mount.ts	98.75	93.75	50.0	74	1	80	15/16 3/6
+apps/website/src/server/inbound/public-http/http/site/render/template-render-data.ts	100.0	66.67	33.33		0	10	2/3 1/3
+apps/website/src/server/inbound/public-http/http/site/seo-render-context.ts	91.67	83.33	50.0	9	1	12	5/6 2/4
+apps/website/src/server/inbound/public-http/http/site/site-chat-markup.ts	89.74	89.47	71.43	34-37	4	39	17/19 5/7
+apps/website/src/server/inbound/public-http/http/site/worker-sandbox.ts	93.15	76.92	100.0	1-7,81-83	10	146	10/13 8/8
+apps/website/src/server/inbound/public-http/middleware/canonical-site-host.ts	100.0	100.0	100.0		0	26	9/9 3/3
+apps/website/src/server/inbound/public-http/middleware/public-page-security-headers.ts	100.0	100.0	100.0		0	56	11/11 5/5
+apps/website/src/server/inbound/public-http/middleware/published-webmcp.ts	100.0	92.0	57.14		0	43	23/25 4/7
+apps/website/src/server/inbound/public-http/middleware/render-theme-override.ts	93.75	100.0	100.0	12	1	16	3/3 2/2
+apps/website/src/server/inbound/public-http/middleware/site-chat-static.ts	100.0	100.0	100.0		0	44	6/6 2/2
+apps/website/src/server/inbound/public-http/middleware/site-consent.ts	100.0	71.43	45.45		0	60	15/21 5/11
+apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts	97.88	96.0	83.58	162,186-187,194	4	189	120/125 112/134
+apps/website/src/server/inbound/public-http/middleware/site-serving-gate.ts	100.0	100.0	100.0		0	56	5/5 4/4
+apps/website/src/server/inbound/public-http/middleware/theme-content-security-headers.ts	95.0	80.0	50.0	18	1	20	4/5 2/4
+apps/website/src/server/inbound/public-http/middleware/theme-page-preview.ts	100.0	100.0	100.0		0	107	31/31 19/19
+apps/website/src/server/inbound/public-http/middleware/theme-preview-refresh.ts	100.0	96.77	78.57		0	101	30/31 11/14
+apps/website/src/server/inbound/public-http/middleware/theme-preview-static.ts	100.0	60.0	100.0		0	41	3/5 1/1
+apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts	100.0	98.33	85.71		0	89	59/60 12/14
+apps/website/src/server/inbound/public-http/middleware/theme-static-assets.ts	99.36	82.86	81.82	151	1	156	29/35 9/11
+apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts	96.97	100.0	100.0	3	1	33	2/2 1/1
+apps/website/src/server/inbound/public-http/routes/commerce/purchase.ts	97.53	97.73	100.0	1,83	2	81	43/44 31/31
+apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts	100.0	90.91	69.23		0	59	10/11 9/13
+apps/website/src/server/inbound/public-http/routes/mail-feedback.ts	97.62	100.0	100.0	39	1	42	13/13 8/8
+apps/website/src/server/inbound/public-http/routes/members/analytics.ts	96.67	100.0	100.0	22	1	30	6/6 3/3
+apps/website/src/server/inbound/public-http/routes/members/complete-sign-in.ts	88.89	100.0	66.67	31-33,50-51,60,65	7	63	5/5 4/6
+apps/website/src/server/inbound/public-http/routes/members/deps.ts	92.54	82.14	88.89	139-148	10	134	23/28 8/9
+apps/website/src/server/inbound/public-http/routes/members/oidc-callback.ts	96.61	100.0	55.17	31,61	2	59	17/17 16/29
+apps/website/src/server/inbound/public-http/routes/members/oidc-deps.ts	100.0	90.0	93.33		0	136	45/50 14/15
+apps/website/src/server/inbound/public-http/routes/members/oidc-start.ts	95.92	87.5	60.0	24,44	2	49	7/8 6/10
+apps/website/src/server/inbound/public-http/routes/members/oidc-verify-email.ts	74.51	100.0	23.08	26,40-50,53	13	51	4/4 3/13
+apps/website/src/server/inbound/public-http/routes/members/sign-in.ts	97.67	100.0	100.0	39	1	43	7/7 6/6
+apps/website/src/server/inbound/public-http/routes/members/unlink-identity.ts	80.49	100.0	23.08	21,34-39,43	8	41	4/4 3/13
+apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts	70.18	100.0	100.0	1-16,56	17	57	2/2 1/1
+apps/website/src/server/inbound/public-http/routes/ops/health.ts	61.7	100.0	50.0	31-48	18	47	2/2 1/2
+apps/website/src/server/inbound/public-http/routes/plugin-contributions.ts	100.0	93.33	80.0		0	40	14/15 12/15
+apps/website/src/server/inbound/public-http/routes/site-assistant-confirm.ts	84.38	90.91	90.0	4,6,29-31	5	32	10/11 9/10
+apps/website/src/server/inbound/public-http/routes/site-share.ts	100.0	71.43	100.0		0	25	10/14 4/4
+apps/website/src/server/inbound/public-http/routes/site/analytics-ingest.ts	100.0	66.67	62.5		0	51	6/9 5/8
+apps/website/src/server/inbound/public-http/routes/site/chat-comparison-html.ts	96.94	100.0	100.0	1-2,96	3	98	5/5 2/2
+apps/website/src/server/inbound/public-http/routes/site/chat-comparison.ts	100.0	100.0	100.0		0	34	16/16 5/5
+apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts	100.0	92.31	91.67		0	50	12/13 11/12
+apps/website/src/server/inbound/public-http/routes/site/forms-admission.ts	100.0	83.33	100.0		0	22	10/12 2/2
+apps/website/src/server/inbound/public-http/routes/site/forms-multipart.ts	66.67	100.0	100.0	1-2,7,13	4	12	8/8 1/1
+apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts	100.0	96.0	100.0		0	98	24/25 10/10
+apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts	98.57	92.86	86.36	72	1	70	39/42 38/44
+apps/website/src/server/inbound/public-http/routes/site/member-pages.ts	98.53	92.31	78.57	70	1	68	12/13 11/14
+apps/website/src/server/inbound/public-http/routes/site/newsletter-confirm.ts	97.14	100.0	62.5	32	1	35	6/6 5/8
+apps/website/src/server/inbound/public-http/routes/site/newsletter-deps.ts	56.67	100.0	100.0	3-14,49	13	30	3/3 2/2
+apps/website/src/server/inbound/public-http/routes/site/newsletter-unsubscribe.ts	100.0	100.0	83.33		0	28	7/7 5/6
+apps/website/src/server/inbound/public-http/routes/site/pages.ts	100.0	75.0	50.0		0	16	3/4 2/4
+apps/website/src/server/inbound/public-http/routes/site/pages/extra-head.ts	100.0	87.5	71.43		0	52	7/8 5/7
+apps/website/src/server/inbound/public-http/routes/site/pages/handlers/home.ts	98.04	91.18	93.75	52	1	51	31/34 30/32
+apps/website/src/server/inbound/public-http/routes/site/pages/handlers/listing.ts	100.0	75.0	66.67		0	54	12/16 6/9
+apps/website/src/server/inbound/public-http/routes/site/pages/handlers/marketing.ts	100.0	91.67	76.92		0	68	11/12 10/13
+apps/website/src/server/inbound/public-http/routes/site/pages/handlers/post.ts	100.0	96.3	86.21		0	53	26/27 25/29
+apps/website/src/server/inbound/public-http/routes/site/pages/handlers/slug-routes.ts	98.55	97.56	92.86	70	1	69	40/41 39/42
+apps/website/src/server/inbound/public-http/routes/site/pages/handlers/virtual-page.ts	100.0	100.0	80.95		0	79	18/18 17/21
+apps/website/src/server/inbound/public-http/routes/site/pages/listing/listing-batch.ts	96.15	88.89	60.0	15	1	26	16/18 3/5
+apps/website/src/server/inbound/public-http/routes/site/pages/pre-consent-cache.ts	97.78	85.71	57.14	40	1	45	6/7 4/7
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/content-marker-ports.ts	97.3	91.67	60.0	9	1	37	11/12 3/5
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/media-metadata.ts	100.0	93.33	76.47		0	45	14/15 13/17
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/member-access.ts	98.33	83.33	50.0	63	1	60	5/6 4/8
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/post-previews.ts	100.0	92.31	84.62		0	32	12/13 11/13
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/site-title.ts	98.25	84.62	50.0	58	1	57	11/13 5/10
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/static-menus.ts	98.63	91.18	87.5	223-225	3	219	31/34 14/16
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/widgets.ts	100.0	83.33	50.0		0	100	15/18 4/8
+apps/website/src/server/inbound/public-http/routes/site/pages/request-policy.ts	99.23	70.0	33.33	129	1	130	7/10 4/12
+apps/website/src/server/inbound/public-http/routes/site/pages/response.ts	98.18	96.43	82.76	89,113	2	110	27/28 24/29
+apps/website/src/server/inbound/public-http/routes/site/pages/static-tier.ts	97.14	94.12	83.33	82,91	2	70	16/17 15/18
+apps/website/src/server/inbound/public-http/routes/site/pages/template-render.ts	100.0	75.0	84.62		0	131	12/16 11/13
+apps/website/src/server/inbound/public-http/routes/site/products.ts	97.62	94.87	94.12	58,92	2	84	37/39 32/34
+apps/website/src/server/inbound/public-http/routes/site/search.ts	100.0	100.0	60.0		0	47	4/4 3/5
+apps/website/src/server/inbound/public-http/routes/site/seo-documents.ts	100.0	94.12	75.0		0	120	16/17 15/20
+apps/website/src/server/inbound/shared/admin-failure.ts	100.0	96.97	70.59		0	183	64/66 12/17
+apps/website/src/server/inbound/shared/admin-route-mount-support.ts	100.0	88.89	53.85		0	100	24/27 14/26
+apps/website/src/server/inbound/shared/body-size-limit.ts	100.0	100.0	100.0		0	49	3/3 2/2
+apps/website/src/server/inbound/shared/dev-cors.ts	66.04	60.0	50.0	32-34,47-61	18	53	3/5 2/4
+apps/website/src/server/inbound/shared/json-body-parsers.ts	98.48	92.0	36.84	125,132	2	132	23/25 7/19
+apps/website/src/server/inbound/shared/media-original-writer.ts	96.3	100.0	50.0	27	1	27	7/7 3/6
+apps/website/src/server/inbound/shared/observability-middleware.ts	100.0	85.37	100.0		0	152	35/41 10/10
+apps/website/src/server/inbound/shared/request-admissions.ts	100.0	93.75	70.0		0	45	15/16 7/10
+apps/website/src/server/inbound/shared/route-guards.ts	97.14	88.89	50.0	30	1	35	8/9 3/6
+apps/website/src/server/inbound/shared/serving-origin.ts	96.0	92.86	60.0	18	1	25	13/14 3/5
+apps/website/src/server/inbound/shared/trust-proxy.ts	100.0	100.0	100.0		0	50	4/4 3/3
+apps/website/src/server/routes/route-deps/credentials-deps.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/routes/types.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/boot/agent-daemon-wanted.ts	68.29	100.0	0.0	29-30,33-43	13	41	1/1 0/1
+apps/website/src/server/runtime/boot/boot-readiness-gate.ts	100.0	37.5	100.0		0	84	3/8 2/2
+apps/website/src/server/runtime/boot/boot-readiness-warnings.ts	99.09	96.3	55.56	98	1	110	26/27 5/9
+apps/website/src/server/runtime/boot/bootstrap.ts	87.19	75.81	85.71	54-55,67-70,129-130,132-133,137-145,174-175,178-179,196-198,393-394,397-402,406-415,419-425	51	398	47/62 36/42
+apps/website/src/server/runtime/boot/content-db-schema-guard.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/boot/local-owner-signin.ts	99.36	98.95	72.0	165	1	157	94/95 18/25
+apps/website/src/server/runtime/boot/mail-delivery-policy.ts	100.0	66.67	100.0		0	44	4/6 3/3
+apps/website/src/server/runtime/boot/mail-plugin-account-token.ts	100.0	88.89	100.0		0	22	8/9 2/2
+apps/website/src/server/runtime/boot/mail-provider-catalog.ts	100.0	95.83	100.0		0	93	23/24 9/9
+apps/website/src/server/runtime/boot/mail-provider-configuration.ts	100.0	100.0	100.0		0	6	2/2 1/1
+apps/website/src/server/runtime/boot/parent-watchdog-report.ts	81.82	100.0	100.0	3-7,9	6	33	4/4 1/1
+apps/website/src/server/runtime/boot/process-error-guards.ts	99.35	78.95	87.5	151	1	154	30/38 14/16
+apps/website/src/server/runtime/boot/production-readiness-gate.ts	94.0	100.0	100.0	1-8,181	9	150	42/42 8/8
+apps/website/src/server/runtime/boot/resolve-mailer.ts	100.0	100.0	95.45		0	162	37/37 21/22
+apps/website/src/server/runtime/boot/sender-domain-verification.ts	100.0	100.0	100.0		0	21	2/2 1/1
+apps/website/src/server/runtime/boot/site-boot-readiness.ts	41.3	100.0	100.0	1-26,28	27	46	3/3 2/2
+apps/website/src/server/runtime/boot/site-daemon-listener.ts	47.62	100.0	0.0	21-42	22	42	1/1 0/1
+apps/website/src/server/runtime/boot/site-key-boot-notice.ts	94.85	50.0	100.0	89-93,112-113	7	136	8/16 6/6
+apps/website/src/server/runtime/boot/site-listener-origin.ts	80.77	100.0	100.0	1-5	5	26	11/11 2/2
+apps/website/src/server/runtime/composition/admin-assistant-enabled.ts	43.75	100.0	100.0	1-23,25-27,43	27	48	5/5 2/2
+apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts	98.88	82.14	75.0	1	1	89	23/28 6/8
+apps/website/src/server/runtime/composition/agent-pause-gate.ts	100.0	91.3	100.0		0	73	21/23 12/12
+apps/website/src/server/runtime/composition/agent-pause-tools.ts	100.0	75.0	100.0		0	51	6/8 5/5
+apps/website/src/server/runtime/composition/agent-plugin-connections.ts	100.0	93.33	89.29		0	194	42/45 25/28
+apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts	100.0	89.66	76.92		0	96	26/29 20/26
+apps/website/src/server/runtime/composition/agent-plugin-uninstall-host.ts	74.07	100.0	100.0	1-6,28	7	27	2/2 1/1
+apps/website/src/server/runtime/composition/analytics-providers.ts	87.36	100.0	22.22	46-49,57-63	11	87	5/5 2/9
+apps/website/src/server/runtime/composition/app-permission-grants.ts	100.0	100.0	100.0		0	58	2/2 1/1
+apps/website/src/server/runtime/composition/app.ts	97.38	89.8	76.92	32,71,99,103,210-211,310,324,370-374	13	496	44/49 30/39
+apps/website/src/server/runtime/composition/asset-tool-host.ts	91.76	100.0	10.71	1-4,39-40,84	7	85	4/4 3/28
+apps/website/src/server/runtime/composition/assistant-history-tools.ts	85.71	100.0	60.0	17-18,22-23	4	28	4/4 3/5
+apps/website/src/server/runtime/composition/authoritative-dns.ts	71.88	100.0	100.0	1-9	9	32	3/3 2/2
+apps/website/src/server/runtime/composition/boot-data-repairs.ts	100.0	100.0	33.33		0	46	5/5 1/3
+apps/website/src/server/runtime/composition/browser-analytics-http.ts	33.33	100.0	12.5	1,13-16,23-29,33-44,46-52,55,57-64,67,69-75	48	72	2/2 1/8
+apps/website/src/server/runtime/composition/browser-analytics.ts	84.85	57.14	75.0	1,16-18,26	5	33	4/7 3/4
+apps/website/src/server/runtime/composition/build-constants.ts	86.52	91.67	100.0	1-12	12	89	22/24 5/5
+apps/website/src/server/runtime/composition/build-release.ts	98.11	95.65	100.0	52	1	53	22/23 7/7
+apps/website/src/server/runtime/composition/built-in-plugin-sources.ts	91.67	100.0	100.0	10	1	12	3/3 2/2
+apps/website/src/server/runtime/composition/chart-providers.ts	98.28	88.24	100.0	1	1	58	15/17 6/6
+apps/website/src/server/runtime/composition/charts-recharts-source.ts	99.26	100.0	100.0	1	1	136	4/4 3/3
+apps/website/src/server/runtime/composition/collection-list-warnings.ts	96.43	87.5	50.0	27	1	28	7/8 3/6
+apps/website/src/server/runtime/composition/commerce-drain.ts	85.71	66.67	100.0	3	1	7	2/3 1/1
+apps/website/src/server/runtime/composition/commerce-http.ts	95.08	91.67	85.71	1,53-54	3	61	22/24 6/7
+apps/website/src/server/runtime/composition/commerce-worker.ts	100.0	77.78	100.0		0	16	7/9 5/5
+apps/website/src/server/runtime/composition/commerce.ts	88.58	83.04	84.21	1,65-69,261-262,270-273,287-294,354-363,381-383,416-426,454-458	49	429	142/171 80/95
+apps/website/src/server/runtime/composition/content-events.ts	100.0	88.46	100.0		0	33	23/26 3/3
+apps/website/src/server/runtime/composition/content-publish-ports.ts	100.0	100.0	100.0		0	49	2/2 1/1
+apps/website/src/server/runtime/composition/content-target-inputs.ts	100.0	87.5	100.0		0	45	7/8 4/4
+apps/website/src/server/runtime/composition/core-extension-claims.ts	100.0	100.0	100.0		0	48	5/5 4/4
+apps/website/src/server/runtime/composition/create-app-options.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/composition/credentials-host-ports.ts	100.0	100.0	42.86		0	33	4/4 3/7
+apps/website/src/server/runtime/composition/data-modules.ts	96.55	100.0	100.0	1-2	2	58	1/1 0/0
+apps/website/src/server/runtime/composition/database-transfer-adapters.ts	100.0	100.0	100.0		0	45	18/18 7/7
+apps/website/src/server/runtime/composition/declared-content-types.ts	97.44	100.0	100.0	1	1	39	7/7 4/4
+apps/website/src/server/runtime/composition/deps.ts	91.76	87.1	64.0	202,246-265	21	255	27/31 16/25
+apps/website/src/server/runtime/composition/dns-change-deps.ts	86.67	100.0	100.0	1-9,73	10	75	19/19 7/7
+apps/website/src/server/runtime/composition/doc-render-host.ts	100.0	83.33	66.67		0	24	5/6 4/6
+apps/website/src/server/runtime/composition/domain-dns-adapters.ts	100.0	98.46	96.15		0	195	128/130 25/26
+apps/website/src/server/runtime/composition/error-reporter.ts	87.85	54.55	76.92	1-10,90-92	13	107	12/22 10/13
+apps/website/src/server/runtime/composition/form-delivery-deliverer.ts	100.0	93.33	100.0		0	57	14/15 9/9
+apps/website/src/server/runtime/composition/form-delivery.ts	100.0	75.0	90.0		0	64	12/16 9/10
+apps/website/src/server/runtime/composition/form-pull-triggers.ts	100.0	100.0	100.0		0	61	14/14 9/9
+apps/website/src/server/runtime/composition/form-submissions.ts	99.2	96.67	86.96	61-62	2	251	87/90 40/46
+apps/website/src/server/runtime/composition/host-signals.ts	100.0	75.0	50.0		0	10	3/4 2/4
+apps/website/src/server/runtime/composition/http-app/module-handles.ts	50.0	100.0	100.0	1-3,12,15,20-28	14	28	3/3 2/2
+apps/website/src/server/runtime/composition/http-app/mount-admin-data.ts	91.67	100.0	100.0	1-4	4	48	2/2 1/1
+apps/website/src/server/runtime/composition/http-app/mount-admin-features.ts	97.06	100.0	50.0	1-4	4	136	3/3 1/2
+apps/website/src/server/runtime/composition/http-app/mount-admin-system.ts	95.29	85.71	77.36	2-6,312-319,329-331	16	340	42/49 41/53
+apps/website/src/server/runtime/composition/http-app/mount-assistant.ts	95.5	45.45	33.33	1-5	5	111	5/11 1/3
+apps/website/src/server/runtime/composition/http-app/mount-core-content.ts	87.8	100.0	100.0	1-5	5	41	2/2 1/1
+apps/website/src/server/runtime/composition/http-app/mount-members-newsletter.ts	96.19	100.0	100.0	1-4	4	105	5/5 3/3
+apps/website/src/server/runtime/composition/http-app/mount-public-site.ts	94.95	100.0	50.0	1-5	5	99	2/2 1/2
+apps/website/src/server/runtime/composition/http-app/public-middleware.ts	96.55	94.74	88.89	1-4	4	116	18/19 8/9
+apps/website/src/server/runtime/composition/http-app/visitor-submit.ts	88.52	100.0	50.0	1-5,101-103,113-118	14	122	5/5 4/8
+apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts	99.48	77.61	93.1	197	1	194	52/67 27/29
+apps/website/src/server/runtime/composition/installed-extension-tools.ts	77.97	96.3	100.0	1-26	26	118	26/27 8/8
+apps/website/src/server/runtime/composition/mail-capture-clear-planner.ts	94.44	100.0	100.0	15	1	18	6/6 3/3
+apps/website/src/server/runtime/composition/media-video-ports.ts	100.0	100.0	100.0		0	58	5/5 3/3
+apps/website/src/server/runtime/composition/memory-deps/create-route-deps-options.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/composition/memory-deps/route-deps/assemble.ts	100.0	100.0	100.0		0	38	2/2 1/1
+apps/website/src/server/runtime/composition/memory-deps/route-deps/assistant-and-site.ts	100.0	100.0	75.0		0	232	10/10 9/12
+apps/website/src/server/runtime/composition/memory-deps/route-deps/context.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/composition/memory-deps/route-deps/members-media-newsletter-forms.ts	100.0	75.0	83.33		0	170	6/8 5/6
+apps/website/src/server/runtime/composition/memory-deps/route-deps/model-comments-plugins.ts	100.0	100.0	50.0		0	113	3/3 2/4
+apps/website/src/server/runtime/composition/memory-deps/route-deps/publish-export.ts	100.0	93.33	75.0		0	246	14/15 12/16
+apps/website/src/server/runtime/composition/memory-deps/route-deps/trash-and-content.ts	99.15	81.25	75.0	61-62	2	235	13/16 12/16
+apps/website/src/server/runtime/composition/memory-deps/slices/agent-plugins.ts	90.91	100.0	50.0	20-22	3	33	2/2 1/2
+apps/website/src/server/runtime/composition/memory-deps/slices/comments.ts	100.0	100.0	100.0		0	43	5/5 4/4
+apps/website/src/server/runtime/composition/memory-deps/slices/form-attachment-purge.ts	69.35	83.33	60.0	42-51,59-67	19	62	5/6 3/5
+apps/website/src/server/runtime/composition/memory-deps/slices/identity-settings.ts	100.0	100.0	100.0		0	34	5/5 4/4
+apps/website/src/server/runtime/composition/memory-deps/slices/member-secrets.ts	100.0	100.0	100.0		0	39	2/2 1/1
+apps/website/src/server/runtime/composition/memory-deps/slices/memory-trash.ts	100.0	85.71	71.43		0	54	6/7 5/7
+apps/website/src/server/runtime/composition/memory-deps/slices/nav-form-content-repos.ts	100.0	100.0	100.0		0	25	2/2 1/1
+apps/website/src/server/runtime/composition/memory-deps/slices/origin-newsletter.ts	100.0	100.0	100.0		0	34	2/2 1/1
+apps/website/src/server/runtime/composition/memory-deps/slices/publish-apply.ts	98.55	100.0	50.0	67	1	69	3/3 2/4
+apps/website/src/server/runtime/composition/memory-deps/slices/publish-content-stores.ts	100.0	100.0	100.0		0	36	2/2 1/1
+apps/website/src/server/runtime/composition/memory-deps/slices/repos.ts	100.0	100.0	100.0		0	48	5/5 4/4
+apps/website/src/server/runtime/composition/memory-deps/slices/seo-sitemap.ts	100.0	100.0	100.0		0	14	2/2 1/1
+apps/website/src/server/runtime/composition/memory-deps/slices/site-title-settings.ts	100.0	100.0	100.0		0	47	10/10 9/9
+apps/website/src/server/runtime/composition/memory-deps/slices/taxonomy-trash-repos.ts	100.0	100.0	100.0		0	27	3/3 2/2
+apps/website/src/server/runtime/composition/memory-deps/slices/trash-adapters-content.ts	92.37	100.0	84.0	84-86,92-94,116-118	9	118	23/23 21/25
+apps/website/src/server/runtime/composition/memory-deps/slices/trash-adapters-forms-widgets.ts	87.5	100.0	64.29	27-32,81-82,107-110,114-115	14	112	19/19 18/28
+apps/website/src/server/runtime/composition/memory-deps/slices/trash-adapters-taxonomy.ts	100.0	100.0	100.0		0	33	3/3 2/2
+apps/website/src/server/runtime/composition/memory-deps/slices/trash-adapters.ts	100.0	100.0	100.0		0	31	2/2 1/1
+apps/website/src/server/runtime/composition/memory-route-deps.ts	100.0	100.0	100.0		0	9	3/3 1/1
+apps/website/src/server/runtime/composition/modules/agent-daemon-core-rpc.ts	84.51	80.39	85.71	1,65,70-84,86,88-91	22	142	41/51 12/14
+apps/website/src/server/runtime/composition/modules/agent-plugin-admin-surfaces-routes.ts	100.0	100.0	100.0		0	85	18/18 14/14
+apps/website/src/server/runtime/composition/modules/agent-plugin-install-route.ts	77.42	100.0	25.0	28-33,41-44,50-53	14	62	3/3 2/8
+apps/website/src/server/runtime/composition/modules/agent-plugin-memory-routes.ts	100.0	92.31	90.91		0	60	12/13 10/11
+apps/website/src/server/runtime/composition/modules/agent-plugin-surface-files-route.ts	100.0	100.0	100.0		0	41	6/6 3/3
+apps/website/src/server/runtime/composition/modules/agent-plugins-routes.ts	100.0	98.0	100.0		0	204	49/50 37/37
+apps/website/src/server/runtime/composition/modules/agent-plugins.ts	100.0	100.0	100.0		0	59	3/3 2/2
+apps/website/src/server/runtime/composition/modules/analytics.ts	100.0	100.0	100.0		0	19	3/3 2/2
+apps/website/src/server/runtime/composition/modules/api-keys.ts	100.0	100.0	100.0		0	26	3/3 2/2
+apps/website/src/server/runtime/composition/modules/assistant-ag-ui-approval-segment.ts	48.19	100.0	0.0	18-23,32-38,42-45,49-52,64-85	43	83	1/1 0/7
+apps/website/src/server/runtime/composition/modules/assistant-ag-ui-launch.ts	78.95	76.19	100.0	1-7,37	8	38	16/21 4/4
+apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts	78.29	50.65	75.0	3-46,266-273,286-290,297-303,307-315,324-339,378-380,389-396,402-412,426-428,440-441,516-517,553-556,560-562,604-605	127	585	39/77 30/40
+apps/website/src/server/runtime/composition/modules/assistant-agent-plugin-guidance-rpc.ts	93.26	70.59	81.82	1-6	6	89	24/34 9/11
+apps/website/src/server/runtime/composition/modules/assistant-attachment-read.ts	89.19	92.59	88.89	35-46	12	111	25/27 8/9
+apps/website/src/server/runtime/composition/modules/assistant-byok-history.ts	98.41	100.0	100.0	53	1	63	33/33 5/5
+apps/website/src/server/runtime/composition/modules/assistant-byok-preflight.ts	99.52	84.91	100.0	126	1	210	45/53 7/7
+apps/website/src/server/runtime/composition/modules/assistant-byok-run-usage.ts	98.36	97.06	100.0	42	1	61	33/34 7/7
+apps/website/src/server/runtime/composition/modules/assistant-byok-turn.ts	99.48	75.0	97.06	293-294	2	382	81/108 33/34
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts	95.83	67.5	78.12	191,210-212,231-237	11	264	27/40 25/32
+apps/website/src/server/runtime/composition/modules/assistant-chats.ts	85.87	68.83	59.65	97-98,168-171,211-216,224-235,248-250,265-274,332-335,343-350,354-360,399,432-434,441-443	63	446	53/77 34/57
+apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts	99.75	96.7	100.0	393	1	397	88/91 33/33
+apps/website/src/server/runtime/composition/modules/assistant-execution.ts	100.0	100.0	100.0		0	241	32/32 18/18
+apps/website/src/server/runtime/composition/modules/assistant-routines.ts	91.8	75.0	62.71	113-115,135-136,140-141,284-296	20	244	51/68 37/59
+apps/website/src/server/runtime/composition/modules/assistant-run-acceptance.ts	71.59	65.0	47.62	65-74,78-87,95-100,104-120,144-145,150-151,163-164,198	50	176	13/20 10/21
+apps/website/src/server/runtime/composition/modules/assistant-server-federation.ts	100.0	81.82	88.89		0	60	9/11 8/9
+apps/website/src/server/runtime/composition/modules/assistant-settings.ts	100.0	97.56	97.3		0	267	40/41 36/37
+apps/website/src/server/runtime/composition/modules/assistant-tool-access-lowering.ts	100.0	72.22	66.67		0	34	13/18 4/6
+apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts	98.14	77.27	73.68	203-204,303-306	6	323	85/110 42/57
+apps/website/src/server/runtime/composition/modules/assistant.ts	95.12	75.29	89.66	119-121,156-158,161-162,184,187,238-239,424-441,585-588,609-610,750	37	758	128/170 52/58
+apps/website/src/server/runtime/composition/modules/capped-route-app.ts	33.33	100.0	100.0	3-6,8-15	12	18	4/4 3/3
+apps/website/src/server/runtime/composition/modules/change-sets.ts	100.0	100.0	90.91		0	65	11/11 10/11
+apps/website/src/server/runtime/composition/modules/comments-moderation.ts	100.0	100.0	100.0		0	112	15/15 13/13
+apps/website/src/server/runtime/composition/modules/commerce.ts	100.0	100.0	66.67		0	42	3/3 2/3
+apps/website/src/server/runtime/composition/modules/consent.ts	100.0	100.0	20.0		0	38	3/3 1/5
+apps/website/src/server/runtime/composition/modules/content-types.ts	100.0	100.0	100.0		0	179	19/19 18/18
+apps/website/src/server/runtime/composition/modules/content-write-bindings.ts	100.0	95.65	100.0		0	229	44/46 25/25
+apps/website/src/server/runtime/composition/modules/content.ts	99.63	90.0	100.0	262	1	272	18/20 15/15
+apps/website/src/server/runtime/composition/modules/core.ts	100.0	100.0	100.0		0	115	6/6 5/5
+apps/website/src/server/runtime/composition/modules/database-migrate-forward.ts	100.0	100.0	85.71		0	94	13/13 12/14
+apps/website/src/server/runtime/composition/modules/database-recovery.ts	100.0	100.0	100.0		0	189	37/37 34/34
+apps/website/src/server/runtime/composition/modules/desktop-mcp-handoff.ts	92.31	91.67	100.0	1,11	2	26	11/12 4/4
+apps/website/src/server/runtime/composition/modules/email-templates.ts	100.0	100.0	100.0		0	74	16/16 15/15
+apps/website/src/server/runtime/composition/modules/external-mcp.ts	100.0	94.87	88.24		0	250	37/39 30/34
+apps/website/src/server/runtime/composition/modules/forms-admin.ts	100.0	100.0	95.83		0	193	26/26 23/24
+apps/website/src/server/runtime/composition/modules/forms.ts	75.0	84.21	100.0	2-19	18	72	16/19 5/5
+apps/website/src/server/runtime/composition/modules/integrations-admin.ts	100.0	100.0	100.0		0	148	19/19 18/18
+apps/website/src/server/runtime/composition/modules/integrations.ts	100.0	100.0	100.0		0	78	12/12 4/4
+apps/website/src/server/runtime/composition/modules/media.ts	96.17	96.97	79.1	327-329,383-388,392-400	18	470	64/66 53/67
+apps/website/src/server/runtime/composition/modules/members.ts	97.48	96.88	62.5	175-177,181-183	6	238	31/32 15/24
+apps/website/src/server/runtime/composition/modules/menus.ts	100.0	100.0	100.0		0	119	15/15 14/14
+apps/website/src/server/runtime/composition/modules/newsletter.ts	100.0	100.0	97.78		0	293	45/45 44/45
+apps/website/src/server/runtime/composition/modules/owner-auth.ts	100.0	87.5	60.0		0	34	7/8 6/10
+apps/website/src/server/runtime/composition/modules/pages.ts	100.0	100.0	100.0		0	132	23/23 22/22
+apps/website/src/server/runtime/composition/modules/plugins.ts	100.0	97.73	95.0		0	232	43/44 38/40
+apps/website/src/server/runtime/composition/modules/posts.ts	100.0	100.0	47.06		0	115	9/9 8/17
+apps/website/src/server/runtime/composition/modules/presentation.ts	100.0	100.0	100.0		0	116	26/26 25/25
+apps/website/src/server/runtime/composition/modules/public-members.ts	98.04	89.8	63.08	182,225-228,299	6	306	44/49 41/65
+apps/website/src/server/runtime/composition/modules/publish-content-backstop.ts	100.0	95.29	100.0		0	219	81/85 39/39
+apps/website/src/server/runtime/composition/modules/publish-content-blobs.ts	100.0	100.0	100.0		0	65	13/13 12/12
+apps/website/src/server/runtime/composition/modules/publish-content-import.ts	100.0	97.22	96.55		0	167	35/36 28/29
+apps/website/src/server/runtime/composition/modules/publish-content-ingest.ts	100.0	100.0	88.89		0	82	17/17 16/18
+apps/website/src/server/runtime/composition/modules/publish-content-transport.ts	100.0	100.0	100.0		0	133	27/27 24/24
+apps/website/src/server/runtime/composition/modules/publish-content.ts	100.0	100.0	100.0		0	93	5/5 4/4
+apps/website/src/server/runtime/composition/modules/publish-trust.ts	97.89	91.67	90.91	68,75	2	95	11/12 10/11
+apps/website/src/server/runtime/composition/modules/recovery-restore.ts	100.0	100.0	90.0		0	112	21/21 18/20
+apps/website/src/server/runtime/composition/modules/redirects.ts	100.0	100.0	100.0		0	86	13/13 12/12
+apps/website/src/server/runtime/composition/modules/revision-thinning-routes.ts	65.42	100.0	50.0	47-53,55-65,67-82,90-92	37	107	11/11 4/8
+apps/website/src/server/runtime/composition/modules/routine-recovery-admission.ts	54.55	100.0	25.0	37-39,42-46,48,50-65	25	55	2/2 1/4
+apps/website/src/server/runtime/composition/modules/run-daemon-http-client.ts	98.39	87.18	93.33	120-121	2	124	34/39 14/15
+apps/website/src/server/runtime/composition/modules/run-daemon-origins.ts	100.0	92.0	100.0		0	55	23/25 7/7
+apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts	100.0	96.61	100.0		0	147	57/59 16/16
+apps/website/src/server/runtime/composition/modules/run-finalizer/checkpointer.ts	100.0	100.0	100.0		0	27	6/6 4/4
+apps/website/src/server/runtime/composition/modules/run-finalizer/entry.ts	100.0	91.36	94.29		0	240	74/81 33/35
+apps/website/src/server/runtime/composition/modules/run-finalizer/recovery-binding.ts	100.0	80.0	100.0		0	53	20/25 9/9
+apps/website/src/server/runtime/composition/modules/run-finalizer/shared.ts	100.0	100.0	100.0		0	28	7/7 1/1
+apps/website/src/server/runtime/composition/modules/run-finalizer/stream.ts	100.0	80.95	100.0		0	60	17/21 4/4
+apps/website/src/server/runtime/composition/modules/run-finalizer/watch-state.ts	98.48	75.0	100.0	99	1	66	12/16 5/5
+apps/website/src/server/runtime/composition/modules/screenshot-storage.ts	82.41	100.0	29.41	54-60,69-70,80-82,100-104,116-117	19	108	6/6 5/17
+apps/website/src/server/runtime/composition/modules/seo.ts	99.27	100.0	100.0	2	1	137	18/18 17/17
+apps/website/src/server/runtime/composition/modules/serving-routine-tools.ts	95.24	100.0	57.89	37-38,58	3	63	20/20 11/19
+apps/website/src/server/runtime/composition/modules/serving-routines.ts	87.6	73.53	58.62	40-45,49-51,62-67	15	121	25/34 17/29
+apps/website/src/server/runtime/composition/modules/settings.ts	100.0	93.33	90.91		0	245	42/45 40/44
+apps/website/src/server/runtime/composition/modules/site-assistant-ag-ui-approval.ts	69.03	71.43	52.94	43-44,64-74,90-93,110-116,123-133	35	113	10/14 9/17
+apps/website/src/server/runtime/composition/modules/site-assistant-ag-ui.ts	97.35	78.46	90.48	133,157-158,172	4	151	51/65 19/21
+apps/website/src/server/runtime/composition/modules/site-assistant-preflight.ts	97.93	98.18	100.0	262-269	8	386	54/55 14/14
+apps/website/src/server/runtime/composition/modules/site-assistant-turn.ts	98.59	84.38	90.48	209-213	5	355	81/96 38/42
+apps/website/src/server/runtime/composition/modules/site-assistant.ts	93.25	83.33	67.86	111-112,114-118,184-187,224-229	17	252	40/48 19/28
+apps/website/src/server/runtime/composition/modules/site-previews-route.ts	100.0	100.0	33.33		0	31	2/2 1/3
+apps/website/src/server/runtime/composition/modules/site-search.ts	97.2	99.17	93.22	421-427,439-443	12	429	119/120 55/59
+apps/website/src/server/runtime/composition/modules/site.ts	100.0	100.0	66.67		0	42	3/3 2/3
+apps/website/src/server/runtime/composition/modules/sites.ts	100.0	92.86	100.0		0	176	39/42 19/19
+apps/website/src/server/runtime/composition/modules/skills.ts	100.0	100.0	100.0		0	124	22/22 19/19
+apps/website/src/server/runtime/composition/modules/storage-routes.ts	77.61	54.55	34.38	71,78-83,87-89,92-98,126-135,140-141,150-151,177,218-230	45	201	12/22 11/32
+apps/website/src/server/runtime/composition/modules/system-assistant.ts	100.0	100.0	95.24		0	108	30/30 20/21
+apps/website/src/server/runtime/composition/modules/system-credential-copy.ts	100.0	100.0	100.0		0	43	8/8 6/6
+apps/website/src/server/runtime/composition/modules/system-credentials.ts	100.0	94.12	85.94		0	465	64/68 55/64
+apps/website/src/server/runtime/composition/modules/system-deploy.ts	100.0	95.83	100.0		0	248	23/24 18/18
+apps/website/src/server/runtime/composition/modules/system-mail.ts	99.18	90.91	74.19	249-250	2	245	30/33 23/31
+apps/website/src/server/runtime/composition/modules/system-site-backups.ts	90.38	100.0	14.29	31-35	5	52	2/2 1/7
+apps/website/src/server/runtime/composition/modules/system-site-shares.ts	100.0	93.02	86.49		0	139	40/43 32/37
+apps/website/src/server/runtime/composition/modules/system-telemetry.ts	100.0	100.0	75.0		0	38	4/4 3/4
+apps/website/src/server/runtime/composition/modules/taxonomy.ts	100.0	100.0	100.0		0	189	23/23 22/22
+apps/website/src/server/runtime/composition/modules/theme-explore.ts	100.0	100.0	95.24		0	187	43/43 40/42
+apps/website/src/server/runtime/composition/modules/theme-held-back.ts	100.0	100.0	66.67		0	22	3/3 2/3
+apps/website/src/server/runtime/composition/modules/themes.ts	100.0	92.31	100.0		0	50	12/13 11/11
+apps/website/src/server/runtime/composition/modules/tool-execution-caller-express.ts	78.12	83.33	100.0	1-7	7	32	5/6 2/2
+apps/website/src/server/runtime/composition/modules/trash.ts	100.0	100.0	96.0		0	142	31/31 24/25
+apps/website/src/server/runtime/composition/modules/types.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/composition/modules/users-access.ts	100.0	100.0	100.0		0	122	23/23 22/22
+apps/website/src/server/runtime/composition/modules/users.ts	100.0	100.0	95.65		0	170	23/23 22/23
+apps/website/src/server/runtime/composition/modules/widgets.ts	98.16	97.44	97.14	65-68	4	217	38/39 34/35
+apps/website/src/server/runtime/composition/modules/workspace.ts	100.0	100.0	100.0		0	90	13/13 12/12
+apps/website/src/server/runtime/composition/move-site-storage.ts	80.36	69.23	100.0	61-62,87,112-130	22	112	9/13 4/4
+apps/website/src/server/runtime/composition/mutation-actor.ts	73.33	80.0	100.0	3-9,11	8	30	4/5 1/1
+apps/website/src/server/runtime/composition/observability-export.ts	95.74	36.36	100.0	1,35	2	47	4/11 3/3
+apps/website/src/server/runtime/composition/open-site-content-db.ts	78.69	50.0	50.0	40-42,46-51,59-62	13	61	2/4 1/2
+apps/website/src/server/runtime/composition/open-site-store.ts	100.0	91.84	91.67		0	185	45/49 11/12
+apps/website/src/server/runtime/composition/other-site-keys.ts	46.54	100.0	9.68	51-53,55-57,60-64,66-73,91-92,99-103,109-114,118-128,136-153,158-161,164-169,171-178,180-185,188-204,210-223	116	217	4/4 3/31
+apps/website/src/server/runtime/composition/outbound-http.ts	100.0	100.0	100.0		0	19	2/2 1/1
+apps/website/src/server/runtime/composition/peer-site-reads.ts	99.39	93.39	91.07	331-332,500	3	492	113/121 51/56
+apps/website/src/server/runtime/composition/pending-agent-plugin-tokens.ts	100.0	97.3	100.0		0	142	36/37 8/8
+apps/website/src/server/runtime/composition/permanent-delete-deps.ts	61.13	86.67	72.0	46,49-65,105,113-114,141-142,200-213,220-241,243-251,253-267,269-276,278-289,291-297	110	283	52/60 18/25
+apps/website/src/server/runtime/composition/plugin-credential-cards.ts	45.35	50.0	10.0	1,18-20,26-34,47,50-59,65-68,71-89	47	86	2/4 1/10
+apps/website/src/server/runtime/composition/plugin-host.ts	88.89	79.17	62.5	2-3,45-52,88	11	99	19/24 15/24
+apps/website/src/server/runtime/composition/plugin-install-attachment-reader.ts	100.0	100.0	100.0		0	19	8/8 2/2
+apps/website/src/server/runtime/composition/plugin-runtime.ts	61.4	90.0	66.67	10,12-15,17,30,32-62,65-70	44	114	9/10 2/3
+apps/website/src/server/runtime/composition/product-events.ts	80.72	100.0	33.33	1,61-67,77-84	16	83	2/2 1/3
+apps/website/src/server/runtime/composition/product-telemetry.ts	40.94	50.0	7.14	1,43-47,58-72,75-79,82-92,95-97,102-109,120,122-158,161-163,168-181,194-210,216-223,228-232,242-258	150	254	2/4 1/14
+apps/website/src/server/runtime/composition/project-store.ts	98.11	85.94	96.3	243-244,268-270	5	264	55/64 26/27
+apps/website/src/server/runtime/composition/provider-config-source.ts	99.54	91.49	100.0	207	1	216	86/94 39/39
+apps/website/src/server/runtime/composition/provider-contracts.ts	76.0	100.0	0.0	21-26	6	25	1/1 0/5
+apps/website/src/server/runtime/composition/provider-plugins.ts	87.27	70.83	61.9	187-193,225-226,236,239,244,247-254,258-263,271-278,291-292,308-310,314-315,323,335-336,381-383,386,476-479,516,540-548	62	487	102/144 52/84
+apps/website/src/server/runtime/composition/provider-revision-watch.ts	77.78	100.0	100.0	9-10	2	9	2/2 1/1
+apps/website/src/server/runtime/composition/provider-settings-save.ts	86.36	96.12	83.33	107,162-163,166-172,182,186-198	24	176	99/103 25/30
+apps/website/src/server/runtime/composition/public-oauth-callbacks.ts	86.96	93.33	56.25	1-10,51-52	12	92	14/15 9/16
+apps/website/src/server/runtime/composition/public-site-guide.ts	93.62	93.75	87.5	23-25	3	47	15/16 7/8
+apps/website/src/server/runtime/composition/publish-backstop-ports.ts	96.0	100.0	100.0	16	1	25	12/12 3/3
+apps/website/src/server/runtime/composition/publish-content-http.ts	93.33	100.0	100.0	1	1	15	7/7 2/2
+apps/website/src/server/runtime/composition/publish-content-manifest.ts	100.0	80.0	100.0		0	113	4/5 3/3
+apps/website/src/server/runtime/composition/publish-content-seed-hash.ts	48.85	100.0	25.0	62-71,80-136	67	131	2/2 1/4
+apps/website/src/server/runtime/composition/publish-trust-grants.ts	90.14	100.0	75.0	63-69	7	71	6/6 3/4
+apps/website/src/server/runtime/composition/publish-trust-revocations.ts	27.5	75.0	100.0	4-10,12-28,36-40	29	40	3/4 2/2
+apps/website/src/server/runtime/composition/registered-sites.ts	98.36	100.0	100.0	1	1	61	33/33 5/5
+apps/website/src/server/runtime/composition/reset-owner.ts	40.43	100.0	0.0	20-47	28	47	1/1 0/1
+apps/website/src/server/runtime/composition/retention-policies/database-copies.ts	53.49	100.0	33.33	27-34,37-48	20	43	2/2 1/3
+apps/website/src/server/runtime/composition/retention-policies/db-free-pages.ts	80.0	100.0	88.89	1-7,12,41-45	13	65	17/17 8/9
+apps/website/src/server/runtime/composition/retention-policies/media-bytes-deps.ts	98.39	91.3	91.3	95-96	2	124	42/46 21/23
+apps/website/src/server/runtime/composition/retention-policies/media-bytes.ts	85.19	77.78	100.0	3-13,17	12	81	28/36 9/9
+apps/website/src/server/runtime/composition/retention-policies/temp-roots.ts	100.0	100.0	100.0		0	38	8/8 6/6
+apps/website/src/server/runtime/composition/retention.ts	97.42	88.89	90.48	31-33,70	4	155	32/36 19/21
+apps/website/src/server/runtime/composition/serving-app.ts	98.05	59.46	51.61	91-92,151-152	4	205	22/37 16/31
+apps/website/src/server/runtime/composition/settings-registration.ts	95.06	100.0	100.0	1-4	4	81	14/14 13/13
+apps/website/src/server/runtime/composition/site-app-boot-work.ts	72.73	100.0	100.0	1-5,11	6	22	7/7 3/3
+apps/website/src/server/runtime/composition/site-consent.ts	100.0	88.64	94.12		0	119	39/44 16/17
+apps/website/src/server/runtime/composition/site-cookie-consent.ts	86.89	57.14	62.5	1,37-39,42-44,64	8	61	8/14 5/8
+apps/website/src/server/runtime/composition/site-deps/after-assembly-forms-search.ts	97.09	90.0	80.0	68-69,72	3	103	9/10 8/10
+apps/website/src/server/runtime/composition/site-deps/agent-plugin-bootstrap.ts	100.0	87.5	85.71		0	54	7/8 6/7
+apps/website/src/server/runtime/composition/site-deps/assembly-phases.ts	100.0	73.68	70.59		0	162	14/19 12/17
+apps/website/src/server/runtime/composition/site-deps/assistant-credentials.ts	100.0	100.0	100.0		0	35	2/2 1/1
+apps/website/src/server/runtime/composition/site-deps/boot-data.ts	95.12	100.0	54.55	52,70,86,109,133-134	6	123	7/7 6/11
+apps/website/src/server/runtime/composition/site-deps/boot-phases.ts	100.0	93.1	65.79		0	114	27/29 25/38
+apps/website/src/server/runtime/composition/site-deps/content-repos.ts	100.0	100.0	100.0		0	35	2/2 1/1
+apps/website/src/server/runtime/composition/site-deps/content-resolvers-comments.ts	98.84	100.0	42.86	89	1	86	4/4 3/7
+apps/website/src/server/runtime/composition/site-deps/content-stores.ts	100.0	100.0	100.0		0	36	3/3 2/2
+apps/website/src/server/runtime/composition/site-deps/database-journal.ts	100.0	100.0	100.0		0	47	4/4 3/3
+apps/website/src/server/runtime/composition/site-deps/events-origin.ts	98.15	62.5	100.0	93-94	2	108	5/8 2/2
+apps/website/src/server/runtime/composition/site-deps/identity-settings.ts	100.0	92.5	96.55		0	200	37/40 28/29
+apps/website/src/server/runtime/composition/site-deps/mail-http.ts	100.0	87.5	75.0		0	94	7/8 6/8
+apps/website/src/server/runtime/composition/site-deps/media-storage.ts	89.83	100.0	75.0	1,63-67	6	59	8/8 6/8
+apps/website/src/server/runtime/composition/site-deps/open-store.ts	100.0	94.74	93.75		0	136	36/38 15/16
+apps/website/src/server/runtime/composition/site-deps/outbound-connections.ts	100.0	100.0	80.0		0	53	8/8 4/5
+apps/website/src/server/runtime/composition/site-deps/overrides.ts	95.0	86.96	100.0	112-115	4	80	20/23 5/5
+apps/website/src/server/runtime/composition/site-deps/plugin-runtime.ts	100.0	100.0	50.0		0	39	4/4 2/4
+apps/website/src/server/runtime/composition/site-deps/pre-assembly.ts	97.5	100.0	71.43	58	1	40	6/6 5/7
+apps/website/src/server/runtime/composition/site-deps/project-keys.ts	88.46	75.0	83.33	40-42	3	26	9/12 5/6
+apps/website/src/server/runtime/composition/site-deps/provider-config.ts	100.0	88.89	100.0		0	30	8/9 5/5
+apps/website/src/server/runtime/composition/site-deps/provider-identity.ts	98.98	91.18	84.62	40	1	98	31/34 11/13
+apps/website/src/server/runtime/composition/site-deps/publish-apply.ts	98.86	100.0	60.0	118	1	88	4/4 3/5
+apps/website/src/server/runtime/composition/site-deps/publishing-stores-themes.ts	100.0	100.0	100.0		0	54	2/2 1/1
+apps/website/src/server/runtime/composition/site-deps/redirects.ts	90.74	100.0	75.0	47-51	5	54	4/4 3/4
+apps/website/src/server/runtime/composition/site-deps/route-deps-assistant-mcp.ts	99.23	100.0	60.0	119	1	130	10/10 9/15
+apps/website/src/server/runtime/composition/site-deps/route-deps-comments-plugins.ts	100.0	83.33	80.0		0	201	10/12 8/10
+apps/website/src/server/runtime/composition/site-deps/route-deps-content-chat.ts	100.0	100.0	44.44		0	120	5/5 4/9
+apps/website/src/server/runtime/composition/site-deps/route-deps-members-mail.ts	100.0	100.0	100.0		0	165	4/4 3/3
+apps/website/src/server/runtime/composition/site-deps/route-deps-publish-credentials.ts	94.38	100.0	66.67	70-74	5	89	9/9 8/12
+apps/website/src/server/runtime/composition/site-deps/route-deps-site-providers.ts	98.75	84.62	57.14	225-226	2	160	11/13 8/14
+apps/website/src/server/runtime/composition/site-deps/self-hosted-update-supervisor.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/composition/site-deps/shared-oauth-commerce.ts	94.59	77.78	50.0	41-42	2	37	7/9 2/4
+apps/website/src/server/runtime/composition/site-deps/site-imports.ts	60.87	66.67	33.33	27-35	9	23	2/3 1/3
+apps/website/src/server/runtime/composition/site-deps/site-keys-members.ts	100.0	57.14	100.0		0	178	4/7 2/2
+apps/website/src/server/runtime/composition/site-deps/site-sharing.ts	89.29	78.95	64.71	125-131,134-138	12	112	15/19 11/17
+apps/website/src/server/runtime/composition/site-deps/site-update-binding.ts	68.42	80.0	75.0	1-7,65-75	18	57	8/10 3/4
+apps/website/src/server/runtime/composition/site-deps/store-basics.ts	97.44	100.0	71.43	34	1	39	6/6 5/7
+apps/website/src/server/runtime/composition/site-deps/store-close-hooks.ts	59.09	100.0	100.0	3-10,26	9	22	3/3 2/2
+apps/website/src/server/runtime/composition/site-deps/trash-adapters.ts	90.91	100.0	27.27	87-90,100-104	9	99	8/8 3/11
+apps/website/src/server/runtime/composition/site-deps/trash-follow-up-hooks.ts	96.77	86.96	92.86	95-97	3	93	20/23 13/14
+apps/website/src/server/runtime/composition/site-deps/trash-service.ts	100.0	100.0	71.43		0	46	6/6 5/7
+apps/website/src/server/runtime/composition/site-deps/trash-stores.ts	100.0	100.0	100.0		0	38	2/2 1/1
+apps/website/src/server/runtime/composition/site-dir.ts	100.0	100.0	100.0		0	47	7/7 6/6
+apps/website/src/server/runtime/composition/site-event-subscriptions.ts	97.63	93.33	75.0	1-4	4	169	14/15 9/12
+apps/website/src/server/runtime/composition/site-guide-tools.ts	99.24	88.0	100.0	126	1	132	44/50 14/14
+apps/website/src/server/runtime/composition/site-guide.ts	99.07	89.47	93.75	95	1	107	34/38 15/16
+apps/website/src/server/runtime/composition/site-import-backend.ts	89.29	70.0	50.0	35,56,62-68	9	84	7/10 6/12
+apps/website/src/server/runtime/composition/site-import-backfill.ts	76.92	100.0	50.0	5,11-12	3	13	2/2 1/2
+apps/website/src/server/runtime/composition/site-import-index-state.ts	60.87	72.0	44.12	55,58-61,63-77,83-86,93-100,107-115,138-147,162-164,173-191,199-200,209,222-226	81	207	18/25 15/34
+apps/website/src/server/runtime/composition/site-import-payload-fs.ts	91.43	82.35	100.0	16,31-32	3	35	14/17 10/10
+apps/website/src/server/runtime/composition/site-key-recovery.ts	47.02	100.0	10.0	62-71,75-78,88-105,107-115,119-129,145,148-174	80	151	3/3 1/10
+apps/website/src/server/runtime/composition/site-key-write-bindings.ts	97.37	100.0	100.0	38	1	38	12/12 11/11
+apps/website/src/server/runtime/composition/site-mailer.ts	86.96	66.67	56.25	54-62,88-90	12	92	10/15 9/16
+apps/website/src/server/runtime/composition/site-paths.ts	99.45	76.74	50.0	128,364	2	363	33/43 20/40
+apps/website/src/server/runtime/composition/site-portability.ts	98.59	94.12	100.0	76	1	71	16/17 10/10
+apps/website/src/server/runtime/composition/site-search-tools.ts	100.0	100.0	100.0		0	93	18/18 7/7
+apps/website/src/server/runtime/composition/source-control-key-binding.ts	96.23	82.46	95.45	40-41,107-108	4	106	47/57 21/22
+apps/website/src/server/runtime/composition/sqlite-only-services.ts	100.0	100.0	100.0		0	23	2/2 1/1
+apps/website/src/server/runtime/composition/static-site-context.ts	100.0	100.0	100.0		0	22	7/7 2/2
+apps/website/src/server/runtime/composition/storage-secret.ts	100.0	86.49	100.0		0	153	32/37 13/13
+apps/website/src/server/runtime/composition/store-bound-contracts.ts	MISSING	MISSING	MISSING	not-in-lcov			
+apps/website/src/server/runtime/composition/store-bound-services.ts	100.0	100.0	100.0		0	40	6/6 2/2
+apps/website/src/server/runtime/composition/telemetry-consent.ts	97.56	100.0	100.0	29	1	41	7/7 4/4
+apps/website/src/server/runtime/composition/theme-placement-checks.ts	100.0	100.0	100.0		0	8	1/1 0/0
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	97.57	91.53	52.38	508-513,640-644,694-701,711	20	823	54/59 44/84
+apps/website/src/server/runtime/composition/tool-use-events.ts	54.55	87.5	100.0	4-11,13,18-23	15	33	7/8 3/3
+apps/website/src/server/runtime/composition/trash-retention.ts	11.11	100.0	100.0	1-8	8	9	1/1 0/0
+apps/website/src/server/runtime/composition/trash-user-admin-override.ts	92.73	76.92	100.0	54-57	4	55	10/13 2/2
+apps/website/src/server/runtime/composition/trash-user-tool-port.ts	100.0	100.0	100.0		0	44	11/11 3/3
+apps/website/src/server/runtime/composition/vault-boot.ts	98.94	92.99	97.3	27,142,360-361	4	378	146/157 36/37
+apps/website/src/server/runtime/composition/visitor-page-targets.ts	97.44	69.23	88.89	1	1	39	9/13 8/9
+apps/website/src/server/runtime/composition/visitor-tools-management.ts	74.07	100.0	25.0	14-17,26-28	7	27	2/2 1/4
+apps/website/src/server/runtime/composition/webhook-delivery-worker.ts	100.0	83.33	100.0		0	74	5/6 4/4
+apps/website/src/server/runtime/composition/widget-render-host.ts	100.0	66.67	50.0		0	67	2/3 1/2
+apps/website/src/server/runtime/configuration/capability-inventory.ts	95.11	100.0	100.0	1-16,370	17	348	3/3 2/2
+apps/website/src/server/runtime/configuration/env-schema.ts	79.37	85.71	85.71	1-11,102-109,127-133	26	126	12/14 6/7
+apps/website/src/server/runtime/configuration/seed.ts	100.0	96.3	94.44		0	320	26/27 17/18
+apps/website/src/server/runtime/lifecycle/agent-daemon-port.ts	91.43	80.0	75.0	33-35	3	35	4/5 3/4
+apps/website/src/server/runtime/lifecycle/assistant-daemon-connection.ts	95.0	100.0	100.0	1	1	20	8/8 5/5
+apps/website/src/server/runtime/lifecycle/assistant-daemon-registry.ts	97.3	100.0	100.0	33	1	37	4/4 3/3
+apps/website/src/server/runtime/lifecycle/boot-lifecycle.ts	72.31	65.0	90.0	1-16,58-66,93-95,118-125	36	130	13/20 9/10
+apps/website/src/server/runtime/lifecycle/daemon-demand-fetch.ts	93.75	100.0	66.67	12	1	16	3/3 2/3
+apps/website/src/server/runtime/lifecycle/daemon-lifecycle-log.ts	18.75	100.0	100.0	1-7,9-14	13	16	2/2 1/1
+apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts	74.88	70.31	73.85	29,31,37,47,57-66,68-102,106-109,111-144,154-157,161-166,169-178,196-202,204-205,226-227,243-247,301-314,508-542,548,584-585,594-595,609-611,614-616,656-661,702,721,733-735,737-738,772-774,780-782	202	804	90/128 48/65
+apps/website/src/server/runtime/lifecycle/local-site-host.ts	91.07	81.82	84.21	30-39	10	112	36/44 16/19
+apps/website/src/server/runtime/lifecycle/local-site-process.ts	86.16	59.52	63.64	59-60,63-64,73,117-118,167-173,189-195,250-251,277-282,285-287,295-302,320-323	44	318	50/84 35/55
+apps/website/src/server/runtime/lifecycle/readiness-state.ts	84.31	100.0	100.0	5-19,101	16	102	17/17 10/10
+apps/website/src/server/runtime/lifecycle/site-idle-park.ts	69.57	100.0	50.0	1,13,19-23	7	23	2/2 1/2
+apps/website/src/server/runtime/lifecycle/site-preview-host.ts	100.0	100.0	100.0		0	29	8/8 1/1
+apps/website/src/server/runtime/lifecycle/theme-preview-host.ts	100.0	100.0	100.0		0	33	8/8 1/1
+apps/website/src/server/runtime/lifecycle/warm-site-retirement.ts	47.06	50.0	20.0	1,14-22,29,35-50	27	51	2/4 1/5
+apps/website/src/server/runtime/plugin-tier2/run-in-worker.ts	84.29	100.0	100.0	1-11	11	70	7/7 4/4
+apps/website/src/server/runtime/plugin-tier2/worker.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/admin-failure-copy.ts	99.14	100.0	100.0	1	1	116	1/1 0/0
+packages/contracts/src/admin-locales.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/assistant-content-guidance.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/assistant-native-fallbacks.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/assistant-subagents-policy.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/content-chat-title.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/credential-copy.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/daemon-connection.ts	95.45	100.0	100.0	1	1	22	1/1 0/0
+packages/contracts/src/daemon-exit-codes.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/desktop-storage.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/diagnostics-redaction.ts	100.0	100.0	100.0		0	28	3/3 2/2
+packages/contracts/src/export-report.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/fs-folder-recovery.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/host-signals.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/hosted-sign-in-links.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/product-telemetry.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/publish-history-list-limit.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/redirect-tables.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/routines.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/secret-redaction.ts	91.38	100.0	0.0	1-2,58-60	5	58	1/1 0/2
+packages/contracts/src/site-scope-key.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/site-share-limits.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/startup-secret-keys.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/upload-limits.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/contracts/src/widget-tables.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/sdk/src/content-contracts.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/sdk/src/hooks.ts	MISSING	MISSING	MISSING	not-in-lcov			
+packages/sdk/src/index.ts	MISSING	MISSING	MISSING	not-in-lcov			

@@ -1,0 +1,372 @@
+apps/site-chat/src/__tests__/site-assistant-transport.test.ts > apps/site-chat/src/__tests__/site-assistant-transport.test.ts
+apps/website/src/assistant/__tests__/_tmp-full-sweep.test.ts > TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 classes
+apps/website/src/assistant/__tests__/byok-google-catalog.test.ts > EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample
+apps/website/src/assistant/__tests__/content-read-post-filters.test.ts > t02: content_read.content_post accepts optional query/status/fields from the list schema
+apps/website/src/assistant/__tests__/content-read-post-filters.test.ts > t02: content_read.content_post forwards query/fields/status unchanged to list when id is absent
+apps/website/src/assistant/__tests__/content-read-post-filters.test.ts > t02: present id still selects get rather than list with the new optional fields
+apps/website/src/assistant/__tests__/mcp-ui-sandbox-proxy-route.test.ts > AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix
+apps/website/src/assistant/__tests__/mcp-ui-secret-form-cards.test.ts > all production secret forms use the card definitions that drive the exchange-only gate
+apps/website/src/assistant/__tests__/moved-tools.golden.test.ts > moved tools, cards, approvals and counters match the golden recorded before any move
+apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts > installFirstPartyToolContributors installs exactly the converted domains — no more, no fewer
+apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts > post IS installed by installFirstPartyToolContributors — the final conversion of the 25/25 registry rollout, after an earlier attempt was reverted (see features/post/tool-registrations.ts's own header)
+apps/website/src/assistant/__tests__/tool-read-wording.integration.test.ts > every hand-built readOnly flag site is listed here with its handler evidence
+apps/website/src/assistant/__tests__/tool-registrations.authorization.test.ts > describe_component: the executor admits the handler after one workspace permission decision
+apps/website/src/assistant/__tests__/tool-registrations.authorization.test.ts > search_components: the executor admits the handler after one workspace permission decision
+apps/website/src/assistant/__tests__/tool-search-keywords.operator-requests.test.ts > every operator request with a tool finds it in the top 3 of search_tools
+apps/website/src/assistant/persistence/__tests__/ddl-parity.test.ts > creates tables the Jini store can actually query
+apps/website/src/assistant/persistence/__tests__/ddl-parity.test.ts > enforces the cascade the migration declares
+apps/website/src/assistant/persistence/__tests__/ddl-parity.test.ts > produces the identical schema to CHAT_HISTORY_DDL
+apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts > --storage-env: the site names the variable, keeps no secret, and its database is at head with the template
+apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts > a database that already holds a Tovu site is refused, before any folder, secret or key is made
+apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts > sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta
+apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts > --storage-env moves the site and leaves the connection string in that variable
+apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts > /home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts
+apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts > refuses a target other than postgres, and a --storage-env that is not set
+apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts > the program routes `storage move` to the command
+apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts > CLI install cancel: real disk, no import, closes store
+apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts > CLI install changed: real disk, no import, closes store
+apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts > CLI install yes: real disk, no import, closes store
+apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts > integrity prefers the canonical manifest and never falls back from malformed canonical JSON
+apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts > integrity reads tovu.plugin.json and writes only the canonical manifest
+apps/website/src/contracts/core/__tests__/unit/describe-error-for-log.unit.test.ts > never throws for hostile getters or a revoked proxy
+apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts > postgres: persisted notifications survive restart, honour 429 delay and stop uncertain resend
+apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts > postgres: restart after acceptance before ledger mark does not send twice
+apps/website/src/contracts/core/events/__tests__/forms-notification-retry.test.ts > outbox persists notification failure as pending retry
+apps/website/src/contracts/core/events/__tests__/forms-notification-retry.test.ts > outbox persists notification failure as terminal failed
+apps/website/src/contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts > processOutbox schedules a retryable form-delivery failure on the webhook backoff, not the 15 s default
+apps/website/src/contracts/core/events/__tests__/outbox-worker.test.ts > a late outcome that cannot be recorded is reported, not thrown as an unhandled rejection
+apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts > no production file under src/features/ imports src/server/, Express, or the admin app
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts > cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts > github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts > netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts > s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts > vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts > bundled ui-ux-design has a valid manifest and is on the seeded-enabled list
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts > ui-ux-design seeds correctly for new site
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts > ui-ux-design seeds correctly for operator disabled
+apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts > ui-ux-design seeds correctly for untouched disabled seed
+apps/website/src/features/agent-plugins/__tests__/unit/install-upload-update.unit.test.ts > retired package cleanup failure keeps the published update and redacts its diagnostic
+apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts > no generic seam file names the first provider
+apps/website/src/features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts > a submitted rotation reads metadata before owner lookup, seals afterward, then invalidates
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > /home/user/Tovu/apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > Cancel writes nothing, and a used planId is gone
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > database_transfer_status reports the saved destination, this process's last run and the copy found there
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > first copy runs headlessly; replacement waits for Copy; the password never shows
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > the model never passes a connection string: no tool takes one, and the plan asks for the private form first
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts > the private form saves a reachable destination, and neither the form, its result nor the log shows the password
+apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts > publish-host replacement HTTP 503 keeps the old sealed key
+apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts > real core tree has only reviewed pattern exceptions, each with its exact current total
+apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts > publishStaticSite: a connection changed after domain review is refused before export, and registry refusals are logged
+apps/website/src/features/deployments/static-publish/__tests__/adapter.unit.test.ts > publishStaticSite: a form receiver that cannot be prepared stops the publish; a prepared one saves its key at the published URL, and a failed save only warns
+apps/website/src/features/deployments/static-publish/__tests__/inspection.unit.test.ts > a connection that cannot be opened refuses with the repair step and never echoes the vault fault
+apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts > postgres: two import-as-creates of one id, B blocked on A's uncommitted insert — one row, one revision, one event; B is a version conflict
+apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts > postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict
+apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts > /home/user/Tovu/apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts
+apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts > independent connections cannot both apply an access decision from the same snapshot
+apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts > /home/user/Tovu/apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts
+apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts > frozen fixture [postgres]: replayed sealed bytes open, refresh under the lease, re-save and survive a reconnect
+apps/website/src/features/forms/__tests__/repo.postgres.test.ts > postgres: racing creates of one slug persist one winner and give the loser FormSlugConflictError
+apps/website/src/features/identity/__tests__/default-credential-exposure.test.ts > REGRESSION: the shipped admin UI source does not contain the seeded default password
+apps/website/src/features/identity/__tests__/default-credential-exposure.test.ts > the credential checker CLI succeeds when invoked as the entry point
+apps/website/src/features/identity/__tests__/repo.contract.test.ts > [SqlSessionRepo [pglite]] SessionRepoPort: client metadata survives save and is cleared by a later save without it; a revocation is never cleared
+apps/website/src/features/identity/__tests__/repo.contract.test.ts > [SqlSessionRepo [sqlite]] SessionRepoPort: client metadata survives save and is cleared by a later save without it; a revocation is never cleared
+apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts > derives use from the key prefix and outcome from the ledger plus the most severe feedback
+apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts > filters by outcome, use and exact recipient (case-insensitive); pages by position and skip
+apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts > get returns the record with its feedback timeline, or null; a send without a message id has none
+apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts > a locally replaced file packs and overwrites the same media identity on live
+apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts > recording failure restores source and metadata through the replacement seam
+apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts > rollback can restore a replacement that also trashed the media row
+apps/website/src/features/media/__tests__/publish-content.write.test.ts > the change-set summary names a reused blob when the bytes were already there
+apps/website/src/features/media/__tests__/upload-limit-single-source.test.ts > the upload route's JSON body limit still fits the limit once base64 inflates it
+apps/website/src/features/members/__tests__/magic-link-mail-off.test.ts > lazy configuration is settled even for disabled members without sending them mail
+apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts > postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict
+apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts > postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > a confirmed issue with an empty audience finishes without dispatching mail
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > abandoning during post-confirmation authorization prevents a campaign transition
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > abandoning while resume readiness is checked leaves the issue paused
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > an audience failure after launch reports the committed start without exposing directory errors
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > approval does not survive permission revocation while the card is open
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > confirmed resume dispatches only pending rows from the frozen audience
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > confirmed send freezes an audience and uses the existing outbox pipeline once
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > delivery tools check permission before reading campaign or sending
+apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts > resume reports a committed start honestly when requeueing later fails
+apps/website/src/features/newsletter/__tests__/send-pipeline.test.ts > dispatchRow: happy path -- sends via the mailer, outcome 'sent'
+apps/website/src/features/plugin-runtime/__tests__/unit/extract-s6-g-plug.golden.test.ts > G-plug fixture: the frozen file is the recorded one (never regenerated)
+apps/website/src/features/plugins/__tests__/data-module-indexes.test.ts > missing-index verification rolls back index, column and migration writes and settles the journal
+apps/website/src/features/post/__tests__/repo.postgres.test.ts > two connections: a concurrent appendRevision waits for the open one and chains after it
+apps/website/src/features/post/__tests__/revision-thinning.postgres.test.ts > two connections: thinning apply waits for an open restore append and keeps its target
+apps/website/src/features/post/__tests__/revision-thinning.postgres.test.ts > undo reference written during apply keeps its target
+apps/website/src/features/post/__tests__/tool-registrations.guards.test.ts > contributePostTools installs the post builder under the post domain
+apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts > every table in the real migrated schema is classified: denied, or on the reviewed sendable list
+apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts > import keeps starter radio and URL form markup active while authored behavior stays off
+apps/website/src/features/site-export/__tests__/hosted-forms-static.unit.test.ts > two static form exports agree when time and occurrence identifiers are controlled
+apps/website/src/features/sites/__tests__/playwright-site-preview-capture.unit.test.ts > default preview capture returns a placeholder when neither browser can launch
+apps/website/src/features/source-control/__tests__/credential-setup-projections.unit.test.ts > L146 saved projections preserve absent hints and connection fallback without exposing extra data
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag under the "fixed" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag under the "fixed" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag under the "hostile" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag under the "hostile" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag under the "sticky" theme at 1440px: pinned at the very top, centred, no gap, nothing hidden under it
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag under the "sticky" theme at 390px: pinned at the very top, centred, no gap, nothing hidden under it
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts > preview tag with more choices than fit a phone scrolls from the start instead of clipping the label
+apps/website/src/features/theme/__tests__/tovu-starter-theme-toggle-storage-key.test.ts > a duplicated starter theme remembers its own mode
+apps/website/src/features/theme/__tests__/tovu-starter-theme-toggle-storage-key.test.ts > tovu-starter keeps its historical key for stock, preview-prefixed, static-export and empty script URLs
+apps/website/src/features/theme/__tests__/tovu-theme-theme-toggle-storage-key.test.ts > a duplicated tovu-theme remembers its own mode without changing the original's selection
+apps/website/src/features/theme/__tests__/tovu-theme-theme-toggle-storage-key.test.ts > tovu-theme keeps its historical key for stock, preview-prefixed, static-export and empty script URLs
+apps/website/src/features/trash/__tests__/post-trash-media-evidence.integration.test.ts > a post save through the composed repo is seen by the public media-rendition reader on the next request
+apps/website/src/features/trash/__tests__/trash-item-page.unit.test.ts > page kind delegates to content_post_delete with the real row kind and canonical post Trash kind
+apps/website/src/features/webhooks/__tests__/site-key-ensure.pins.unit.test.ts > pin: a per-site file another instance already fixed is not moved aside; its key is read back
+apps/website/src/features/webhooks/__tests__/site-key-ensure.pins.unit.test.ts > pin: a read failure other than ENOENT during the move propagates and moves nothing
+apps/website/src/features/webhooks/__tests__/site-key-ensure.pins.unit.test.ts > pin: the wrong per-site file vanishing before the move (another instance moved it) is not an error
+apps/website/src/features/webhooks/__tests__/tool-contract.characterization.test.ts > (e) delete confirmed: the dialog names the subscription, the human's confirm soft-deletes it once
+apps/website/src/features/webhooks/__tests__/tool-contract.characterization.test.ts > (e) one success call per non-delete tool returns the model-facing view
+apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts > resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > a transfer copies the same tables as before minus the retired ones
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > partially excluded (secret-column) tables are unchanged
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > seed-site's credential prune list covers the vault
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > the key-dependent-data probe gives the same answer on the upgraded rows
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > the vault is never copied; it is left out next to what was left out before
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > vault boundary parity [pglite]
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > vault boundary parity [sqlite]
+apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts > whole-table transfer exclusions: the vault joins the list; the retired names stay on it
+apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts > deleting a principal: same accept/reject and the same keys left
+apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts > deleting a workspace: same accept/reject, and all its keys go with it (site key included)
+apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts > user purge removes only that user's personal key
+apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts > vault cascade parity [pglite]
+apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts > vault cascade parity [sqlite]
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > MCP server list: statement count does not grow with the number of servers
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > custom-credential list: one indexed read per stored kind
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > personal execution key on every assistant turn: one indexed read
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > publish compatibility selection: one inventory per kind and one selected row read
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > site-assistant key on the public render path: one indexed read
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > vault hot paths [pglite]
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > vault hot paths [sqlite]
+apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts > vendor group default repository lookup: one LIMIT 1 index read keyed on the exact group, no group scan
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > /home/user/Tovu/apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > MCP server list: statement count does not grow with the number of servers
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > custom
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > database-destination
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > isolation: a second and an empty workspace see only their own rows
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > isolation: personal keys stay per principal and per workspace
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > mcp-auth (server views)
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > mcp-env (enabled configs)
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > media-provider
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > order: MCP server views and enabled configs
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > order: custom-credential and peer lists
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > order: vendor and source-control lists, defaults first-class
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > personal-execution
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > publish compatibility selection: one inventory per kind and one selected row read
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > publish-peer
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > site-assistant
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > source-control
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > the transcript covers every golden key and nothing else
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > vault hot paths [postgres]
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > vault read parity [postgres]
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > vendor (with the folded publish_credential_sets)
+apps/website/src/platform/db/__tests__/parity/vault-read-parity.postgres.test.ts > vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan
+apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts > psql() returns ok:false with stderr populated, never throwing, for a failing statement
+apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts > psql() returns ok:true with stdout for a successful query
+apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts > recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database
+apps/website/src/platform/db/__tests__/pg-fixture.unit.test.ts > recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails
+apps/website/src/platform/db/__tests__/schema-postgres-parity.test.ts > all column nullability, defaults and mapped SQL types survive generation
+apps/website/src/platform/db/__tests__/schema-postgres-parity.test.ts > every SQLiteInteger column is widened to bigint(mode:"number") — a plain integer() silently caps autoincrement PKs and counters at 2^31
+apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts > a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte
+apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts > an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts
+apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts > runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation
+apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts > two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice
+apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts > no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts > /home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts
+apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts > Postgres compactAndVerify refuses a missing ledger, then passes once it has a step
+apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts > Postgres copyTo is refused with what to do instead
+apps/website/src/platform/db/migrations/__tests__/archive-legacy-commerce.postgres.test.ts > Postgres: concurrent upgrades archive once with stable relation identities; dumps restore all rows
+apps/website/src/platform/db/migrations/__tests__/checksums.test.ts > 0012 activation appends the final checksum after 0011 without replacing history
+apps/website/src/platform/db/migrations/__tests__/checksums.test.ts > every step's pinned checksum matches its sources
+apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts > [postgres] activation creates exactly the borrowed catalog once without importing historical rows
+apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts > applies on an empty database and matches schema.postgres.ts at head
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts > /home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts > the chat history lands in ai_chat with its own ledger there; public gets no chat table
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts > the content history through the current head applies on real Postgres
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts > two connections migrating at once apply a step exactly once
+apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts > /home/user/Tovu/apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts
+apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts > postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job
+apps/website/src/platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts > postgres: two pulls racing for one receiver admit exactly one; the other is already-running
+apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts > /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts
+apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts > bootSiteDir honors an explicit Postgres workspace instead of the oldest
+apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts > bootSiteDir on a postgres site opens the store (migrated, workspace resolved) without a content.db
+apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts > bootSiteDir on a postgres site rejects an unknown --workspace and closes the store it opened
+apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts > createSiteRouteDeps refuses overrides.store without workspaceId (the pair rule covers the store too)
+apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts > createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store)
+apps/website/src/platform/site-dir/__tests__/integration/init-site-branches.integration.test.ts > an import aborted during restore removes the partial site
+apps/website/src/server/__tests__/admin-page-html-route.test.ts > S7b: HTML route refuses a stale client basis on a doc page
+apps/website/src/server/__tests__/admin-trash-routes.test.ts > list: pins actorIsSystem true for the system actor's own row and false for a human's row
+apps/website/src/server/__tests__/admin-trash-routes.test.ts > list: resolves the deleting principal to a username, and falls back to a readable label when there is none
+apps/website/src/server/__tests__/admin-trash-routes.test.ts > list: resolves the seeded owner/admin account's own deletions to its username, not a fallback
+apps/website/src/server/__tests__/admin-trash-routes.test.ts > list: rows are filtered by the permission each row's own kind needs
+apps/website/src/server/__tests__/b07-trash-handler-gaps.test.ts > trash list parses string and repeated type filters, preserves cursors, and clamps page sizes
+apps/website/src/server/__tests__/b07-trash-handler-gaps.test.ts > trash list projects snapshot values and rounds remaining partial days upward
+apps/website/src/server/__tests__/bare-test-listeners.test.ts > no new bare listen(0) calls in repository tests or their helpers
+apps/website/src/server/__tests__/integration/composition-served-site-dir.integration.test.ts > stock seed: blob hydration and the publish-content seed hash read the SERVED site's seed payload
+apps/website/src/server/__tests__/integration/forms-real-composition.unrun.integration.test.ts > [unrun] forms [pglite]: a disabled form refuses public submissions as not found; re-enabling accepts again; deleting a submission removes it from the list
+apps/website/src/server/__tests__/integration/forms-real-composition.unrun.integration.test.ts > [unrun] forms [pglite]: validation failures are 400 with field errors and store nothing; the honeypot is accepted silently and stores nothing
+apps/website/src/server/__tests__/integration/forms-real-composition.unrun.integration.test.ts > [unrun] forms [sqlite]: a disabled form refuses public submissions as not found; re-enabling accepts again; deleting a submission removes it from the list
+apps/website/src/server/__tests__/integration/forms-real-composition.unrun.integration.test.ts > [unrun] forms [sqlite]: validation failures are 400 with field errors and store nothing; the honeypot is accepted silently and stores nothing
+apps/website/src/server/__tests__/routes/forms-submit.test.ts > POST /forms/:slug/submit: a DB failure in the flash-cookie's own second findBySlug lookup (setFormFlashCookieForValidationFailure) still answers the validation failure — not a hung request
+apps/website/src/server/__tests__/routes/members-public-complete-sign-in.test.ts > a session-repo failure surfaces as a 500 internal error, past a valid token
+apps/website/src/server/__tests__/routes/redirects-create.test.ts > admin redirects create route: a body-less request (no req.body at all, direct invoke) is a 400 VALIDATION_ERROR, not a TypeError
+apps/website/src/server/__tests__/site-chat-stream.golden.test.ts > site chat golden: page.navigate to a published page reaches the attached tab, then ends the turn
+apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts > index.ts main(): the content.db schema guard and site key run before the composition root opens the database
+apps/website/src/server/__tests__/unit/forms-module-sender.unit.test.ts > a provider's { ok: false } result is logged as a fixed-word line plus the provider's own error
+apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts > browser virtual authenticator verifies registration, assertions, UV, signatures, counters and local port changes
+apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-http.integration.test.ts > real HTTP/browser TOTP enrollment and passkey registration/login withhold cookies until factor completion
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts > L244 authoring: absent or ignored patch preserves the definition: null
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts > L244 authoring: absent or ignored patch preserves the definition: undefined
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts > L244 authoring: absent or ignored patch preserves the definition: {"name":7,"fields":{},"ignored":true}
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts > L244 authoring: absent or ignored patch preserves the definition: {}
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/pull-submissions-tw4.unit.test.ts > pull characterization: failure logs private message under the response reference
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/pull-submissions-tw4.unit.test.ts > pull characterization: failure logs private rejection under the response reference
+apps/website/src/server/inbound/admin-http/routes/forms/__tests__/pull-submissions-tw4.unit.test.ts > pull characterization: failure logs private stack under the response reference
+apps/website/src/server/inbound/admin-http/routes/media/__tests__/media-route-failures.unit.test.ts > media providers: omitted provider map clears the whole set
+apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/import-subscriptions.test.ts > import-subscriptions: invalid body returns 400
+apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/send-test-campaign.test.ts > send-test-campaign: registered on an app with no JSON body parser, the absent body is a 400 for testAddresses, not a 500
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-credentials.tw4.pins.test.ts > publish list and delete map an unexpected store failure to a fixed 500 that logs a redacted diagnostic
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/publish-site-listing.unit.test.ts > publish-targets and destinations: a registry load failure is a fixed 500 that never echoes the cause
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/unit/h4-publish.unit.test.ts > publish preview logs registry refusals and redacts credential metadata read failures
+apps/website/src/server/inbound/admin-http/routes/trash/__tests__/l255-characterization.test.ts > L255 restore accepts the maximum selection and returns 200 when all rows are forbidden
+apps/website/src/server/inbound/admin-http/routes/trash/__tests__/l255-characterization.test.ts > L255 restore preserves ordering, duplicate entries, whitespace, per-row gates and all outcomes
+apps/website/src/server/inbound/admin-http/routes/users/__tests__/create.test.ts > CREATE_USER route: 201 on success, with email provided
+apps/website/src/server/inbound/admin-http/routes/users/__tests__/owner-protection.test.ts > owners may edit owner email; delegated user.manage may edit ordinary operator email without changing credentials
+apps/website/src/server/inbound/admin-http/routes/users/__tests__/read-lists.test.ts > policy and role lists scope repository reads and project custom and built-in flags
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts > the loop iterates withPageNavigateErrorRewrap(frontendControl.toolRegistrations), not the bare array
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts > the loop marks the read-only frontend capabilities before registering
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts > a run registers itself in the tracker before any await in onStarted's synchronous prefix
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts > imports the shared tool policy resolver from assistant-system-overlay.ts
+apps/website/src/server/inbound/public-http/http/site/__tests__/render.golden.characterization.test.ts > golden: every pinned hash matches the committed table
+apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts > public page requests do not load feature-wide barrels or assistant tools
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-page-preview.errors.unit.test.ts > templated preview failure references its redacted server incident
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts > preview reload writes a fresh refresh frame, and a themes path that cannot hold the marker answers 500
+apps/website/src/server/inbound/public-http/routes/__tests__/mail-feedback.unit.test.ts > a handler failure is a redacted 500 whose error ID matches one redacted server log
+apps/website/src/server/inbound/public-http/routes/__tests__/mail-feedback.unit.test.ts > a handler failure through the composed reporter is one incident id, one host record, no secret
+apps/website/src/server/inbound/public-http/routes/commerce/__tests__/purchase.integration.test.ts > anonymous, operator, duplicate-cookie, disabled, revoked and expired sessions cannot purchase
+apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts > the manifest classifies every other table's columns as before
+apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts > the transfer catalog loses exactly the six commerce tables and gains the named later columns
+apps/website/src/server/inbound/public-http/routes/site/__tests__/products.route.test.ts > product failures reference the same redacted server incident
+apps/website/src/server/inbound/public-http/routes/site/__tests__/site-chat-selection.test.ts > wcmp: page selection reads the site choice, retains off, and leaves static exports widget-free
+apps/website/src/server/runtime/boot/__tests__/boot-readiness-gate.unit.test.ts > 2026-09-09 durability fix: boot-readiness-gate.ts imports inspectSiteKeyMaterial from the real keyring module, not a local reimplementation
+apps/website/src/server/runtime/boot/__tests__/index-bind-host-wiring.unit.test.ts > index.ts resolves TOVU_HOST via resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined, source: "--host/TOVU_HOST", invalidHost: ({ message }) => new ValidationError({ message }) }) -- undefined is its OWN existing all-interfaces default, unchanged
+apps/website/src/server/runtime/boot/__tests__/index-bind-host-wiring.unit.test.ts > serve.ts pins composition, callback and actual listener origins in their owning boot phases
+apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts > real bundled resend and SMTP composition retain requests, ordered ledger, policy, identity, status, rotation, cards and counters
+apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts > the default SMTP transport and console log are used when none is injected
+apps/website/src/server/runtime/boot/__tests__/site-boot-readiness.unit.test.ts > both top-level boot paths await the shared list instead of an inline copy
+apps/website/src/server/runtime/composition/__tests__/boot-settings-rejection.integration.test.ts > a settings registration failing while provider boot is still pending is never an unhandled rejection, and settingsReady still rejects
+apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts > every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection
+apps/website/src/server/runtime/composition/__tests__/commerce-http.unit.test.ts > storefront readiness failure returns its redacted incident reference
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (activateAssistantFederation) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (adminAssistantOff) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (consentAudit) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (cookieConsentPresent) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (default) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (stopForIdle) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts > createApp route table (themeIdOverride) keeps its pinned registration order
+apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts > /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts
+apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts > Postgres composition boot sequence preserves data across env, sealed-secret and wrong-key boots
+apps/website/src/server/runtime/composition/__tests__/deps-project-credentials.integration.test.ts > a publish-host connection saved from site A deploys from site B only after attachment
+apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts > a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault
+apps/website/src/server/runtime/composition/__tests__/form-file-cleanup-wiring.test.ts > delayed form cleanup uses the composed content database and retains owned bytes: false
+apps/website/src/server/runtime/composition/__tests__/form-file-cleanup-wiring.test.ts > delayed form cleanup uses the composed content database and retains owned bytes: true
+apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts > memory root: routeDeps keeps its ordered key list and value kinds
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts > /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts > a failure after the copy rolls the target back and leaves the site on PGlite
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts > a row written to the target after the emptiness check refuses the copy; nothing is truncated
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts > a running site is refused; nothing changes
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts > a target that already holds data is refused; nothing changes
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts > the move copies every table, seals the secret, switches the meta last, and the site boots on Postgres
+apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts > /home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts
+apps/website/src/server/runtime/composition/__tests__/open-site-store.postgres.test.ts > a failed preparation closes the pool: no session on the site's database survives the rejection
+apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts > appData: reads B's posts/media/forms and owner chats through the real catalog; audits only A
+apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts > batch shared site and collapsed content_read dispatch reach B through the same wrappers
+apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts > foreign-site writes never reach a handler; the current registry name is stripped and runs on A
+apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts > inSite: reads B's posts/media/forms and owner chats through the real catalog; audits only A
+apps/website/src/server/runtime/composition/__tests__/peer-site-reads.test.ts > non-owner refuses before registry discovery, including any peer SQL opens
+apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts > a receiver trickling bytes forever is cut off by the total deadline through the guarded client
+apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.test.ts > the default log writes the failure line to console.error
+apps/website/src/server/runtime/composition/site-deps/__tests__/boot-data.characterization.unit.test.ts > B06: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/chat-orphans-project-keys.characterization.unit.test.ts > H1: the calls keep their place and the root declares none of the functions
+apps/website/src/server/runtime/composition/site-deps/__tests__/content-repos.characterization.unit.test.ts > B14: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/content-resolvers-comments.characterization.unit.test.ts > B15: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/content-stores.characterization.unit.test.ts > B20: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/mail-http.characterization.unit.test.ts > B19: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/media-storage.characterization.unit.test.ts > B02: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/provider-identity.characterization.unit.test.ts > M3: deps.ts imports exactly what it still uses from the new file
+apps/website/src/server/runtime/composition/site-deps/__tests__/publish-apply.characterization.unit.test.ts > B22: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/publishing-stores-themes.characterization.unit.test.ts > B21: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/redirects.characterization.unit.test.ts > B12: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/root-phases.characterization.unit.test.ts > R: each phase holds its root statements in root order
+apps/website/src/server/runtime/composition/site-deps/__tests__/root-phases.characterization.unit.test.ts > R: the root is its fixed points and the phase calls, in order
+apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-members-mail.characterization.unit.test.ts > L4: each run returns its keys in tip order
+apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-members-mail.characterization.unit.test.ts > L4: the run calls sit where their entries sat
+apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-publish-credentials.characterization.unit.test.ts > L6: the run calls sit where their entries sat
+apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-site-providers.characterization.unit.test.ts > L3: each run returns its keys in tip order
+apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-site-providers.characterization.unit.test.ts > L3: the run calls sit where their entries sat
+apps/website/src/server/runtime/composition/site-deps/__tests__/site-sharing.characterization.unit.test.ts > H3: the calls keep their place and the root declares none of the functions
+apps/website/src/server/runtime/composition/site-deps/__tests__/store-basics.characterization.unit.test.ts > B03: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/trash-adapters.characterization.unit.test.ts > B10: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/trash-follow-up-hooks.characterization.unit.test.ts > B09: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/composition/site-deps/__tests__/trash-service.characterization.unit.test.ts > B11: the call keeps the moved statements' place in composeSiteRouteDeps
+apps/website/src/server/runtime/lifecycle/__tests__/assistant-daemon-demand.unit.test.ts > both boot adapters register the readiness and eligibility gates without spawning
+content/agent-plugin-overlays/fly/__tests__/deploy-config.test.mjs > --out writes the rendered fly.toml and reports where
+content/agent-plugin-overlays/fly/__tests__/deploy-config.test.mjs > renders the fly config to stdout and its operator notes to stderr, Tovu's Chromium note last
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > Fly's host declaration is plain manifest data, synchronously readable before activation
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > absent source root: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > absent source root: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > ambiguous cross-package ownership: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > ambiguous cross-package ownership: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > ambiguous ownership within package: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > ambiguous ownership within package: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > boot labels, ordering and full warning bytes stay identical, including incidental advice
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > conflicting advice: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > conflicting advice: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > empty security declaration: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > empty security declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > malformed JSON: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > malformed JSON: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > malformed declaration: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > malformed declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > missing advice: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > missing advice: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > missing declaration: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > missing declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > missing metadata: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > missing metadata: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > partial security declaration: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > partial security declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > reader failure: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > reader failure: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > unreadable manifest: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > unreadable manifest: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > unresolved product root: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > unresolved product root: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > valid shipped declaration: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > valid shipped declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > weakened security facts: 4,500 combinations match frozen HEAD for every consumer
+content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs > weakened security facts: independent product switches, CLI locks, warning triggers and salt bytes match HEAD
+content/agent-plugin-overlays/github/__tests__/source-control-credential.test.mjs > content/agent-plugin-overlays/github/__tests__/source-control-credential.test.mjs
+content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs > U1: every bundled public export template passes the single CMS fragment validator
+content/agent-plugin-overlays/railway/__tests__/deploy-config.test.mjs > tovu deploy config --target railway tells the operator to set Tovu's runtime mode and the local site's TOVU_SITE_ID
+content/agent-plugin-overlays/render/__tests__/credential-card.test.mjs > Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement
+content/agent-plugin-overlays/render/__tests__/deploy-config.test.mjs > tovu deploy config --target render carries Tovu's runtime mode and the local site's TOVU_SITE_ID into render.yaml
+content/agent-plugin-overlays/s3-compatible/__tests__/media-store.integration.test.mjs > content/agent-plugin-overlays/s3-compatible/__tests__/media-store.integration.test.mjs
+development/eslint-rules/__tests__/error-gate.unit.test.ts > copied site @jini-ai/cms/react/posts/hooks/use-post-url-dialog.hooks:35 (parse-refusal) passes rule 1, and the three rules find exactly what is recorded
+development/eslint-rules/__tests__/error-gate.unit.test.ts > copied site apps/website/src/assistant/byok-meta-tool-result.ts:93 (parse-refusal) passes rule 1, and the three rules find exactly what is recorded
+development/eslint-rules/__tests__/error-gate.unit.test.ts > copied site apps/website/src/server/runtime/boot/local-owner-signin.ts:81 (parse-refusal) passes rule 1, and the three rules find exactly what is recorded
+development/eslint-rules/__tests__/error-gate.unit.test.ts > the three sites the judge named pass as written
+development/scripts/__tests__/app-runtime-dependencies.test.ts > admin source imports declare dependencies in their own package
+development/scripts/__tests__/backfill-media-slugs.test.ts > backfill-media-slugs: a slug assigned after planning survives and is reported as skipped
+development/scripts/__tests__/backfill-media-slugs.test.ts > backfill-media-slugs: derives per-title slugs, suffixes a same-base collision, isolates per workspace, and defaults a blank title to 'untitled'
+development/scripts/__tests__/backfill-slug-collision-defaults.test.ts > backfill-slug-collision-defaults: leaves a genuine collision candidate at false, reclassifies a non-collision to NULL, and never touches true or already-null rows
+development/scripts/__tests__/backfill-trashed-items.test.ts > purge_after starts at the BACKFILL time, not retroactively from the original marker
+development/scripts/__tests__/backfill-trashed-items.test.ts > re-running the backfill is free — no duplicate rows, and the second run reports zero
+development/scripts/__tests__/convert-legacy-doc-pages-to-html.test.ts > convert-legacy-doc-pages-to-html: dry run preserves authored pages; apply converts exact HTML and is idempotent
+development/scripts/__tests__/dependency-cruiser.test.ts > deep-import rules exempt tests and current composition, retaining other production boundaries
+development/scripts/__tests__/desktop-assistant-admission.integration.test.ts > development/scripts/__tests__/desktop-assistant-admission.integration.test.ts
+development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts > theme CLI lists catalog and installed themes with optional lineage

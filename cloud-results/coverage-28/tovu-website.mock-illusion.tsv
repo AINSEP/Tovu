@@ -1,0 +1,12 @@
+apps/website/src/features/agent-plugins/bundled-contribution-sources.ts	100.0	apps/website/src/assistant/__tests__/declared-tool-keywords-lazy.contract.test.ts
+apps/website/src/features/site-backup/static-download-host.ts	97.37	apps/website/src/features/site-backup/__tests__/share-backend-static-limits.unit.test.ts
+apps/website/src/platform/express/jini-routes.ts	97.12	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-scope.behavior.integration.test.ts
+apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts	97.78	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-scope.behavior.integration.test.ts
+apps/website/src/server/inbound/public-http/routes/site/analytics-ingest.ts	100.0	apps/website/src/server/runtime/composition/__tests__/create-app-visitor-capabilities.pin.test.ts
+apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts	100.0	apps/website/src/server/runtime/composition/__tests__/create-app-visitor-capabilities.pin.test.ts
+apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts	100.0	apps/website/src/server/runtime/composition/__tests__/create-app-visitor-capabilities.pin.test.ts
+apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts	98.88	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-scope.behavior.integration.test.ts
+apps/website/src/server/runtime/composition/app.ts	97.38	apps/website/src/server/runtime/composition/__tests__/memory-route-deps.test.ts
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	97.57	apps/website/src/server/runtime/composition/__tests__/create-app-routine-wiring.test.ts
+apps/website/src/server/runtime/composition/vault-boot.ts	98.94	apps/website/src/server/runtime/composition/__tests__/site-key-l005.integration.test.ts
+apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts	74.88	apps/website/src/server/runtime/composition/__tests__/create-app-lifecycle.pin.test.ts
