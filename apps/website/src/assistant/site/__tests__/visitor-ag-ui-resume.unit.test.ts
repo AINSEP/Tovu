@@ -209,5 +209,7 @@ test("a failed shutdown denial is reported while the parked execution is still c
   assert.equal(await h.coordinator.resumeVisitorApproval({ input: resumeInput(), owner: OWNER, attachResponse }), "expired");
   assert.deepEqual(h.confirms, [{ challengeId: CHALLENGE, owner: OWNER, allow: false }]);
   assert.deepEqual(h.events, ["settle:false", "cleanup:shutdown"]);
+  // The denial is fire-and-forget: its rejection reaches reportError on a later microtask.
+  await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(h.reports, [error]);
 });

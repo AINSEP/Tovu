@@ -75,7 +75,7 @@ test('the visitor navigate tool is offered by slug, in visitor wording, and navi
 test('a still-resolvable navigation target cannot act from a page removed from the live list', async () => {
   let pages = [{ id: 'p-contact', label: 'Contact', path: '/contact' }, { id: 'theme:pricing', label: 'Pricing', path: '/pricing' }];
   const { registry, wires } = registryWithPage({ listPages: async () => pages });
-  const request = { name: 'page.navigate', input: { slug: 'pricing' }, caller: 'anonymous-visitor' };
+  const request = { name: 'page.navigate', input: { slug: 'pricing' }, caller: 'anonymous-visitor' as const };
   assert.equal((await registry.invoke(request)).kind, 'ok');
   assert.equal(wires[0]?.page, 'theme:pricing');
   pages = [{ id: 'theme:pricing', label: 'Pricing', path: '/pricing' }];
