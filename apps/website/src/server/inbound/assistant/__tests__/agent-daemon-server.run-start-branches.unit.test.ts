@@ -324,3 +324,36 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
     assert.equal(input.prompt, "tail");
   });
 });
+
+describe("terminal waits — a lost completion signal still releases and cleans up", () => {
+  async function settle(done: () => boolean) {
+    const deadline = Date.now() + 2000;
+    while (!done()) {
+      if (Date.now() > deadline) throw new Error("terminal cleanup never settled");
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  }
+
+  test("a rejected terminal wait is logged for both holds, attachment cleanup still runs, and its failure is logged without stranding a hold", async () => {
+    const run = conversationRun();
+    // The completion signal is lost only once the run has launched; preparation sees an ordinary pending wait.
+    const pendingWaits: Array<(error: Error) => void> = [];
+    const lifecycle = { ...run.lifecycle, waitForTerminal: () => new Promise((_resolve, reject) => { pendingWaits.push(reject); }) };
+    const holds = { acquired: 0, released: 0 };
+    const cleaned: unknown[] = [];
+    await start({ prompt: "go" }, { ...run, lifecycle }, {
+      idlePark: { hold: () => { holds.acquired += 1; let once = false; return () => { if (!once) { once = true; holds.released += 1; } }; } },
+      attachmentStore: { cleanupRun: async (input: unknown) => { cleaned.push(input); throw new Error("disk gone"); } },
+    });
+    assert.equal(pendingWaits.length, 2);
+    for (const lose of pendingWaits) lose(new Error("event log closed"));
+    await settle(() => cleaned.length === 1 && holds.acquired > 0 && holds.released === holds.acquired);
+    assert.deepEqual(cleaned, [{ runId: "daemon-test-run" }]);
+    // describeErrorForLog keeps only the error's class, never its message, in the daemon log.
+    assert.deepEqual([...run.calls.errors].sort(), [
+      "[agent-daemon] run daemon-test-run: attachment cleanup failed Error: disk gone",
+      "[agent-daemon] run daemon-test-run: could not wait for completion before cleaning up: Error",
+      "[agent-daemon] run daemon-test-run: could not wait for completion before releasing activity: Error",
+    ]);
+  });
+});
