@@ -2389,3 +2389,14 @@ Fixed unless marked OPEN.
 - **FIXED (test, Codex):** Tovu admin `folder-zip-port` wiring assertion rendered `useWiredPlugins` without the AdminKit provider tree.
 - **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
 - **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
+
+## verify-1127 V1 (2026-11-27) — Jini admin Codex coverage branches w62-cov-admin-1..6
+Full detail: `cloud-results/verify-1127-V1.md` (on `cloud/verify-1127-V1`).
+- **FIXED (on codex/w62-cov-admin-1):** page editor saved the stale body on the first Save after an unreported Interactive edit (`page-editor-workspace.hooks.ts`, preflush handoff — owner review); restore flow let a late disclosure/error for a left restore point overwrite the current one (`use-restore-flow.hooks.ts`).
+- **FIXED (admin-2):** collection entry id lookup lost to another row's matching slug; consent Publish reported post-await edits as live; email activity Load-more from an old filter replaced the new filter's first page.
+- **FIXED (admin-3):** email template editor showed the previous template's preview/undeclared fields after switching id.
+- **FIXED (admin-5):** Installed tab ignored `pluginToggleControl().visible` (enable-capable button on invalid off rows, AC-21). **OPEN decision:** `DownloadedPluginAction` (PluginLists.tsx ~228) still offers Enable on invalid disabled rows.
+- **FIXED (admin-6):** plugin install error maps resolved server code `"toString"` to `Object.prototype` ("[object Undefined]") — `Object.hasOwn` guard in both install hooks.
+- **OPEN:** `packages/admin/src/screens/plugins/rules.ts:595` Downloaded "Turn off" copy still says the plugin "drops off the Installed tab" (Installed lists every plugin since 2026-09-13); needs the string + 21 dictionary translations, then restore the dropped admin-5 test.
+- **OPEN (env):** `screens/media/api/media-api.ts` self-imports `@jini-ai/admin/...`; vitest cannot resolve it without a workspace self-link (2 media test files fail to import on base too).
+- **OPEN (pre-existing):** `screens/__tests__/y5-admin-surfaces.test.tsx` "plugin Add falls back to Installed…" needs `<AdminKitProvider>` (merge-28 red list).
