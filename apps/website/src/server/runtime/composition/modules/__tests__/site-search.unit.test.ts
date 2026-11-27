@@ -586,7 +586,7 @@ test("bound media search pages use stable ids and give raster and SVG hits their
   const ports = bindSiteSearchPorts({
     workspaceId: WS, kernel, now: () => NOW, settingsRepo,
     settingsWriteDeps: {
-      repo: settingsRepo, clock: { nowMs: () => NOW, nowIso: () => new Date(NOW).toISOString() },
+      repo: settingsRepo, clock: { nowMs: () => NOW },
       ids: { newId: () => "setting-id" }, authorize: async () => ({ allowed: true, reason: "test" }),
       principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
     },
