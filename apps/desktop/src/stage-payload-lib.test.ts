@@ -1064,3 +1064,15 @@ test("staging makes every node-pty spawn-helper executable, whatever mode the in
 test("a shell with no node-pty installed has no helper to fix", () => {
   assert.deepEqual(ensurePtyHelpersExecutable({ ptyDir: path.join(os.tmpdir(), "no-such-node-pty-dir") }), []);
 });
+
+test("pruning tolerates a vanished native prebuild without removing a usable sibling", (t) => {
+  const root = tempDir();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const outDir = path.join(root, "out");
+  const modulesDir = stageNativePackages(outDir, { sqlitePrebuilds: ["darwin-arm64.node"] });
+  const sqlitePrebuilds = path.join(modulesDir, "better-sqlite3", "prebuilds");
+  fs.symlinkSync(path.join(root, "absent.node"), path.join(sqlitePrebuilds, "darwin-x64.node"));
+  pruneNativePrebuilds({ outDir, targets: [{ platform: "darwin", arch: "arm64" }] });
+  assert.equal(fs.readFileSync(path.join(sqlitePrebuilds, "darwin-arm64.node"), "utf8"), "x".repeat(64));
+  assert.equal(fs.existsSync(path.join(modulesDir, "argon2", "prebuilds", "darwin-x64")), false);
+});

@@ -166,3 +166,57 @@ test("M18 a renderer-supplied target, path or confirmed flag is never what main 
   assert.deepEqual(h.calls.removed, [{ partition: "persist:site-x", confirmed: true, evidence: "owner-dialog" }], "main's own partition, never the smuggled one");
   assert.deepEqual(h.calls.trashed, ["/sites/old"], "main's own folder, never the smuggled path");
 });
+
+test("a folder changed after confirmation is reported as kept and its confirmation cannot be replayed", async () => {
+  const asked: unknown[] = [];
+  const trashed: unknown[] = [];
+  const h = harness({
+    confirmDialog: async (request) => { asked.push(request); return true; },
+    trashFolder: async (request) => { trashed.push(request); return { state: "kept", reason: "changed" }; },
+  });
+  const id = (await list(h)).otherFolders[0]!.id;
+  const preview = await h.call(STORAGE_SHEET_CHANNELS.preview, { id, action: "trash-folder" }) as { confirmationId: string };
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, { confirmationId: preview.confirmationId }), { state: "kept", reason: "changed" });
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, { confirmationId: preview.confirmationId }), { state: "relist" });
+  assert.deepEqual(asked, [{ action: "trash-folder", label: "Old site" }]);
+  assert.deepEqual(trashed, [{ dir: "/sites/old" }]);
+  assert.deepEqual(h.calls.removed, []);
+});
+
+test("a dismissed folder stays on disk when the OS refuses to trash it", async (t) => {
+  const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = path.join(root, "old");
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, "content.db"), "preserve these bytes");
+  const attempts: string[] = [];
+  const trash = bindTrashDismissedFolder(trashDeps(root, {
+    trashItem: async (target) => { attempts.push(target); throw new Error("Trash on this volume is unavailable"); },
+  }));
+  assert.deepEqual(await trash({ dir }), { state: "kept", reason: "unknown" });
+  assert.deepEqual(attempts, [dir]);
+  assert.equal(fs.readFileSync(path.join(dir, "content.db"), "utf8"), "preserve these bytes");
+});
+
+test("a folder above a protected root is kept even when dismissed and stopped", async (t) => {
+  const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "profile"));
+  const deps = trashDeps(root, { readTrackedStrict: async () => ({ state: "ok", tracked: [], dismissed: [root] }) });
+  assert.deepEqual(await bindTrashDismissedFolder(deps)({ dir: root }), { state: "kept", reason: "changed" });
+  assert.deepEqual(deps.trashed, []);
+});
+
+test("an inconsistent registry entry cannot turn a listed website into a Trash target", async () => {
+  let sequence = 0;
+  const itemIds = createStorageItemIds<StorageTarget>({ randomId: () => `opaque-${++sequence}`, now: () => 0 });
+  const h = harness({ itemIds });
+  // Simulate a main-side producer attaching the wrong kind to a real registry entry.
+  // The wire still carries only opaque IDs, so the handler must fail closed on the target's tag.
+  const id = itemIds.issue({ senderId: 1, kind: "folder", target: { kind: "site", dir: "/sites/current", label: "Current site" } });
+  const shown = await h.call(STORAGE_SHEET_CHANNELS.preview, { id, action: "trash-folder" }) as { confirmationId: string; state: string };
+  assert.equal(shown.state, "ready");
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, { confirmationId: shown.confirmationId }), { state: "relist" });
+  assert.deepEqual(h.calls.trashed, []);
+  assert.deepEqual(h.calls.removed, []);
+});

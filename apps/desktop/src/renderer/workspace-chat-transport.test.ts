@@ -1031,3 +1031,26 @@ test('buildChatStartPayload forwards a conversation id and omits a null or absen
   assert.ok(!('conversationId' in nullId!));
   assert.ok(!('conversationId' in absent!));
 });
+
+test('malformed text and image blocks do not erase valid sibling attachments from the same tool result', async (t) => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  t.after(() => transport.dispose());
+  const events: AgentEvent[] = [];
+  await transport.startRun(startInput(), dummyHandlers({ onEvent: (event) => events.push(event) }));
+  const subscriptionId = fake.calls.chatStart[0]!.subscriptionId;
+  fake.emit({ subscriptionId, kind: 'event', event: agentEvent({
+    type: 'tool_result', toolUseId: 'media-check', content: 'Rendered files',
+    media: [
+      { type: 'text', text: 42 },
+      { type: 'image', mimeType: 42, data: 'cG5n' },
+      { type: 'image', mimeType: 'image/png', data: null },
+      { type: 'text', text: 'Preview' },
+      { type: 'image', mimeType: 'image/png', data: 'cG5n' },
+    ],
+  }) });
+  assert.deepEqual(events, [{
+    kind: 'tool_result', toolUseId: 'media-check', content: 'Rendered files', isError: false,
+    media: [{ type: 'text', text: 'Preview' }, { type: 'image', mimeType: 'image/png', data: 'cG5n' }],
+  }]);
+});

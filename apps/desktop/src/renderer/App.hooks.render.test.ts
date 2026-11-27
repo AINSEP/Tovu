@@ -10,6 +10,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import type { CreateSiteInput } from '../contracts/project.js';
+import type { WorkspaceChatEventMessage } from '../contracts/workspace-chat.js';
+import type { RunnerInventoryBridge } from './runner-api.js';
 import { renderHookWithView as renderHook, settle, site } from './app-hooks.test-support.js';
 import { installDom } from './dom-hook-harness.js';
 import {
@@ -63,4 +65,39 @@ test('with the default lookup and no preload (`window.tovuRunner` unset) every b
   assert.deepEqual(hook.current().conversations.conversations, []);
   assert.equal(hook.current().load.failed, false);
   assert.deepEqual(calls, []);
+});
+
+test('workspace chat uses preload for run commands and file staging, and releases its listener on unmount', async (t) => {
+  const listeners = new Set<(message: WorkspaceChatEventMessage) => void>();
+  const stops: { runId: string }[] = [];
+  const uploads: { name: string; bytes: number[] }[] = [];
+  const bridge = {
+    onChatEvent: ({ listener }) => {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+    chatStop: async (input) => { stops.push(input); },
+    saveChatAttachment: async ({ name, data }) => {
+      uploads.push({ name, bytes: Array.from(new Uint8Array(data)) });
+      return { path: '/chat/staged/agenda.txt' };
+    },
+  } satisfies Pick<RunnerInventoryBridge, 'onChatEvent' | 'chatStop' | 'saveChatAttachment'>;
+  Object.defineProperty(window, 'tovuRunner', { configurable: true, value: bridge });
+  t.after(() => Reflect.deleteProperty(window, 'tovuRunner'));
+
+  const hook = renderHook(t, () => useWorkspaceChatTransport());
+  const { transport, uploadAttachments } = hook.current();
+  assert.equal(listeners.size, 1);
+  assert.ok(transport && uploadAttachments, 'the installed preload makes runs and uploads available');
+  await transport.stopRun('run-84');
+  assert.deepEqual(stops, [{ runId: 'run-84' }]);
+  assert.deepEqual(await uploadAttachments([new File(['abc'], 'agenda.txt', { type: 'text/plain' })]), [
+    { path: '/chat/staged/agenda.txt', name: 'agenda.txt', kind: 'file', size: 3, order: 0 },
+  ]);
+  assert.deepEqual(uploads, [{ name: 'agenda.txt', bytes: [97, 98, 99] }]);
+  hook.rerender();
+  assert.equal(hook.current().transport, transport);
+  assert.equal(listeners.size, 1);
+  hook.unmount();
+  assert.equal(listeners.size, 0);
 });

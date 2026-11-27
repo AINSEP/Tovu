@@ -132,3 +132,40 @@ test('queued desktop mutations cannot overtake an unfinished mutation', async (t
   assert.deepEqual(events, ['start', 'finish', 'start', 'finish']);
   await host.drain({});
 });
+
+test('a reveal aborted while queued never reaches the shell and does not block later calls', { timeout: 2000 }, async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-mcp-cancel-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const projectsPath = sitesFilePath({ userDataDir: dir });
+  const sites = [path.join(dir, 'first'), path.join(dir, 'cancelled'), path.join(dir, 'next')] as const;
+  for (const siteDir of sites) trackSite({ beforeAddedRows: () => {}, projectsPath, siteDir });
+
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  t.after(release);
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  const opened: string[] = [];
+  const host = createSitesMcpToolHost({ context: {
+    beforeAddedRows: () => {}, projectsPath,
+    revealPath: async ({ target }) => {
+      opened.push(target);
+      if (target === sites[0]) { entered(); await gate; }
+    },
+  } });
+  const reveal = host.tools.find(({ name }) => name === 'reveal_site_folder')!;
+  const ctx = { baseUrl: '', fetchImpl: fetch };
+  const first = reveal.handler({ args: { siteDir: sites[0] }, ctx });
+  await started;
+  const controller = new AbortController();
+  const cancelled = reveal.handler({ args: { siteDir: sites[1] }, ctx: { ...ctx, signal: controller.signal } });
+  const next = reveal.handler({ args: { siteDir: sites[2] }, ctx });
+  controller.abort();
+  release();
+  const [firstResult, skipped, nextResult] = await Promise.all([first, cancelled, next]);
+  assert.deepEqual(firstResult.structuredContent, { siteDir: sites[0], revealed: true });
+  assert.equal(skipped.isError, true);
+  assert.deepEqual(skipped.structuredContent, { error: 'Desktop call cancelled before dispatch.' });
+  assert.deepEqual(nextResult.structuredContent, { siteDir: sites[2], revealed: true });
+  assert.deepEqual(opened, [sites[0], sites[2]]);
+});

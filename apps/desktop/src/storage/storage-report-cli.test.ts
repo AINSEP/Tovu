@@ -60,3 +60,33 @@ test("a real child: exit code and stdout are read; overflow and timeout fail", a
   assert.deepEqual(await nodeChild('process.stdout.write("x".repeat(1000))')({ cliArgs: [] }), { state: "failed" });
   assert.deepEqual(await nodeChild("setTimeout(() => {}, 10000)")({ cliArgs: [] }, { timeoutMs: 50 }), { state: "failed" });
 });
+
+test("a successful capabilities probe uses the CLI wire and keeps the advertised actions", async () => {
+  const calls: unknown[] = [];
+  const read = await readStorageCapabilities({ runCli: async (input, options) => {
+    calls.push([input, options]);
+    return { state: "exited", code: 0, stdout: '{"operations":["report","compact"]}' };
+  } });
+  assert.deepEqual(calls, [[{ cliArgs: ["storage", "capabilities", "--json"] }, undefined]]);
+  assert.deepEqual(read, { state: "ok", operations: new Set(["report", "compact"]) });
+});
+
+test("a report child that cannot be spawned returns failed, not a rejection", async () => {
+  const launches: unknown[] = [];
+  const runCli = bindRunCli({
+    planFor: ({ cliArgs }) => ({ command: "/bundled/cli", args: cliArgs }),
+    spawn: (input) => { launches.push(input); throw new Error("spawn refused"); },
+  });
+  assert.deepEqual(await runCli({ cliArgs: ["storage", "report", "/sites/shop", "--json"] }), { state: "failed" });
+  assert.deepEqual(launches, [{ command: "/bundled/cli", args: ["storage", "report", "/sites/shop", "--json"] }]);
+});
+
+test("capabilities reject non-string operations and reports reject malformed class amounts independently", () => {
+  assert.deepEqual(parseStorageCapabilities({ stdout: '{"operations":["clean",1]}' }), { state: "unknown" });
+  for (const amount of [null, { bytes: -1, files: 3 }, { bytes: 5, files: 1.5 }]) {
+    assert.deepEqual(projectStorageReport({ stdout: JSON.stringify({ ...REPORT, classes: { automatic: amount } }) }), { state: "unknown" });
+  }
+  assert.deepEqual(projectStorageReport({
+    stdout: JSON.stringify({ ...REPORT, totalBytes: null, classes: { automatic: { bytes: null, files: 2 } } }),
+  }), { state: "ok", report: { totalBytes: null, knownBytes: 30, classes: { automatic: { bytes: null, files: 2 } } } });
+});

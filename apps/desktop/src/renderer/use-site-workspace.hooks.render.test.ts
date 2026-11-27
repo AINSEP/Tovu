@@ -191,3 +191,47 @@ test('a replacement guest takes over the navigation listeners and the visible ta
   assert.equal(second.listening(), 0);
   assert.equal(commands.size, 0);
 });
+
+test('the default workspace bridge hands the public surface of the current site to the OS browser', async (t) => {
+  const window = installDom();
+  const fake = workspaceBridge();
+  Object.defineProperty(window, 'tovuRunner', { configurable: true, value: fake.getBridge() });
+  t.after(() => Reflect.deleteProperty(window, 'tovuRunner'));
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: OWN, hidden: false }) });
+
+  act(() => hook.current().selectView({ option: 'site' }));
+  assert.equal(hook.current().src, 'http://127.0.0.1:4100/');
+  act(() => hook.current().openInBrowser());
+  await settle();
+  assert.deepEqual(fake.calls, ['history', 'external:/sites/a:site']);
+});
+
+test('a parked route applies its saved scroll and reports an unexpected guest failure once', async (t) => {
+  const parked = { url: 'http://127.0.0.1:4100/admin/posts', x: 0, y: 271, innerY: 59 };
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const fake = workspaceBridge();
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: OWN, hidden: false }, { parked, getBridge: fake.getBridge }) });
+  assert.equal(hook.current().src, parked.url);
+  const window = installDom();
+  const scripts: string[] = [];
+  const guest = Object.assign(window.document.createElement('webview'), {
+    canGoBack: () => false,
+    canGoForward: () => false,
+    executeJavaScript: async (script: string) => { scripts.push(script); throw new Error('Scroll evaluation refused'); },
+  });
+  act(() => hook.current().guestRef(guest as unknown as HTMLWebViewElement));
+  assert.deepEqual(scripts, []);
+  act(() => { guest.dispatchEvent(new window.Event('did-finish-load')); });
+  await settle();
+  assert.equal(scripts.length, 1);
+  assert.match(scripts[0]!, /window\.scrollTo\(0, 271\)/);
+  assert.match(scripts[0]!, /inner\.scrollTop = 59/);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0]![0], '[live-views] Could not restore scroll position');
+  assert.match(String(logs[0]![1]), /Scroll evaluation refused/);
+  act(() => { guest.dispatchEvent(new window.Event('did-finish-load')); });
+  await settle();
+  assert.equal(scripts.length, 1);
+  assert.equal(logs.length, 1);
+});

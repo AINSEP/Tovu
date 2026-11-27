@@ -67,3 +67,72 @@ test("site starts after preview and Compact does not open the database", async (
   assert.deepEqual(await h.actions.act({ senderId: 1, confirmationId: preview.confirmationId }), { state: "kept", reason: "in-use" });
   assert.deepEqual(h.cli, []);
 });
+
+test("Compact disappears at apply when the current CLI no longer advertises it", async () => {
+  const cli: string[][] = [];
+  const confirmations: unknown[] = [];
+  let supportsCompact = true;
+  let sequence = 0;
+  const itemIds = createStorageItemIds<StorageTarget>({ randomId: () => String(++sequence), now: () => 0 });
+  const id = itemIds.issue({ senderId: 1, kind: "site", target: { kind: "site", dir: "/sites/shop", label: "Shop" } });
+  const actions = bindStorageSheetActions({
+    itemIds,
+    capabilities: async () => ({ state: "ok", operations: new Set<StorageOperation>(supportsCompact ? ["report", "compact"] : ["report"]) }),
+    runningLease: async () => "stopped",
+    runCli: async ({ cliArgs }) => { cli.push([...cliArgs]); return { state: "exited", code: 0, stdout: "" }; },
+    ownerHttp: async () => { throw new Error("Compact must never contact an owner endpoint"); },
+    confirm: async (request) => { confirmations.push(request); return true; },
+  });
+  const shown = await actions.preview({ senderId: 1, id, action: "compact" });
+  assert.ok(shown.state === "ready", "expected a usable confirmation");
+  supportsCompact = false;
+  assert.deepEqual(await actions.act({ senderId: 1, confirmationId: shown.confirmationId }), { state: "kept", reason: "unknown" });
+  assert.deepEqual(confirmations, [{ action: "compact", label: "Shop" }]);
+  assert.deepEqual(cli, []);
+
+  supportsCompact = true;
+  const retry = await actions.preview({ senderId: 1, id, action: "compact" });
+  assert.ok(retry.state === "ready", "expected a usable confirmation");
+  assert.deepEqual(await actions.act({ senderId: 1, confirmationId: retry.confirmationId }), { state: "done" });
+  assert.deepEqual(cli, [["storage", "compact", "/sites/shop", "--json"]]);
+});
+
+test("overlapping owner confirmations cannot start two Compact jobs for the same site", { timeout: 2000 }, async () => {
+  let sequence = 0;
+  let approve!: (value: boolean) => void;
+  const confirmation = new Promise<boolean>((resolve) => { approve = resolve; });
+  let finish!: () => void;
+  const inFlight = new Promise<void>((resolve) => { finish = resolve; });
+  const cli: string[][] = [];
+  const itemIds = createStorageItemIds<StorageTarget>({ randomId: () => String(++sequence), now: () => 0 });
+  const id = itemIds.issue({ senderId: 1, kind: "site", target: { kind: "site", dir: "/sites/shop", label: "Shop" } });
+  const actions = bindStorageSheetActions({
+    itemIds,
+    capabilities: async () => ({ state: "ok", operations: new Set<StorageOperation>(["compact"]) }),
+    runningLease: async () => "stopped",
+    runCli: async ({ cliArgs }) => {
+      cli.push([...cliArgs]);
+      if (cli.length === 1) await inFlight;
+      return { state: "exited", code: 0, stdout: "" };
+    },
+    ownerHttp: async () => { throw new Error("Compact must never contact an owner endpoint"); },
+    confirm: () => confirmation,
+  });
+  const a = await actions.preview({ senderId: 1, id, action: "compact" });
+  const b = await actions.preview({ senderId: 1, id, action: "compact" });
+  assert.ok(a.state === "ready", "expected a usable confirmation");
+  assert.ok(b.state === "ready", "expected a usable confirmation");
+  assert.notEqual(a.confirmationId, b.confirmationId);
+  const first = actions.act({ senderId: 1, confirmationId: a.confirmationId });
+  const second = actions.act({ senderId: 1, confirmationId: b.confirmationId });
+  approve(true);
+
+  try {
+    assert.deepEqual(await second, { state: "kept", reason: "in-use" });
+  } finally {
+    finish();
+    await first;
+  }
+  assert.deepEqual(await first, { state: "done" });
+  assert.deepEqual(cli, [["storage", "compact", "/sites/shop", "--json"]]);
+});

@@ -1417,3 +1417,27 @@ test("routines wake: the owned handle sends the private reconcile over the child
   const dark = await boot();
   assert.equal(dark.handle.sendRoutineReconcile, undefined, "release flag off: production handles gain no wake method");
 });
+
+test("an accepted idle stop followed by a normal exit is not mistaken for confirmed sleep", { timeout: 2000 }, async (t) => {
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const child = fakeChild();
+  const requests: unknown[][] = [];
+  const starting = startTovuServer({
+    repoRoot, siteDir: '/fake/site', port: 4321, mirror: silentMirror(), spawnFn: () => child,
+    agentService: { bindServer: () => ({
+      setIdentity() {},
+      dispose() {},
+      stopIfIdle: async (...args) => { requests.push(args); return true; },
+    }) },
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await starting;
+  const sleeping = handle.stopIfIdle!();
+  await Promise.resolve();
+  child.exitCode = 0;
+  child.emit('exit', 0, null);
+  assert.equal(await sleeping, false);
+  assert.deepEqual(requests, [[{}, {}]]);
+  assert.deepEqual(child.killed, []);
+});

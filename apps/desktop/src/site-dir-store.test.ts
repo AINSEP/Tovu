@@ -762,3 +762,18 @@ test("with shared settings, remembering a folder imports the old MRU once and re
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("initializing an empty folder without a repository root is refused before any spawn or write", async (t) => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-init-no-repo-"));
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const dir = path.join(parent, "empty");
+  const statePath = path.join(parent, "desktop-state.json");
+  fs.mkdirSync(dir);
+  let spawns = 0;
+  await assert.rejects(adoptSiteDir({ dir, statePath, spawnFn: () => { spawns++; throw new Error("unexpected spawn"); } }), {
+    message: "site initialization has no repository root",
+  });
+  assert.equal(spawns, 0);
+  assert.deepEqual(fs.readdirSync(dir), []);
+  assert.equal(fs.existsSync(statePath), false);
+});

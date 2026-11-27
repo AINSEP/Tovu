@@ -1,6 +1,7 @@
 /** `importSiteArchive`: the child process is faked, so each exit shape is proven without booting a CLI. */
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
@@ -268,4 +269,44 @@ for (const missing of [false, true]) test(`startup tidy checks database temp fol
     assert.deepEqual(reads, [path.join("/profile", "site-imports", "local"), tmpdir()]);
     assert.deepEqual(JSON.parse(fake.stdinText.join("")), { tidy: true });
   } finally { fake.child.exit(0); await done; }
+});
+
+test("a child with no stdin that exits without a valid result still reports the Rescan recovery", async () => {
+  const { child } = fakeChild();
+  const promise = importSiteArchive({ source: { file: "/a.zip" }, repoRoot: REPO_ROOT, cliMode: "source" }, {
+    spawnFn: () => ({ ...child, stdin: null }),
+    baseEnv: { PATH: "/usr/bin" },
+  });
+  child.stdout.write("not a JSON result\n");
+  child.exit(0);
+  await assert.rejects(promise, { message: "The import finished but did not report where the new website is. Use Rescan if it exists already." });
+});
+
+test("startup tidy finds a staged import on disk and sends a cleanup-only request", async (t) => {
+  const appData = fs.mkdtempSync(path.join(tmpdir(), "desktop-interrupted-import-"));
+  t.after(() => fs.rmSync(appData, { recursive: true, force: true }));
+  const staging = path.join(appData, "site-imports", "local");
+  fs.mkdirSync(staging, { recursive: true });
+  fs.writeFileSync(path.join(staging, "interrupted.stage"), "");
+  const fake = fakeChild();
+  const commands: string[] = [];
+  const done = tidyInterruptedImports({ appData, repoRoot: REPO_ROOT, cliMode: "source" }, {
+    baseEnv: { PATH: "/usr/bin" },
+    spawnFn: (_command, args) => { commands.push(args.at(-1)!); return fake.child; },
+  });
+  try {
+    assert.deepEqual(commands, ["import-local"]);
+    assert.deepEqual(fake.stdinText, ['{"tidy":true}\n']);
+  } finally { fake.child.exit(0); await done; }
+});
+
+test("quit still drains its wait when an import child reports an error rather than an exit", async () => {
+  const { child, promise } = run({ file: "/a.zip" });
+  const failed = assert.rejects(promise, { message: "child lost its process handle" });
+  const stopped = stopRunningImports({}, { reason: "quit" });
+  assert.equal(child.stdin.writableEnded, true);
+  child.fail(new Error("child lost its process handle"));
+  await stopped;
+  await failed;
+  assert.deepEqual(child.killed, []);
 });

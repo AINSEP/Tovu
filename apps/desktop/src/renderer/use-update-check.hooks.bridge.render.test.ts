@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import { deferred, renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
+import { installDom } from './dom-hook-harness.js';
+import type { RunnerInventoryBridge } from './runner-api.js';
 import { useUpdateCheck } from './use-update-check.hooks.js';
 
 test('useUpdateCheck: a preload without the method leaves the row unavailable and a click does nothing', async (t) => {
@@ -52,4 +54,25 @@ test('useUpdateCheck: a broken IPC channel is logged with the desktop prefix and
   assert.deepEqual(logged, [['[tovu-desktop] check for updates: channel closed']]);
   assert.equal(done, 1);
   assert.equal(hook.current().checking, false);
+});
+
+test('the default preload binding checks for updates and closes the settings menu after it answers', async (t) => {
+  const window = installDom();
+  const reply = deferred<void>();
+  const events: string[] = [];
+  const bridge = {
+    checkForUpdates: () => { events.push('check'); return reply.promise; },
+  } satisfies Pick<RunnerInventoryBridge, 'checkForUpdates'>;
+  Object.defineProperty(window, 'tovuRunner', { configurable: true, value: bridge });
+  t.after(() => Reflect.deleteProperty(window, 'tovuRunner'));
+
+  const hook = renderHook(t, () => useUpdateCheck({ onDone: () => events.push('close') }));
+  assert.equal(hook.current().available, true);
+  let pending!: Promise<void>;
+  act(() => { pending = hook.current().checkForUpdates(); });
+  assert.equal(hook.current().checking, true);
+  assert.deepEqual(events, ['check']);
+  await act(async () => { reply.resolve(); await pending; });
+  assert.equal(hook.current().checking, false);
+  assert.deepEqual(events, ['check', 'close']);
 });

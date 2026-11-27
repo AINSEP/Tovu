@@ -446,3 +446,17 @@ for (const selection of ["none", "dependency", "optional"] as const) {
     assert.equal(readFileSync(path.join(fx.tmp, "jini/packages/provider-plugins/plugins/artifact.json"), "utf8"), selected);
   });
 }
+
+test("a staging run with already executable PTY helpers does not report repairs", (t) => {
+  const fx = fixture();
+  t.after(fx.cleanup);
+  const probes: string[] = [];
+  const h = harness(fx, { steps: {
+    ensurePtyHelpersExecutable: ({ ptyDir }) => { probes.push(ptyDir); return []; },
+  } });
+  h.run();
+  assert.deepEqual(probes, [path.join(fx.desktop, "node_modules", "node-pty")]);
+  assert.ok(existsSync(path.join(fx.outDir, "dist", "cli.js")));
+  assert.match(h.out.join(""), /stage-payload: staged \d+ packages/);
+  assert.doesNotMatch(h.out.join(""), /set the execute bits/);
+});

@@ -148,3 +148,30 @@ test('dispose closes every open stream even when one close throws, and stopping 
   assert.doesNotThrow(() => manager.dispose());
   assert.deepEqual(closed, ['/a', '/b']);
 });
+
+test('a stream from the previous lifecycle cannot advance the revision before the watcher is resynced', () => {
+  const siteDir = '/sites/theme';
+  let target = { port: 4100, workspaceId: 'theme', partition: 'p', lifecycle: {} };
+  const frames: string[] = [];
+  const connections: { push: (revision: string) => void; revision: () => string | undefined }[] = [];
+  const manager = createSiteThemePreviewSubscriptions({ ports: {
+    current: () => target,
+    open: ({ onFrame, getRevision }) => {
+      connections.push({ push: (revision) => onFrame({ frame: { revision } }), revision: getRevision });
+      return () => {};
+    },
+  } });
+  const unwatch = manager.watch({ siteDir, listener: ({ frame }) => frames.push(frame.revision) });
+  try {
+    const first = connections[0]!;
+    first.push('first');
+    target = { ...target, lifecycle: {} };
+    first.push('stale');
+    assert.deepEqual(frames, ['first']);
+    assert.equal(first.revision(), 'first');
+    manager.sync({ siteDir });
+    assert.equal(connections.length, 2);
+    connections[1]!.push('replacement');
+    assert.deepEqual(frames, ['first', 'replacement']);
+  } finally { unwatch(); }
+});

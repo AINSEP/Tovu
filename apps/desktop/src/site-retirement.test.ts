@@ -16,7 +16,7 @@ import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites } from "./tracked-sites.ts";
 import { sitePartition } from "./desktop-auth.ts";
 import { desktopJsonFile } from "./durable-json-file.ts";
-import { bindDesktopRetirement, NO_RETIREMENT, type SiteRetirementPort } from "./site-retirement.ts";
+import { bindDesktopRetirement, bindTrackedAgainRetirement, NO_RETIREMENT, type SiteRetirementPort } from "./site-retirement.ts";
 
 const tempDir = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-retirement-")));
 
@@ -171,4 +171,34 @@ test("production binding is not NO_RETIREMENT", () => {
   assert.match(source, /const desktopRetirement = bindDesktopRetirement\(\{/);
   assert.doesNotMatch(source, /NO_RETIREMENT/);
   assert.match(source, /durableJsonFor: desktopJsonFile/);
+});
+
+test("the add-site writer invalidates only the re-added folder's pending sign-in retirement", async (t) => {
+  const f = fixture();
+  t.after(() => fs.rmSync(f.root, { recursive: true, force: true }));
+  const readded = f.site("readded", "created");
+  const remainsErased = f.site("remains-erased", "created");
+  await handleDelete({ id: readded, deps: f.deps });
+  await handleDelete({ id: remainsErased, deps: f.deps });
+  const states = () => {
+    const result = f.ledger.readStrict({});
+    assert.ok(result.state === "ok", "expected to read the retirement ledger");
+    return new Map(result.records.map(({ partition, state }) => [partition, state]));
+  };
+  const readdedPartition = path.basename(f.partitionDir(readded));
+  const erasedPartition = path.basename(f.partitionDir(remainsErased));
+  assert.deepEqual(states(), new Map([[readdedPartition, "pending"], [erasedPartition, "pending"]]));
+
+  writeSite(readded, "new-identity");
+  const beforeAddedRows = bindTrackedAgainRetirement({
+    userDataDir: f.userDataDir,
+    fs,
+    clock: { now: () => Date.parse("2026-11-25T13:00:00.000Z") },
+    id: () => "unused",
+    durableJsonFor: desktopJsonFile,
+    partitionFor: sitePartition,
+  });
+  trackSite({ projectsPath: f.projectsPath, siteDir: readded, beforeAddedRows });
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }).map(({ siteDir }) => siteDir), [readded]);
+  assert.deepEqual(states(), new Map([[readdedPartition, "invalidated"], [erasedPartition, "pending"]]));
 });

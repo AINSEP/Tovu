@@ -48,3 +48,9 @@ test("a launch is unattended exactly when it pinned its site dir(s) by env var",
   assert.equal(isUnattendedSiteLaunch({ env: { TOVU_DESKTOP_SITE_DIRS: "/sites/a" } }), true);
   assert.equal(isUnattendedSiteLaunch({ env: { TOVU_DESKTOP_SITE_DIR: " ", TOVU_DESKTOP_URL: "http://127.0.0.1:1" } }), false);
 });
+
+test("an incomplete startup default without a marker list fails with a diagnostic instead of guessing", () => {
+  assert.throws(() => describeRejectedDefault({ dir: "/s", kind: "incomplete" }), {
+    message: "rejected startup site folder has no missing marker list",
+  });
+});

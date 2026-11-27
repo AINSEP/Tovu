@@ -159,3 +159,43 @@ test('Keep running waits for main and preserves the tab with a reason when main 
   assert.equal(h.hook.current().error, 'This site is no longer tracked.');
   assert.equal(h.hook.current().stopping, false);
 });
+
+test('a stale preload cannot hold a site, and a tab missing from inventory closes without prompting', async (t) => {
+  const closed: { id: string }[] = [];
+  const updated: SiteRecord[] = [];
+  const hook = renderHook(t, () => useTabCloseAsk({
+    projects: [site()],
+    closeTab: (input) => closed.push(input),
+    onSiteUpdated: (record) => updated.push(record),
+  }));
+  act(() => hook.current().requestClose({ id: 'gone' }));
+  assert.deepEqual(closed, [{ id: 'gone' }]);
+  assert.equal(hook.current().asking, null);
+
+  act(() => hook.current().requestClose({ id: 'a' }));
+  await act(() => hook.current().keepRunning());
+  assert.equal(hook.current().asking?.id, 'a');
+  assert.equal(hook.current().stopping, false);
+  assert.equal(hook.current().error, 'Could not keep the site running: the desktop connection is unavailable. The tab is still open.');
+  assert.deepEqual(closed, [{ id: 'gone' }]);
+  assert.deepEqual(updated, []);
+});
+
+test('Keep running surfaces a non-Error refusal and accepts a retry for the same site', async (t) => {
+  let attempts = 0;
+  const h = harness(t, { keepSiteRunning: async () => {
+    if (++attempts === 1) throw 'The idle hold was refused.';
+  } });
+  act(() => h.hook.current().requestClose({ id: 'a' }));
+  await act(() => h.hook.current().keepRunning());
+  assert.equal(h.hook.current().error, 'The idle hold was refused.');
+  assert.equal(h.hook.current().asking?.id, 'a');
+  assert.deepEqual(h.closed, []);
+
+  await act(() => h.hook.current().keepRunning());
+  assert.deepEqual(h.keptRunning, ['a', 'a']);
+  assert.deepEqual(h.stops, []);
+  assert.deepEqual(h.closed, ['a']);
+  assert.equal(h.hook.current().asking, null);
+  assert.equal(h.hook.current().error, null);
+});

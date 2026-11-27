@@ -11,6 +11,7 @@ import { renderHook } from './dom-hook-harness.js';
 import {
   readSiteListPrefs,
   SITE_LIST_STORAGE_KEY,
+  siteListPrefsPort,
   useWiredSiteListPrefs,
   writeSiteListPrefs,
   type SiteListStorage,
@@ -89,4 +90,17 @@ test('with no storage given the hook uses the window store, and that store reall
   const second = renderHook({ t, useHook: () => useWiredSiteListPrefs() });
   assert.deepEqual(second.current().prefs, CHOSEN);
   window.localStorage.removeItem(SITE_LIST_STORAGE_KEY);
+});
+
+test('the unseeded preferences port loads the raw saved choices and reads back later saves', async () => {
+  const key = 'tovu-runner.site-list';
+  const initial = { sort: 'name', pinned: ['/sites/shop'], hidden: ['/sites/blog'], future: 3 };
+  const { storage } = memoryStorage(JSON.stringify(initial));
+  const port = siteListPrefsPort({ storage });
+  assert.deepEqual(await port.load(), initial, 'validation belongs to the consumer of the port');
+
+  const next: SiteListPrefs = { sort: 'recent', pinned: ['/sites/blog'], hidden: [] };
+  await port.save({ next });
+  assert.equal(storage.getItem({ key }), JSON.stringify(next));
+  assert.deepEqual(await port.load(), next);
 });

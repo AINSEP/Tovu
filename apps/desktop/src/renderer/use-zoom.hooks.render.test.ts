@@ -112,3 +112,24 @@ test('unmounting drops the zoom command subscription', (t) => {
   hook.unmount();
   assert.deepEqual(fake.log, ['subscribe', 'unsubscribe']);
 });
+
+test('the default preload command zooms the visible guest and persists to window storage', (t) => {
+  const window = installDom();
+  const siteId = '/sites/preload-zoom';
+  const key = 'tovu:zoom:/sites/preload-zoom';
+  const fake = zoomBridge();
+  Object.defineProperty(window, 'tovuRunner', { value: fake.bridge, configurable: true });
+  t.after(() => {
+    Reflect.deleteProperty(window, 'tovuRunner');
+    window.localStorage.removeItem(key);
+  });
+  window.localStorage.setItem(key, '1');
+  const hook = renderHook({ t, useHook: () => useZoom({ activeGuestId: siteId }) });
+  const live = guest();
+  hook.current().registerGuest(siteId, live);
+  assert.equal(live.level, 1);
+  fake.fire('out');
+  assert.equal(live.level, 0.5);
+  assert.equal(window.localStorage.getItem(key), '0.5');
+  assert.equal(fake.top(), 0);
+});

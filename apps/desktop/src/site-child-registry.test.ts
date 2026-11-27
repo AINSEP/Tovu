@@ -18,7 +18,7 @@ import { syncBuiltinESMExports } from "node:module";
 import type { ChildProcess } from "node:child_process";
 import type { TestContext } from "node:test";
 
-import { registryDirPath, legacyRegistryFilePath, instanceFilePath, readRegistryFile, readRegistry, writeRegistry, siteChildRegistry, siteChildProcess, isLiveServeRow, isServeProcessForSite } from "./site-child-registry.ts";
+import { agentServiceRegistryPath, registryDirPath, legacyRegistryFilePath, instanceFilePath, readRegistryFile, readRegistry, writeRegistry, siteChildRegistry, siteChildProcess, isLiveServeRow, isServeProcessForSite } from "./site-child-registry.ts";
 import { tempPathFor } from "./durable-json-file.ts";
 
 const { isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess } = siteChildProcess;
@@ -817,3 +817,16 @@ test("a pid alive to kill(0) but gone by the time ps reads its argv cannot be id
   assert.deepEqual(signals, []);
 });
 
+
+test("agent discovery shares the current launch's stem but is not a site-process registry", (t) => {
+  const registryDir = tempRegistryDir();
+  t.after(() => fs.rmSync(path.dirname(registryDir), { recursive: true, force: true }));
+  fs.mkdirSync(registryDir);
+  const discoveryPath = agentServiceRegistryPath({ registryDir });
+  const siteFile = instanceFilePath({ registryDir });
+  assert.equal(path.dirname(discoveryPath), registryDir);
+  assert.equal(path.basename(discoveryPath, ".agent-daemon"), path.basename(siteFile, ".json"));
+  assert.equal(path.extname(discoveryPath), ".agent-daemon");
+  fs.writeFileSync(discoveryPath, "not a site-process record");
+  assert.deepEqual(readRegistry({ registryDir }), { sites: [], unreadable: [] });
+});

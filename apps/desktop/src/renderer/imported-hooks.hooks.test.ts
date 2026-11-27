@@ -289,3 +289,40 @@ test('useSiteStorageSettings over the real useSiteFolders: a failed warning fix 
     assert.equal(hook.current().error, null);
   }
 });
+
+test('default Storage settings use the preload and keep a picker result visible when discovery fails', async (t) => {
+  const original = Object.getOwnPropertyDescriptor(window, 'tovuRunner');
+  const root = '/sites/new-source';
+  const persisted: SiteFolders = { roots: ['/home', root], extraRoots: [root], home: '/home', databases: 'inSite' };
+  const calls: unknown[] = [];
+  const bridge = {
+    listSiteFolders: async () => FOLDERS,
+    addSiteFolder: async () => { calls.push('picked'); return persisted; },
+    rescanSites: async () => { calls.push('rescanned'); throw new Error('The drive disconnected during discovery.'); },
+    saveSiteSettings: async (patch: { databases: string }) => {
+      calls.push(patch);
+      return { ...persisted, databases: 'appData' as const };
+    },
+  };
+  Object.defineProperty(window, 'tovuRunner', { value: bridge, configurable: true });
+  t.after(() => {
+    if (original) Object.defineProperty(window, 'tovuRunner', original);
+    else Reflect.deleteProperty(window, 'tovuRunner');
+  });
+  const hook = renderHook(t, () => useSiteStorageSettings());
+  await settle();
+  assert.equal(hook.current().home, '/home');
+  assert.equal(hook.current().roots, '/extra');
+  act(() => hook.current().show());
+  await act(() => hook.current().addFolder());
+  assert.deepEqual(hook.current().folders, persisted);
+  assert.equal(hook.current().roots, root);
+  assert.equal(hook.current().error, 'The drive disconnected during discovery.');
+  assert.equal(hook.current().busy, false);
+
+  act(() => hook.current().setDatabases('appData'));
+  await act(() => hook.current().save());
+  assert.deepEqual(calls, ['picked', 'rescanned', { databases: 'appData' }]);
+  assert.equal(hook.current().folders.databases, 'appData');
+  assert.equal(hook.current().error, null);
+});

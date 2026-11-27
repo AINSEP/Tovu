@@ -271,3 +271,15 @@ test("the packaged smoke's failed HTTP call preserves its response status", asyn
   );
   await assert.rejects(send("initialize"), { message: "Desktop tools smoke call returned HTTP 502." });
 });
+
+test("the packaged resolver must attest desktop HTTP even when both bridge commands are valid", () => {
+  const env = { ELECTRON_RUN_AS_NODE: "1", JINI_RUN_ID: "release-smoke" };
+  const entries = [{ command: "/Tovu", args: ["/site/serve.js"], env }, { command: "/Tovu", args: ["/desktop/serve.js"], env }];
+  for (const desktopHttp of [false, undefined, "true"]) {
+    assert.throws(() => parseJiniEntries({ stdout: JSON.stringify({ desktopHttp, entries }) }), {
+      message: "packaged desktop HTTP smoke did not complete",
+    });
+  }
+  assert.deepEqual(parseJiniEntries({ stdout: JSON.stringify({ desktopHttp: true, entries }) }).map(({ args }) => args),
+    [["/site/serve.js"], ["/desktop/serve.js"]]);
+});

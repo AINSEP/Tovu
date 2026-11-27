@@ -7,7 +7,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { readProjectsFile, trackSite, SITE_ORIGIN } from './tracked-sites.ts';
+import { ADDS_NO_ROWS, readProjectsFile, trackSite, writeTrackedSites, SITE_ORIGIN } from './tracked-sites.ts';
 
 function projectsFile(t: { after: (fn: () => void) => void }, contents?: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-tracked-'));
@@ -72,4 +72,19 @@ test('re-tracking a known dir adds no row, but clears its tombstone', t => {
   const file = projectsFile(t, JSON.stringify({ projects: [{ siteDir: '/a', createdAt: 'c', origin: 'adopted' }], dismissed: ['/a', '/b'] }));
   assert.equal(trackSite({ beforeAddedRows: () => {}, projectsPath: file, siteDir: '/a' }).length, 1);
   assert.deepEqual(readProjectsFile({ projectsPath: file }).dismissed, ['/b']);
+});
+
+test('a remove-only writer refuses newly introduced folders without publishing any part of the change', (t) => {
+  const contents = JSON.stringify({ projects: [created], dismissed: ['/gone'] });
+  const projectsPath = projectsFile(t, contents);
+  const replacement = [
+    { siteDir: '/sites/b', createdAt: created.createdAt, origin: SITE_ORIGIN.adopted },
+    { siteDir: '/sites/c', createdAt: created.createdAt, origin: SITE_ORIGIN.adopted },
+  ];
+  assert.throws(
+    () => writeTrackedSites({ projectsPath, rows: replacement, beforeAddedRows: ADDS_NO_ROWS }, { dismissed: [] }),
+    { message: 'This projects-list change only removes rows, yet it would add /sites/b, /sites/c. Nothing was saved.' },
+  );
+  assert.equal(fs.readFileSync(projectsPath, 'utf8'), contents);
+  assert.deepEqual(readProjectsFile({ projectsPath }).rows, [created]);
 });

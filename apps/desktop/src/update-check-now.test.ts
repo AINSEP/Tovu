@@ -2,9 +2,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from './contracts/app-version.ts';
-import { createUpdateCheckNow, registerUpdateCheckIpc } from '@jini-ai/desktop-host/electron/updates';
+import { createUpdateCheckNow } from '@jini-ai/desktop-host/electron/updates';
 import type { CheckableUpdater, UpdateCheckNowDeps, UpdateNotice } from '@jini-ai/desktop-host/electron/updates';
-import { describeUpdateErrorForLog, plainUpdateError, updateCheckCopy, updateErrorMessage } from './update-check-now.ts';
+import { describeUpdateErrorForLog, plainUpdateError, registerHostUpdateCheckIpc, updateCheckCopy, updateCheckNotice, updateErrorMessage } from './update-check-now.ts';
 
 type CheckResult = Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>;
 
@@ -129,9 +129,8 @@ test('clicks while a check runs join it: one check, one notice', async () => {
 test('the IPC handler registers the contract channel and resolves after the check', async () => {
   const handlers = new Map<string, () => Promise<void>>();
   let checks = 0;
-  registerUpdateCheckIpc({
+  registerHostUpdateCheckIpc({
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
-    channel: RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL,
     checkNow: async () => { checks++; return { kind: 'up-to-date', version: '1' }; },
   });
   assert.equal(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, 'runner:app:check-for-updates');
@@ -154,4 +153,24 @@ test('check and download failures expose redacted copyable diagnostics with dist
   assert.match(download.notices[1]!.detail, /download.*Check for updates/s);
   assert.match(download.notices[1]!.detail, /Copy details:/);
   assert.doesNotMatch(download.logs.join(' ') + download.notices[1]!.detail, /UPDATE_DOWNLOAD_CANARY/);
+});
+
+test('a non-Error update refusal retains its text in copyable details, not in the recovery instructions', async () => {
+  const h = harness({ loadUpdater: async () => { throw 'HTTP 429: retry window still open'; } });
+  assert.deepEqual(await h.check.checkNow(), { kind: 'error' });
+  const notice = h.notices[0]!;
+  assert.equal(notice.message, 'Couldn’t check for updates');
+  const [action, details] = notice.detail.split('\n\nCopy details:\n');
+  assert.equal(action, 'Tovu couldn’t check for updates. Try Check for updates again in a few minutes.');
+  assert.match(details ?? '', /HTTP 429: retry window still open/);
+});
+
+test('an update error without diagnostics still gives retry guidance without an empty details section', () => {
+  assert.deepEqual(updateCheckNotice({
+    outcome: { kind: 'error' }, currentVersion: '0.1.22', isPackaged: true, automaticUpdates: false,
+  }), {
+    type: 'error',
+    message: 'Couldn’t check for updates',
+    detail: 'Tovu couldn’t check for updates. Try Check for updates again in a few minutes.',
+  });
 });

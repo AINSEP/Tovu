@@ -370,3 +370,18 @@ test("a lock on the sites settings file that cannot be taken times out with Tovu
     );
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test("discovery follows a moved in-site database folder without requiring Locate", (t) => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-share-relocation-")));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const workspace = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
+  const before = path.join(root, "before");
+  const after = path.join(root, "after");
+  workspace.updateConfig({ patch: { databases: "inSite" } });
+  writeSite(before, "reserved-id");
+  shareSiteDirectories({ workspace, dirs: [before], createdBy: "Desktop" });
+  fs.renameSync(before, after);
+  const rows = shareSiteDirectories({ workspace, dirs: [after], createdBy: "Desktop" });
+  assert.deepEqual(rows.map(({ id, path: dir }) => [id, dir]), [["reserved-id", after]]);
+  assert.equal(workspace.registry({}).list({}).find(({ id }) => id === "reserved-id")?.path, after);
+});
