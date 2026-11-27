@@ -85,6 +85,15 @@ test("hidden-topic errors retain their exact message and classify as tool input 
   };
   await assert.rejects(buildSiteGuideRegistrations({ deps: deps() }, { engine })[0]!.handler(context({ operation: "explain", topic: "plugins" })), error => error instanceof ToolInputError && error.message === message);
 });
+test("any other guide failure propagates unchanged and is never reclassified as caller input", async () => {
+  for (const failure of [new Error("facts store offline"), "a thrown string"]) {
+    const engine: SiteGuideEngine = {
+      parseGuideTopics: () => ({ ok: true, descriptors: [] }),
+      createSiteGuide: () => ({ run: async () => { throw failure; } }),
+    };
+    await assert.rejects(buildSiteGuideRegistrations({ deps: deps() }, { engine })[0]!.handler(context({ operation: "overview" })), error => error === failure);
+  }
+});
 test("every admin execution path receives the same vendor-neutral learning pointer", () => {
   for (const overlay of [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true }), SYSTEM_PREAMBLE]) assert.ok(overlay.startsWith(SITE_GUIDE_POINTER));
   assert.deepEqual(TOVU_CAPABILITY_CARDS.map(card => card.id), ["content", "forms", "widgets", "themes", "members", "seo", "deploy", "backup", "plugins", "jini-packages"]);
