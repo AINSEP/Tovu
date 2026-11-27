@@ -10,7 +10,7 @@ import path from "node:path";
 import { readPersistedActiveSite as readPersistedActiveSiteForTest, resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import { registerAdminSitesRoutes, type AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerDevWarmSiteRoute } from "../../sites.js";
+import { registerDevWarmSiteRoute } from "#src/server/inbound/admin-http/routes/system/sites";
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
 
 const route = "/api/admin/v1/workspaces/:workspaceId/system/sites";

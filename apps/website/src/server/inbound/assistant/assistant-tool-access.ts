@@ -63,5 +63,8 @@ function selectedCapabilities({ keys }: { keys: readonly string[] }): Partial<Re
 
 
 function staleOrEnded({ error, ended }: { error: unknown; ended: Error }): boolean {
-  return error === ended || (error as { code?: string }).code === 'REVISION_CONFLICT' || (error as Error).name === 'SettingsRevisionConflictError';
+  // A writer may reject with a non-object (even null); that is never a stale revision and must propagate as-is.
+  if (error === ended) return true;
+  if (typeof error !== 'object' || error === null) return false;
+  return (error as { code?: string }).code === 'REVISION_CONFLICT' || (error as Error).name === 'SettingsRevisionConflictError';
 }

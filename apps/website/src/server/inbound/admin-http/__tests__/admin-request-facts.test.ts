@@ -100,11 +100,12 @@ test("request facts expose the trusted serving authority to callers without addi
   const server = await listen({ app });
   t.after(server.close);
   assert.deepEqual(await server.call("/facts", { headers: {
-    host: "internal.test:4317", "x-forwarded-host": "site.example:8443, proxy.example",
+    // fetch forbids overriding Host, so the raw Host is the listener's own authority.
+    "x-forwarded-host": "site.example:8443, proxy.example",
     "x-forwarded-proto": "https", "x-forwarded-for": "192.0.2.23", "user-agent": "facts-contract",
   } }), {
     status: 200, body: {
-      facts: { clientAddress: "192.0.2.23", host: "internal.test:4317", protocol: "https", userAgent: "facts-contract" },
+      facts: { clientAddress: "192.0.2.23", host: new URL(server.base).host, protocol: "https", userAgent: "facts-contract" },
       servingOrigin: "https://site.example:8443",
     },
   });
