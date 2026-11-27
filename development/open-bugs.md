@@ -2389,3 +2389,12 @@ Fixed unless marked OPEN.
 - **FIXED (test, Codex):** Tovu admin `folder-zip-port` wiring assertion rendered `useWiredPlugins` without the AdminKit provider tree.
 - **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
 - **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
+
+## gap-fill-1127 run C (2026-11-27), Tovu website coverage jobs
+- FIXED (codex/tv-w62-cov-web-9): `apps/website/src/server/inbound/assistant/assistant-tool-access.ts` `staleOrEnded`. A settings writer that rejected with null or another non-object threw a TypeError, which masked the original rejection.
+- FIXED (codex/tv-w62-cov-web-12): `apps/website/src/server/runtime/composition/modules/assistant-ag-ui-approval-segment.ts:54`. The SSE `id:` regex consumed the newline, so the second of two consecutive id lines was never seen (the last id should win).
+- FIXED (codex/tv-w62-cov-web-12): `apps/website/src/server/runtime/composition/modules/assistant-routines.ts:134`. `listRuns` dropped Jini's `limit`, so pages were unbounded and `nextCursor` was null.
+- OPEN: `packages/contracts/src/routines.ts:52`. `parseRoutineBeacon` compares `text.length`, which counts UTF-16 units, with `ROUTINE_BEACON_MAX_BYTES`. A 4096-unit multibyte payload passes. The desktop reader bounds bytes first (`apps/desktop/src/main/boot/routine-sites.ts:156-159`), so impact is low.
+  - Fix: also reject when `new TextEncoder().encode(text).byteLength > ROUTINE_BEACON_MAX_BYTES`.
+  - Test, in `cloud-results/gap-fill-1127-C.md`: a note of `"x".repeat(1950) + "é".repeat(1100)` should return null.
+- SUSPECT (owner decides): `packages/contracts/src/content-chat-title.ts:31-40`. `opening ??= index` keeps the earliest opening quote, so `'Edit the post "unfinished “Correct Title”'` yields `unfinished “Correct Title`.
