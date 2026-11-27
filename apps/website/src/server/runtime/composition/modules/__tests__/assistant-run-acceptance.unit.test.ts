@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
-import { acceptOwnedAssistantRun, cancelOwnedRun, createOwnerChatAcceptance, sanitizeBrowserRunContext } from "../assistant-run-acceptance.js";
+import { acceptOwnedAssistantRun, assistantRunAcceptancePorts, cancelOwnedRun, createOwnerChatAcceptance, ownerChatAcceptanceFor, sanitizeBrowserRunContext, type AssistantAcceptanceRouteDeps } from "../assistant-run-acceptance.js";
 
 /**
  * @file Owner-chat acceptance seam. The marker tests are the security-relevant ones: a routine marker
@@ -177,4 +177,37 @@ test("the AG-UI entry accepts malformed or non-object stored context only as an 
     assert.deepEqual(h.accepted.map(({ request }) => request), [{ agentId: "claude", contextRef: "{}" }], contextRef);
     assert.deepEqual(h.launched, ["m1"], contextRef);
   }
+});
+
+/** Production-assembly deps: only the ledger, tracker and observability ports the assemblers read. */
+function productionDeps({ durable, captures }: { durable?: unknown; captures?: unknown[][] }) {
+  const tracker = { capture: (...args: unknown[]) => { captures?.push(args); }, error: () => {} };
+  return { chatRunLedger: durable === undefined ? {} : { durable }, tracker, observability: {} } as unknown as AssistantAcceptanceRouteDeps;
+}
+
+test("without a durable ledger store both production assemblers decline, so the caller keeps its legacy start", () => {
+  const deps = productionDeps({});
+  assert.equal(ownerChatAcceptanceFor({ deps }), undefined);
+  assert.equal(assistantRunAcceptancePorts({ deps, principalId: "owner-7" }), null);
+});
+
+test("the production start capture names the verified principal and the accepted message", () => {
+  const captures: unknown[][] = [];
+  const store = { accept: async () => null, poll: async () => null, cancel: async () => {} };
+  const ports = assistantRunAcceptancePorts({ deps: productionDeps({ durable: store, captures }), principalId: "owner-7" });
+  assert.equal(ports?.store, store, "the ledger's own durable store is the acceptance store");
+  ports!.onAccepted({ run: { messageId: "msg-42", principalId: "someone-else" } } as never);
+  assert.deepEqual(captures, [[{ name: "assistant_run_started", userId: "owner-7" },
+    { properties: { chatSurface: "admin", logicalRunId: "msg-42", eventId: "assistant-start:msg-42" } }]]);
+});
+
+test("the production settlement back-off wakes as soon as the request is aborted instead of waiting out its delay", async () => {
+  const store = { poll: async () => ({ cursor: "c", messageJson: JSON.stringify({ runStatus: "running", content: "" }) }), cancel: async () => {} };
+  const acceptance = ownerChatAcceptanceFor({ deps: productionDeps({ durable: store }) });
+  const controller = new AbortController();
+  const started = Date.now();
+  setTimeout(() => controller.abort(), 20);
+  const result = await acceptance!.watchSettlement({ principalId: "owner", workspaceId: "ws", messageId: "m1" }, { signal: controller.signal });
+  assert.equal(result.status, "canceled");
+  assert.ok(Date.now() - started < 800, `the 1 s back-off was cut short by the abort (took ${Date.now() - started} ms)`);
 });
