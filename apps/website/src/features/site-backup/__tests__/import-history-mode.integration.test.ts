@@ -13,6 +13,7 @@ import type { ImportHistoryPolicy, SiteImportRecord } from "@jini-ai/core/contra
 import type { SqliteSyncClient } from "@jini-ai/core/contracts/storage";
 import { createImportIndexIntegrityMemo, openImportIndex } from "@jini-ai/devops/backup/site/import-index/open";
 import { indexStatePaths } from "@jini-ai/devops/backup/site/import-index/mode";
+import { payloadPaths } from "@jini-ai/devops/backup/site/import-index/payload-namespace";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { bindSiteImportBackfill } from "#src/server/runtime/composition/site-import-backfill";
 import { createSiteImportPayloadFs } from "#src/server/runtime/composition/site-import-payload-fs";
@@ -412,4 +413,73 @@ test("a latched refusal stops every backend method before it reaches the registr
     await assert.rejects(call(), (error: unknown) => error === refused);
   }
   assert.deepEqual(fs.readdirSync(h.registry.payloadDirectory), []);
+});
+
+/** Flips the state file between absent and an explicit legacy record: both resolve to legacy, but
+ * a lock-free reader that saw one and then the other cannot know which authority it read under. */
+function flipLegacyState({ root }: { root: string }): void {
+  const file = indexStatePaths({ root }).state;
+  if (exists(file)) fs.rmSync(file);
+  else seedIndexState({ root, mode: "legacy", dbId: null, cutoverAt: 0 });
+}
+
+test("a legacy read whose authority moved underneath is discarded and re-read", (t) => {
+  const root = tempRoot({ t });
+  const sessions: string[] = [];
+  const served = bind({ root }).history.read({ run: (session) => {
+    sessions.push(session.kind);
+    if (sessions.length === 1) flipLegacyState({ root });
+    return `read-${sessions.length}`;
+  } });
+  assert.equal(served, "read-2");
+  assert.deepEqual(sessions, ["legacy", "legacy"]);
+});
+
+test("a legacy read that keeps moving under three attempts reports busy and serves nothing", (t) => {
+  const root = tempRoot({ t });
+  const binding = bind({ root });
+  let runs = 0;
+  assert.throws(() => binding.history.read({ run: () => { runs++; flipLegacyState({ root }); return "stale"; } }),
+    { code: "IMPORT_HISTORY_BUSY", status: 503, message: "Import history is busy. Try again in a moment." });
+  assert.equal(runs, 3);
+  // Busy is never latched: the next stable read is served.
+  assert.equal(binding.refusal({}), undefined);
+  assert.equal(binding.history.read({ run: () => "served" }), "served");
+});
+
+test("an indexed session expires a lapsed owner setup: the row fails first, then its stage is removed", async (t) => {
+  const root = tempRoot({ t });
+  const lapsed = randomUUID(), live = randomUUID();
+  const stage = (importId: string) => payloadPaths({ root }).stage({ importId });
+  await toIndexed({ root });
+  await bind({ root }).history.locked({ run: async (session) => {
+    assert.equal(session.kind, "index");
+    if (session.kind !== "index") return;
+    for (const [id, expiresAt] of [[lapsed, NOW - 1], [live, NOW + 86_400_000]] as const) {
+      session.store.put({ row: row(id), beforeWrite: session.beforeWrite });
+      session.store.put({ row: { ...row(id), status: "needs-owner", expiresAt }, beforeWrite: session.beforeWrite });
+      fs.mkdirSync(stage(id), { recursive: true });
+    }
+  } });
+  await bind({ root }).history.locked({ run: async (session) => { if (session.kind === "index") session.expireHistory({}); } });
+  const stored = bind({ root }).history.read({ run: (session) => session.kind === "index"
+    ? [lapsed, live].map(importId => session.store.get({ importId, principalId: "owner" })) : [] });
+  assert.equal(stored[0]?.status, "failed");
+  assert.equal(stored[0]?.error, "Owner setup expired. Import the archive again.");
+  assert.equal(stored[1]?.status, "needs-owner");
+  assert.equal(exists(stage(lapsed)), false);
+  assert.equal(exists(stage(live)), true);
+});
+
+test("an unreadable DB probe is an error, never 'no evidence': the read fails and nothing is latched", async (t) => {
+  const root = tempRoot({ t });
+  await toIndexed({ root });
+  const denied: SiteImportIndexStateFs = { ...fs, lstatSync: ((file: fs.PathLike, ...rest: unknown[]) => {
+    if (path.basename(String(file)) === DB) throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+    return (fs.lstatSync as (...a: unknown[]) => fs.Stats)(file, ...rest);
+  }) as typeof fs.lstatSync };
+  const binding = bind({ root, fs: denied });
+  assert.throws(() => binding.history.read({ run: () => "served" }), { code: "EACCES", message: "permission denied" });
+  assert.equal(binding.refusal({}), undefined);
+  assert.equal(bind({ root }).history.read({ run: (session) => session.kind }), "index");
 });
