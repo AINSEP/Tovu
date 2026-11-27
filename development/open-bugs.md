@@ -2389,3 +2389,10 @@ Fixed unless marked OPEN.
 - **FIXED (test, Codex):** Tovu admin `folder-zip-port` wiring assertion rendered `useWiredPlugins` without the AdminKit provider tree.
 - **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
 - **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
+
+## verify-1127 V2 (2026-11-27) — Codex coverage-test branches run in cloud (Jini)
+- **FIXED (Jini `codex/w62-cov-admin-7` 7bf818ce):** `admin/src/screens/routines/routines-api.ts:61` used `reason in REASON_TO_STATE`, so an inherited key (`"constructor"`) mapped to a refusal; now `Object.hasOwn`.
+- **FIXED (Jini `codex/w62-cov-admin-7` 7bf818ce):** `admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts` — a start reply arriving after Cancel/unmount still navigated the popup and waited for the provider; superseded attempts are now ignored.
+- **FIXED (Jini `codex/w62-cov-devops-2` 4ae44324):** `devops/src/deploy/site/agent-tools.ts` export-status description claimed asset failures do not flip `ok` (they do, `export-run.ts:108`).
+- **FIXED (Jini `codex/w62-cov-agent-plugins-1` 07142889):** `agent-plugins/github/source-control/commit-site.mjs:114` threw on a JSON `null` refusal body.
+- **OPEN (suspected, untested):** `commit-site.mjs:148,163,178,203,234` read `body.json.<field>` after a 2xx parse with no null check.
