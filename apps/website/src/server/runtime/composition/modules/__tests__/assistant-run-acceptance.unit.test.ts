@@ -196,7 +196,7 @@ test("the production start capture names the verified principal and the accepted
   const store = { accept: async () => null, poll: async () => null, cancel: async () => {} };
   const ports = assistantRunAcceptancePorts({ deps: productionDeps({ durable: store, captures }), principalId: "owner-7" });
   assert.equal(ports?.store, store, "the ledger's own durable store is the acceptance store");
-  ports!.onAccepted({ run: { messageId: "msg-42", principalId: "someone-else" } } as never);
+  ports!.onAccepted({ run: { messageId: "msg-42", principalId: "someone-else" } } as never, {});
   assert.deepEqual(captures, [[{ name: "assistant_run_started", userId: "owner-7" },
     { properties: { chatSurface: "admin", logicalRunId: "msg-42", eventId: "assistant-start:msg-42" } }]]);
 });
