@@ -93,6 +93,27 @@ test("a keyring that fails at verify time passes the request on instead of hangi
   assert.equal(errors.mock.callCount(), 0, "a missing key at verification is an expected refusal");
 });
 
+test("an unexpected verification failure logs its class without disclosing keyring data", async t => {
+  const errors = t.mock.method(console, "error", () => {});
+  const reads: string[] = [];
+  const middleware = requirePublishTrust({
+    keyring: { derive: async () => { reads.push("derive"); throw new TypeError("private verifier diagnostic"); } } as never,
+    workspaceId: "ws-1", clock: { nowIso: () => "2026-10-19T00:00:00Z" },
+    targetInstallationId: Promise.resolve("destination"),
+    grants: async () => { reads.push("grants"); throw new Error("unexpected grant lookup"); },
+    revocations: async () => { reads.push("revocations"); throw new Error("unexpected revocation lookup"); },
+  });
+  const { res, capture } = createCapturingResponse();
+  const next: unknown[] = [];
+  await middleware({ headers: { authorization: "Bearer payload.mac" }, originalUrl: "/api/admin/v1/me" } as Request, res,
+    (error?: unknown) => { next.push(error); });
+  assert.deepEqual(next, [undefined]);
+  assert.deepEqual(reads, ["derive"]);
+  assert.equal(res.locals.publishTrust, undefined);
+  assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[publish-trust] Could not verify the publishing session:", "TypeError"]]);
+});
+
 test("non-bearer authorization proceeds to the ordinary credential gate without reading publishing state", async () => {
   let reads = 0;
   const middleware = requirePublishTrust({

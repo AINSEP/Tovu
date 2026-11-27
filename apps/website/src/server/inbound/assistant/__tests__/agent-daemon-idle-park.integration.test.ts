@@ -7,13 +7,15 @@ import test from "node:test";
 import type { Request, Response } from "express";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { createDiskAttachmentStore } from "@jini-ai/daemon/http";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { createAgentDaemonIdlePark, daemonIdleMs } from "../agent-daemon-idle-park.js";
 import { captureDaemonRun } from "./helpers/daemon-source.js";
 
 function harness(value = "1") {
-  let now = 0; let exchanges = 0; let exits = 0;
+  let now = 0; let exchanges = 0;
+  const exitCodes: number[] = [];
   const jobs = new Set<{ at: number; run: () => void }>();
-  const park = createAgentDaemonIdlePark({ isBusy: () => exchanges > 0, exit: () => { exits++; } }, {
+  const park = createAgentDaemonIdlePark({ isBusy: () => exchanges > 0, exit: ({ code }) => { exitCodes.push(code); } }, {
     env: { TOVU_AGENT_DAEMON_IDLE_MINUTES: value }, clock: { nowMs: () => now },
     scheduler: { schedule: ({ delayMs, callback }) => {
       const job = { at: now + delayMs, run: callback }; jobs.add(job); return () => { jobs.delete(job); };
@@ -29,21 +31,26 @@ function harness(value = "1") {
     }
     now = target;
   }
-  function request(path: string, method = "GET") {
+  function request(path: string, method = "GET", { headersSent = true, disconnectedWriter = false } = {}) {
     const chunks: string[] = []; let ended = false; let status = 200; let body: unknown;
     const emitter = new EventEmitter();
+    const headers = new Map<string, string>();
     const res = Object.assign(emitter, {
-      headersSent: true,
-      setHeader() {},
-      write(chunk: string) { assert.equal(ended, false); chunks.push(chunk); return true; },
+      headersSent,
+      setHeader(name: string, value: string) { headers.set(name.toLowerCase(), value); },
+      write(chunk: string) {
+        if (disconnectedWriter) throw new Error("stream write failed");
+        if (ended) throw new Error("write after end");
+        chunks.push(chunk); return true;
+      },
       end() { ended = true; emitter.emit("finish"); emitter.emit("close"); },
       status(code: number) { status = code; return res; }, json(input: unknown) { body = input; res.end(); },
     });
     let admitted = false;
     park.middleware({ path, method } as Request, res as unknown as Response, () => { admitted = true; });
-    return { chunks, end: () => res.end(), ended: () => ended, status: () => status, body: () => body, admitted: () => admitted };
+    return { headers, chunks, end: () => res.end(), ended: () => ended, status: () => status, body: () => body, admitted: () => admitted };
   }
-  return { park, request, advance, exits: () => exits, exchanges: (count: number) => { exchanges = count; } };
+  return { park, request, advance, exitCodes, exits: () => exitCodes.length, exchanges: (count: number) => { exchanges = count; } };
 }
 
 test("open passive streams do not prevent park", () => {
@@ -106,6 +113,26 @@ test("park sends a frame before closing streams", () => {
   h.advance(60_000);
   assert.deepEqual(stream.chunks, ['event: parked\ndata: {"type":"parked"}\n\n']);
   assert.equal(stream.ended(), true);
+});
+
+test("an unwritable passive observer neither strands other streams nor accepts new work after park", () => {
+  const h = harness();
+  h.request("/api/runs/stale/events", "GET", { disconnectedWriter: true });
+  const unsent = h.request("/api/frontend-sessions/stream", "GET", { headersSent: false });
+  const live = h.request("/api/runs/live/events");
+  h.advance(60_000);
+  assert.deepEqual(h.exitCodes, [AGENT_DAEMON_EXIT_CODE.IDLE_PARK]);
+  assert.equal(unsent.ended(), true);
+  assert.deepEqual(unsent.chunks, []);
+  assert.equal(live.ended(), true);
+  assert.deepEqual(live.chunks, ['event: parked\ndata: {"type":"parked"}\n\n']);
+  const refused = h.request("/api/attachments", "POST");
+  assert.equal(refused.status(), 503);
+  assert.equal(refused.admitted(), false);
+  assert.deepEqual(refused.body(), { error: "the agent daemon is parked", code: "AGENT_DAEMON_PARKED" });
+  assert.deepEqual(Object.fromEntries(refused.headers), {
+    connection: "close", "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": String(process.pid),
+  });
 });
 
 test("idle zero never parks", () => {

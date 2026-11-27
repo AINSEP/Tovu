@@ -6,7 +6,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import test from "node:test";
 
 import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
-import { CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, PREFER_SUBAGENTS_GUIDANCE, SHORT_REPLY_GUIDANCE, DETAILED_REPLY_GUIDANCE, buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
+import { CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, PREFER_SUBAGENTS_GUIDANCE, SHORT_REPLY_GUIDANCE, DETAILED_REPLY_GUIDANCE, buildAssistantRuntimeGuidance, type AssistantRuntimeGuidanceInput } from "../assistant-runtime-guidance.js";
+import { createScopeBridge, createScopePromptAugmenter } from "../agent-daemon-scope-runtime.js";
+import { createToolRegistry } from "@jini-ai/core";
 import { agentCapabilities, getAgentDef } from "@jini-ai/agent-runtime";
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
 import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
@@ -19,6 +21,40 @@ import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpre
  */
 
 type Overlay = { systemOverlay(input: { agentId: string; turnIndex: number }): string };
+
+test("custom instructions append to the scope's live runtime guidance and clearing them restores the base overlay", () => {
+  const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGuidanceInput>();
+  const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
+  const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
+  let custom: string | null = null;
+  const augmenter = createScopePromptAugmenter({
+    getAgentDef, bashProhibitionEnabled: false, assistantRuntimeGuidanceContext, assistantNativeToolsContext,
+    assistantCliCapabilitiesContext, customInstructionsCache: { readOverlay: () => custom },
+  });
+  const input = { agentId: "codex", turnIndex: 0 };
+  const base = augmenter.systemOverlay?.(input) ?? "";
+  assert.match(base, /When `check_messages` is available/);
+  assert.doesNotMatch(base, /Lead with the result in 1–3 lines/);
+  custom = "Always use the site style guide.";
+  const overlay = assistantRuntimeGuidanceContext.run({ preferSubagents: false, claudeInChrome: false, replyLength: "short" },
+    () => augmenter.systemOverlay?.(input) ?? "");
+  assert.match(overlay, /When `check_messages` is available/);
+  assert.match(overlay, /Lead with the result in 1–3 lines/);
+  assert.ok(overlay.endsWith("\n\nAlways use the site style guide."));
+  custom = null;
+  assert.equal(augmenter.systemOverlay?.(input), base);
+});
+
+test("bridge startup gives admitted theme files priority without adding unadmitted tool definitions", () => {
+  const registry = createToolRegistry({});
+  const visibleRegistry = createToolRegistry({});
+  const tool = (id: string) => ({ descriptor: { id, readOnly: true }, handler: async () => ({}), policy: { authorize: () => "allow" as const } });
+  registry.register(tool("theme_write_file"));
+  for (const id of ["other_tool", "theme_read_file", "second_tool", "theme_list_files"]) visibleRegistry.register(tool(id));
+  const bridge = createScopeBridge({ daemonUrl: "http://127.0.0.1:4319", env: {}, registry, visibleRegistry, mintRunCredential: () => "fixture" });
+  assert.deepEqual(bridge.startupToolIds({ runId: "run-7" }), ["theme_list_files", "theme_read_file", "other_tool", "second_tool"]);
+  assert.deepEqual(bridge.diagnosticToolIds(), ["theme_write_file"]);
+});
 
 async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChrome = false, replyLength = "normal", owner = "daemon-test-principal", chromeProbed = true }: { enabled: boolean; agentId: string; preferSubagents: unknown; useClaudeInChrome?: boolean; replyLength?: unknown; owner?: string; chromeProbed?: boolean }) {
   const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome, replyLength };

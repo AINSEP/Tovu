@@ -26,3 +26,10 @@ test("T-HOOK: the hook is not an engine dependency: the bag has no top-level bef
 
   assert.equal("beforeSaveHook" in bag, false);
 });
+
+test("the publish route's post rollback reporter preserves both the operation and diagnostic", t => {
+  const log = t.mock.method(console, "error", () => {});
+  const bag = toPublishContentDeps(createRouteDeps());
+  bag.ports.post.reportRollbackError("Could not restore post p-23", "snapshot read failed");
+  assert.deepEqual(log.mock.calls.map(call => call.arguments), [["Could not restore post p-23", "snapshot read failed"]]);
+});

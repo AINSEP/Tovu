@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import express from "express";
+import { DirectoryUserConfigRefusal } from "@jini-ai/platform/fs";
 import { registerSitesHomeRoutes } from "#src/server/runtime/composition/modules/sites";
 import { createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import type { AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
@@ -119,4 +120,14 @@ test("unexpected directory probe errors use correlated private failures", async 
 test("settings hide raw storage details behind a correlated error", async (t) => {
   const f = await fixture({ t }, { workspaceOverrides: { config: () => { throw new Error("private storage location"); } } });
   assertAdminResponse({ actual: await f.request({ method: "get" }), expected: { status: 500, body: { error: "Could not read sites settings.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"Could not read sites settings.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load sites"} });
+});
+
+test("saving settings surfaces a typed write-time directory refusal as a flat 400", async t => {
+  const f = await fixture({ t }, { workspaceOverrides: {
+    updateConfig: () => { throw new DirectoryUserConfigRefusal({ message: "The selected folder is no longer accessible." }); },
+  } });
+  assert.deepEqual(await f.request({ body: { sitesHome: f.root } }), {
+    status: 400, body: { error: "The selected folder is no longer accessible." },
+  });
+  assert.deepEqual(f.permissions, ["system.write"]);
 });

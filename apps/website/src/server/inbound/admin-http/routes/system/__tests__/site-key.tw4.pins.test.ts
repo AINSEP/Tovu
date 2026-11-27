@@ -4,15 +4,18 @@ import { isolatedCatalogHome } from "#src/platform/site-dir/__tests__/helpers/is
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import express from "express";
 import { registerAdminSiteKeyRoutes, type AdminSiteKeyDeps, type SiteKeyKeyWriter, type SiteKeyEnsureOutcome, type SiteKeyKeyCheck, type SiteKeyInstallOutcome } from "../site-key.js";
 import { fingerprintSiteKeyHex, SiteKeyFileAlreadyExistsError } from "#src/features/webhooks/keyring.env";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/index";
 
-async function fixture({ t }: { t: TestContext }, { credentialKind = "session", allowed = true }: { credentialKind?: string; allowed?: boolean } = {}) {
+async function fixture({ t }: { t: TestContext }, { credentialKind = "session", allowed = true, scanClosedSite = false }: {
+  credentialKind?: string; allowed?: boolean; scanClosedSite?: boolean;
+} = {}) {
   const dir = mkdtempSync(join(tmpdir(), "tw4-site-key-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   for (const name of ["TOVU_SITE_KEY", "TOVU_RUNTIME_MODE"]) {
@@ -28,20 +31,27 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
   let installed: SiteKeyInstallOutcome | undefined = { outcome: "installed", keyFilePath: "/fixture/key", fingerprint: "fingerprint" };
   let available = true;
   let ensureError: Error | undefined;
+  const recoveryWrites: unknown[] = [];
+  let discard: SiteKeyKeyWriter["discardNotOpening"] = async () => { throw new Error("unexpected discard"); };
   const writer: SiteKeyKeyWriter = {
     ensureSiteKeyForSite: async () => { events.push("ensure"); if (ensureError) throw ensureError; return ensured; },
     checkKey: async () => { events.push("check"); return check; },
     resealFrom: async input => { events.push(`reseal:${input.previousHex}`); return { resealed: 2, unreadable: 0 }; },
-    installSiteKey: () => { events.push("install"); return installed; },
+    installSiteKey: input => { events.push("install"); recoveryWrites.push({ operation: "install", input }); return installed; },
     mintSiteKeyHex: () => { throw new Error("unexpected mint"); },
-    discardNotOpening: async () => { throw new Error("unexpected discard"); },
+    discardNotOpening: async input => {
+      events.push("discard");
+      recoveryWrites.push({ operation: "discard", siteDir: input.siteDir, hex: input.hex });
+      return discard(input);
+    },
   };
   const dbOps: AdminSiteKeyDeps["dbOps"] = {
     getCapabilities: async () => ({ restorePoint: { costClass: available ? "cheap" : "unavailable", kind: "file-snapshot" } }),
     captureRestorePoint: async () => { events.push("capture"); return { artifactRef: "fixture", watermarkAtCapture: 0 }; },
     restoreFromArtifact: async () => { throw new Error("unexpected restore"); },
   };
-  const save: AdminSiteKeyDeps["restorePointsRepo"]["save"] = async row => { events.push(`save:${row.trigger}`); };
+  const savedPoints: Parameters<AdminSiteKeyDeps["restorePointsRepo"]["save"]>[0][] = [];
+  const save: AdminSiteKeyDeps["restorePointsRepo"]["save"] = async row => { events.push(`save:${row.trigger}`); savedPoints.push(row); };
   const ports = {
     workspaceId: "ws", authorize: async () => (allowed ? { allowed: true, reason: "fixture" } : { allowed: false, reason: "insufficient_permission" }),
     siteBinding: { dir, name: "fixture", dirOverridden: true, switcherCompatible: false },
@@ -51,7 +61,7 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credentialKind; next(); });
   const baseDeps = createRouteDeps();
   t.mock.method(baseDeps.restorePointsRepo, "save", save);
-  registerAdminSiteKeyRoutes({ app, deps: { ...baseDeps, ...ports }, siteKey: writer });
+  registerAdminSiteKeyRoutes({ app, deps: { ...baseDeps, ...ports, ...(scanClosedSite ? { contentKernel: undefined } : {}) }, siteKey: writer });
   const base = await startTestServer(app, t);
   const post = async ({ verb, body = {} }: { verb: string; body?: unknown }, _options = {}) => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/ws/system/site-key/${verb}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -61,7 +71,8 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
     const folder = join(isolatedCatalogHome, ".tovu", "site-keys"); mkdirSync(folder, { recursive: true });
     const file = join(folder, `${siteKeyId}.hex`); writeFileSync(file, hex); t.after(() => rmSync(file, { force: true }));
   };
-  return { post, events, dir, meta, currentKey, base,
+  return { post, events, dir, meta, currentKey, base, recoveryWrites, savedPoints,
+    setDiscard: (fn: SiteKeyKeyWriter["discardNotOpening"]) => { discard = fn; },
     setEnsure: ({ value }: { value: SiteKeyEnsureOutcome | undefined }, _options = {}) => { ensured = value; },
     setCheck: ({ value }: { value: SiteKeyKeyCheck }, _options = {}) => { check = value; },
     setInstalled: ({ value }: { value: SiteKeyInstallOutcome | undefined }, _options = {}) => { installed = value; },
@@ -69,6 +80,118 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
     setEnsureThrows: (error: Error) => { ensureError = error; },
   };
 }
+
+test("explicit reveal returns the stored fixture key with no-store and leaves the writer untouched", async t => {
+  const f = await fixture({ t });
+  const hex = "23".repeat(32);
+  f.currentKey({ hex });
+  const reply = await f.post({ verb: "reveal" });
+  assert.equal(reply.status, 200);
+  assert.equal(reply.cache, "no-store");
+  assert.partialDeepStrictEqual(reply.body, { active: true, source: "file", hex, runtimeMode: "local" });
+  assert.deepEqual(f.events, []);
+});
+
+test("production generation refuses over sealed storage and stamps a newly generated volume key once clear", async t => {
+  const f = await fixture({ t }, { scanClosedSite: true });
+  const cwd = t.mock.method(process, "cwd", () => f.dir);
+  t.after(() => cwd.mock.restore());
+  process.env.TOVU_RUNTIME_MODE = "production";
+  const metaPath = join(f.dir, ".site-meta.json");
+  const original = { siteId: "fixture-production", name: "Orchard", siteKeyFingerprint: "prior-stamp" };
+  writeFileSync(metaPath, JSON.stringify(original));
+  const secret = join(f.dir, STORAGE_SECRET_FILENAME);
+  writeFileSync(secret, "sealed fixture");
+  const keyPath = join(f.dir, "sites", ".tovu", "site-key.hex");
+  const refused = await f.post({ verb: "generate" });
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.error, "KEY_DEPENDENT_DATA");
+  assert.equal(existsSync(keyPath), false);
+  assert.deepEqual(JSON.parse(readFileSync(metaPath, "utf8")), original);
+  rmSync(secret);
+  const created = await f.post({ verb: "generate" });
+  assert.equal(created.status, 201);
+  const hex = readFileSync(keyPath, "utf8").trim();
+  assert.match(hex, /^[0-9a-f]{64}$/);
+  const fingerprint = fingerprintSiteKeyHex({ hex });
+  assert.deepEqual(created.body, { outcome: "created", fingerprint, keyFilePath: keyPath, runtimeMode: "production" });
+  assert.deepEqual(JSON.parse(readFileSync(metaPath, "utf8")), { ...original, siteKeyFingerprint: fingerprint });
+});
+
+test("start fresh persists a restore point before discard and installs the same checked key", async t => {
+  const f = await fixture({ t });
+  const hex = "be".repeat(32);
+  f.currentKey({ hex });
+  f.meta({ fingerprint: fingerprintSiteKeyHex({ hex }) });
+  f.setDiscard(async () => ({ discarded: 3, kept: 2 }));
+  const reply = await f.post({ verb: "start-fresh", body: { confirm: "START FRESH" } });
+  assert.equal(reply.status, 200);
+  assert.equal(reply.cache, "no-store");
+  assert.deepEqual(f.events, ["check", "capture", "save:site-key-start-fresh", "discard", "install"]);
+  assert.deepEqual(f.recoveryWrites, [
+    { operation: "discard", siteDir: f.dir, hex },
+    { operation: "install", input: { siteDir: f.dir, hex } },
+  ]);
+  assert.equal(f.savedPoints.length, 1);
+  const point = f.savedPoints[0]!;
+  assert.partialDeepStrictEqual(point, { trigger: "site-key-start-fresh", createdBy: "owner", artifactRef: "fixture" });
+  assert.deepEqual(reply.body, { outcome: "started-fresh", fingerprint: "fingerprint", keyFilePath: "/fixture/key",
+    discarded: 3, kept: 2, restorePointId: point.restorePointId, affectedWebhooks: [], runtimeMode: "local" });
+});
+
+test("start fresh without a restore point preserves all credentials and declines the change", async t => {
+  const f = await fixture({ t });
+  const hex = "be".repeat(32);
+  f.currentKey({ hex });
+  f.meta({ fingerprint: fingerprintSiteKeyHex({ hex }) });
+  f.unavailable();
+  const reply = await f.post({ verb: "start-fresh", body: { confirm: "START FRESH" } });
+  assert.deepEqual(reply, { status: 409, cache: "no-store", body: { error: "RESTORE_POINT_UNAVAILABLE",
+    detail: "A restore point can't be made for this site's database right now, so nothing was changed.", runtimeMode: "local" } });
+  assert.deepEqual(f.events, ["check"]);
+  assert.deepEqual(f.recoveryWrites, []);
+  assert.deepEqual(f.savedPoints, []);
+});
+
+test("start fresh returns the install refusal instead of claiming success after discard", async t => {
+  const f = await fixture({ t });
+  const hex = "be".repeat(32);
+  f.currentKey({ hex });
+  f.meta({ fingerprint: fingerprintSiteKeyHex({ hex }) });
+  f.setDiscard(async () => ({ discarded: 0, kept: 2 }));
+  for (const [value, code, detail] of [
+    [undefined, "SITE_META_UNREADABLE", "This site's .site-meta.json cannot be read. Repair this site first; no site key was written."],
+    [{ outcome: "env-key-set" }, "ENV_KEY_SET", "A different site key is set in this server's environment and overrides the key file, so nothing was changed. Change it there instead."],
+  ] as const) {
+    f.setInstalled({ value });
+    assert.deepEqual(await f.post({ verb: "start-fresh", body: { confirm: "START FRESH" } }), {
+      status: 409, cache: "no-store", body: { error: code, detail, runtimeMode: "local" },
+    });
+  }
+  assert.deepEqual(f.events, [
+    "check", "capture", "save:site-key-start-fresh", "discard", "install",
+    "check", "capture", "save:site-key-start-fresh", "discard", "install",
+  ]);
+});
+
+test("a start-fresh discard failure is private and does not reach the key installer", async t => {
+  const f = await fixture({ t });
+  const hex = "be".repeat(32);
+  f.currentKey({ hex });
+  f.meta({ fingerprint: fingerprintSiteKeyHex({ hex }) });
+  const logged = t.mock.method(console, "error", () => {});
+  f.setDiscard(async () => { throw new Error("private recovery transaction failed"); });
+  const reply = await f.post({ verb: "start-fresh", body: { confirm: "START FRESH" } });
+  assert.equal(reply.status, 500);
+  assert.equal(reply.cache, "no-store");
+  assert.equal(reply.body.code, "INTERNAL_ERROR");
+  assert.match(reply.body.error, /error ERR-/);
+  assert.doesNotMatch(JSON.stringify(reply.body), /private recovery transaction failed/);
+  assert.deepEqual(f.events, ["check", "capture", "save:site-key-start-fresh", "discard"]);
+  assert.deepEqual(logged.mock.calls.map(call => call.arguments), [
+    ["[admin-failure] reporter unavailable", { operation: "routes/system/site-key" }],
+  ]);
+});
 
 test("generate preserves every shared-writer result and missing-result guard", async t => {
   const f = await fixture({ t });

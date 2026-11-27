@@ -15,6 +15,18 @@ test('Sites in a warm tab shows that tab’s serving site while keeping the orig
   assert.equal((result as Record<string, unknown>).localSites, localSites);
 });
 
+test('a warm tab whose site is absent from the host catalog does not activate an unrelated site', () => {
+  const binding = { name: 'child', dir: '/sites/child', dirOverridden: false, switcherCompatible: true };
+  const host = { name: 'host', active: true, displayName: 'Original dev site' };
+  assert.deepEqual(warmSiteListing({ binding, snapshot: { sites: [host], currentSite: { name: 'host' }, version: 3 } }), {
+    currentSite: { ...binding, listed: false }, sites: [{ ...host, active: false }], version: 3,
+  });
+  assert.equal(host.active, true);
+  assert.deepEqual(warmSiteListing({ binding, snapshot: { sites: null, version: 4 } }), {
+    currentSite: { ...binding, listed: false }, sites: [], version: 4,
+  });
+});
+
 test('a warm tab delegates site management with the original cookies and preserves preview bytes', async t => {
   const seen: Array<{ url: string | undefined; cookie: string | undefined }> = [];
   const preview = Buffer.from([0, 255, 1, 0]);

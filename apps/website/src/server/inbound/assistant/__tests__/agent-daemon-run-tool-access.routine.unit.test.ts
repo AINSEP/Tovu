@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRunToolChoice } from '../agent-daemon-run-tool-access.js';
+import { createInMemoryEventLog, createRunLifecycle } from '@jini-ai/daemon';
+import { createRunToolChoice, createRunToolLiveness } from '../agent-daemon-run-tool-access.js';
 import type { RunPorts } from '../agent-daemon-run-start.js';
 
 /**
@@ -41,6 +42,20 @@ function fakeRun({ off, routine }: { off: readonly string[]; routine: boolean })
 }
 
 const choose = (fake: ReturnType<typeof fakeRun>) => createRunToolChoice(fake.ports).prepareRunToolAccess({ selectedAgentId: 'cli' });
+
+test('a withdrawn preparation terminalizes an otherwise-live run before refusing tool access', async () => {
+  const fake = fakeRun({ off: [], routine: false });
+  const runLifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  const { run } = await runLifecycle.start({ contextRef: 'fixture' }, { runId: 'cancelled-preparation' });
+  const pluginAbort = new AbortController();
+  const { runToolAccessIsLive } = createRunToolLiveness({ ...fake.ports, runLifecycle, run, pluginAbort });
+  assert.equal(await runToolAccessIsLive(), true);
+  pluginAbort.abort();
+  assert.equal(await runToolAccessIsLive(), false);
+  assert.equal((await runLifecycle.get({ runId: run.id }))?.state, 'cancelled');
+  assert.equal(await runToolAccessIsLive(), false);
+  assert.equal((await runLifecycle.get({ runId: run.id }))?.state, 'cancelled');
+});
 
 test('a routine run that needs a write switch fails with a plain reason: no card, no alternative, nothing granted', async () => {
   const fake = fakeRun({ off: ['fileWrite'], routine: true });

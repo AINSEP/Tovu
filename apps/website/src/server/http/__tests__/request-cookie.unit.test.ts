@@ -16,3 +16,8 @@ test("request cookies decode once, preserve embedded equals and use the first du
   assert.equal(readRequestCookie({ request, name: "absent" }), undefined);
   assert.equal(readRequestCookie({ request: {} as Request, name: "session" }), undefined);
 });
+
+test("an ordinary request with no Cookie header has no session even when other headers are present", () => {
+  const request = { headers: { authorization: "Bearer unrelated-token" } };
+  assert.equal(readRequestCookie({ request, name: "session" }), undefined);
+});

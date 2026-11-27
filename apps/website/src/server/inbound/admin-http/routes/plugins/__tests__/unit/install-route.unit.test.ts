@@ -21,7 +21,7 @@ const DIGEST = `sha256-${"a".repeat(64)}`;
 type InstallerInput = Parameters<PluginInstallerPort["install"]>[0] | Parameters<PluginInstallerPort["preview"]>[0];
 type Call = { method: "preview" | "install"; input: InstallerInput };
 type Authorization = Parameters<PluginInstallRouteDeps["authorize"]>[0];
-type BootOptions = { installer?: "none" | ((call: Call) => PluginInstallPreview); env?: string; allowed?: boolean; jsonParser?: boolean; policy?: "none"; principal?: "none" };
+type BootOptions = { installer?: "none" | ((call: Call) => PluginInstallPreview); env?: string; allowed?: boolean; jsonParser?: boolean; policy?: "none"; principal?: "none"; tracker?: PluginInstallRouteDeps["tracker"] };
 
 /** A typed installer result whose `name` records which installer method produced it. */
 const plugin = (via: string): PluginInstallPreview => ({ id: "p", name: via, version: "1.0.0", tier: "tier-3", capabilities: [], hooks: [], hasCode: true, digest: DIGEST, contentTypes: [], conflicts: [] });
@@ -37,7 +37,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
     install: async (input) => { calls.push({ method: "install", input }); return answer({ method: "install", input }); },
   });
   const deps: PluginInstallRouteDeps = {
-    tracker: createNoopTracker({}),
+    tracker: options.tracker ?? createNoopTracker({}),
     workspaceId: WS,
     ...(options.policy === "none" ? {} : { pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' }, hostSignals: resolveHostSignals({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' } }) }) }),
     authorize: async (request) => { authorizations.push(request); return options.allowed === false ? { allowed: false, reason: "denied" } : { allowed: true, reason: "ok" }; },
@@ -60,6 +60,20 @@ async function boot(t: TestContext, options: BootOptions = {}) {
 }
 const read = async (response: Response) => ({ status: response.status, body: await response.json() });
 const INVALID_OPTIONS = { status: 400, body: { code: "PLUGIN_INSTALL_INPUT_INVALID", error: "Valid replacement options and the reviewed digest are required." } };
+
+test("a completed plugin install tracks the actor and plugin, while preview does not count as an install", async t => {
+  const events: unknown[][] = [];
+  const tracker = { ...createNoopTracker({}), capture: (...args: unknown[]) => { events.push(args); } };
+  const h = await boot(t, { tracker });
+  const source = { kind: "folder", path: "/srv/plugin" };
+  assert.deepEqual(await read(await h.json("/preview", { source })), { status: 200, body: { plugin: plugin("preview") } });
+  assert.deepEqual(events, []);
+  assert.deepEqual(await read(await h.json("", { source, expectedDigest: DIGEST })), { status: 201, body: { plugin: plugin("install") } });
+  assert.deepEqual(events, [[
+    { name: "plugin_installed", userId: "owner" },
+    { properties: { pluginId: "p", pluginKind: "cms", source: "admin" } },
+  ]]);
+});
 
 test("folder preview/install forward the source path, boolean replace and reviewed digest", async t => {
   const h = await boot(t);

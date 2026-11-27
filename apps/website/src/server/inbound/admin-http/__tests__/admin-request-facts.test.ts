@@ -3,7 +3,7 @@ import test from "node:test";
 import { defineJsonRoute, ok } from "@jini-ai/core/contracts/server";
 
 import { mountAdminJsonRoute } from "../admin-json-route-ports.js";
-import { adminPublishTrustFor, adminRequestFactsFor, type AdminRequestFacts } from "../admin-request-facts.js";
+import { adminPublishTrustFor, adminRequestFactsFor, routeRequestFactsFor, type AdminRequestFacts } from "../admin-request-facts.js";
 import type { OperatorPrincipalRecord } from "../dev-auth.js";
 import { PROBE_GRANT, fakeAdminApp, listen } from "./fixtures/port-harness.js";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
@@ -88,4 +88,24 @@ test("the grant-only read needs an authenticated context but no credential kind"
   const without = await server.call("/api/admin/v1/workspaces/local/facts", { headers: {} });
   assert.deepEqual([withGrant.status, withGrant.body, without.status, without.body], [200, { grant: PROBE_GRANT }, 200, { grant: null }]);
   assert.throws(() => adminPublishTrustFor({ context: { id: "forged" } as OperatorPrincipalRecord }), /requireAdminSession must run before this route/);
+});
+
+test("request facts expose the trusted serving authority to callers without adding it to serialized facts", async (t) => {
+  const app = fakeAdminApp();
+  app.set("trust proxy", "loopback");
+  app.get("/facts", (req, res) => {
+    const facts = routeRequestFactsFor({ req });
+    res.json({ facts, servingOrigin: facts.servingOrigin });
+  });
+  const server = await listen({ app });
+  t.after(server.close);
+  assert.deepEqual(await server.call("/facts", { headers: {
+    host: "internal.test:4317", "x-forwarded-host": "site.example:8443, proxy.example",
+    "x-forwarded-proto": "https", "x-forwarded-for": "192.0.2.23", "user-agent": "facts-contract",
+  } }), {
+    status: 200, body: {
+      facts: { clientAddress: "192.0.2.23", host: "internal.test:4317", protocol: "https", userAgent: "facts-contract" },
+      servingOrigin: "https://site.example:8443",
+    },
+  });
 });

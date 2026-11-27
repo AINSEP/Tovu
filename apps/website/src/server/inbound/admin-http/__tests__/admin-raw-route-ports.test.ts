@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defineJsonRoute, ok, routeReply, type RouteInputContext } from "@jini-ai/core/contracts/server";
 import { defineRawRoute } from "@jini-ai/http-kit";
+import { rejectRoute } from "@jini-ai/core/errors/route-refusal";
 
 import { mountAdminJsonRoute, mountPublicJsonRoute } from "../admin-json-route-ports.js";
 import { mountAdminRawRoute, mountPublicRawRoute } from "../admin-raw-route-ports.js";
@@ -221,4 +222,20 @@ test("raw custom failure text is preserved with exactly one site incident", asyn
   assert.equal(await response.text(), `Custom failure. Error ID: ${fixture.entries[0]?.meta?.errorId}`);
   assert.equal(fixture.entries.length, 1);
   assert.deepEqual(operations, [{ name: "http.route", attributes: { "http.method": "GET", "http.route": "/custom-raw" } }]);
+});
+
+test("a public raw mount keeps explicit refusals out of its custom incident writer", async t => {
+  const app = fakeAdminApp({ principal: false });
+  const spec = defineRawRoute<object>({ method: "get", path: "/downloads/:workspaceId/file", handle: async () => {
+    rejectRoute({ status: 410, error: "The file has expired.", code: "FILE_EXPIRED" });
+  } });
+  const unexpected: unknown[] = [];
+  mountPublicRawRoute({ app, spec, deps: {}, workspaceId: "local", errors: createRouteIncidentReporter().errors,
+    failure: ({ res, error }) => { unexpected.push(error); res.status(503).json({ error: "Unexpected download failure." }); },
+  });
+  const server = await listen({ app });
+  t.after(server.close);
+  assert.deepEqual(await server.call("/downloads/other/file"), { status: 404, body: { error: "workspace was not found" } });
+  assert.deepEqual(await server.call("/downloads/local/file"), { status: 410, body: { error: "The file has expired.", code: "FILE_EXPIRED" } });
+  assert.deepEqual(unexpected, []);
 });

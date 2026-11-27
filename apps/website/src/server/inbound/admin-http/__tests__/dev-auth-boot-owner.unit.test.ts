@@ -6,7 +6,7 @@ import type { PrincipalRecord } from "@jini-ai/core/contracts/site/user-manageme
 
 import { createCapturingResponse } from "../../../__tests__/helpers/http-test-server.js";
 import { createRouteDeps } from "../../../runtime/composition/app.js";
-import { currentCredential, redeemOwnerBootSession } from "../dev-auth.js";
+import { currentCredential, holdsSiteOwnerAuthority, redeemOwnerBootSession } from "../dev-auth.js";
 
 function bootResponse({ cookie = "" }: { cookie?: string }, _options = {}) {
   const { res, capture } = createCapturingResponse();
@@ -180,4 +180,45 @@ test("an enrolled owner boot proof returns pending MFA without a session or cook
   assert.equal(typeof body.pendingToken, 'string');
   assert.partialDeepStrictEqual(pending, { workspaceId: deps.workspaceId, principalId, purpose: 'login', attempts: 0 });
   assert.ok(!JSON.stringify(pending).includes(body.pendingToken));
+});
+
+test("boot proof for an owner without an enrolled factor still issues a verifiable session", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const principalId = await deps.ownerPrincipalId;
+  const lookups: unknown[] = [];
+  deps.mfaStore = {
+    factor: async scope => { lookups.push(scope); return null; },
+    savePending: async () => assert.fail("no factor means no pending MFA proof"),
+  } as import("@jini-ai/user-management/server").MfaStore;
+  const response = bootResponse({});
+  const signedIn = await redeemOwnerBootSession({ deps, res: response.res, token: "launch-proof" }, { redeem: () => true });
+  assert.equal(signedIn?.id, principalId);
+  assert.deepEqual(lookups, [{ workspaceId: deps.workspaceId, principalId }]);
+  assert.equal(response.cookies.length, 1);
+  const issued = response.cookies[0]!;
+  const req = { headers: { cookie: `${issued.name}=${issued.value}` }, socket: { localPort: 303 } } as Request;
+  assert.equal((await currentCredential({ deps, req }))?.principal.id, principalId);
+});
+
+test("routine owner authority follows the live wildcard grant rather than the seeded owner ID", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const { workspaceId } = deps;
+  const principalId = await deps.ownerPrincipalId;
+  assert.equal(await holdsSiteOwnerAuthority({ deps, workspaceId, principalId }), true);
+  assert.equal(await holdsSiteOwnerAuthority({ deps, workspaceId, principalId: "unassigned-operator" }), false);
+  const roles = await deps.principalRoleRepo.listByPrincipalId({ workspaceId, principalId });
+  let removed = 0;
+  for (const { roleId } of roles) {
+    for (const { policyId } of await deps.rolePolicyRepo.listByRoleId({ workspaceId, roleId })) {
+      for (const row of await deps.policyPermissionRepo.listByPolicyId({ workspaceId, policyId })) {
+        if (row.permission !== "*") continue;
+        await deps.policyPermissionRepo.delete({ workspaceId, id: row.id });
+        removed++;
+      }
+    }
+  }
+  assert.equal(removed, 1, "the test removed the seeded wildcard grant");
+  assert.equal(await holdsSiteOwnerAuthority({ deps, workspaceId, principalId }), false);
 });

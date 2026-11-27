@@ -77,6 +77,7 @@ function buildApp(options: {
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
+    res.locals.authCredentialKind = "session";
     next();
   });
   registerAdminExternalMcpOAuthConnectRoute({ errors: createRouteIncidentReporter().errors, app, deps, limiter });
@@ -217,6 +218,32 @@ test("a validation error is a 400 INVALID_MCP_SERVER naming the offending field"
     code: "INVALID_MCP_SERVER",
     details: { field: "authMode" },
   });
+});
+
+test("browser sign-in builds the configured callback and preserves provider validation refusals", async t => {
+  const original = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = "https://work.example:8443/ignored-path";
+  t.after(() => {
+    if (original === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = original;
+  });
+  const seen: Parameters<ExternalMcpOAuthService["beginConnect"]>[0][] = [];
+  const { app, authorizeCalls } = buildApp({ service: { beginConnect: async input => {
+    seen.push(input);
+    throw new ExternalMcpValidationError("The connection needs OAuth configuration.", "authMode");
+  } } });
+  const base = await startTestServer(app, t);
+  const response = await fetch(`${base}${BASE}/sign-in`, { redirect: "manual" });
+  assert.equal(response.status, 400);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.deepEqual(await response.json(), { error: "The connection needs OAuth configuration.", code: "INVALID_MCP_SERVER", details: { field: "authMode" } });
+  assert.deepEqual(authorizeCalls, [{ principalId: "test-principal", permission: "admin.integrations.manage", workspaceId: WORKSPACE_ID, entityType: "integration" }]);
+  assert.equal(seen.length, 1);
+  const { browserBinding, ...request } = seen[0]!;
+  assert.match(browserBinding ?? "", /^[A-Za-z0-9_-]{43}$/);
+  assert.deepEqual(request, { actorId: "test-principal", serverId: "higgs", redirectUri: "https://work.example:8443/api/mcp-servers/oauth/callback/higgs" });
 });
 
 test("an OAuth slow_down forwards retryable:true and retryAfterSeconds; one without an interval omits the key", async (t) => {

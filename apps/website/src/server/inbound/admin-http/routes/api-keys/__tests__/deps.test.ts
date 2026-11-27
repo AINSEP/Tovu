@@ -6,7 +6,7 @@ import test from "node:test";
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { apiKeyServiceDepsFrom, type ApiKeysRouteDeps } from "../deps.js";
+import { apiKeyMountDeps, apiKeyServiceDepsFrom, type ApiKeysRouteDeps } from "../deps.js";
 import { registerAdminApiKeyRevokeRoute } from "../revoke.js";
 
 // F2.4/F4.3: distinct collaborator identities detect swaps as well as omitted adapters.
@@ -36,6 +36,13 @@ test("API-key service composition preserves each identity repository and crypto/
 });
 
 // F4.1/F4.4/F6.2: branch-specific exact envelopes, including an unknown error containing a secret.
+test("the API-key mount denies authorization requests made outside the identity service", async () => {
+  const authorize = apiKeyMountDeps({ deps: { workspaceId: "ws-7" } as ApiKeysRouteDeps }).authorize;
+  assert.deepEqual(await authorize({
+    workspaceId: "ws-7", principalId: "operator-9", permission: "apikey.manage",
+  }), { allowed: false, reason: "api-key routes authorize inside the identity services" });
+});
+
 const cases = [
   { name: "base permission denied", error: new IdentityForbiddenError({ message: "key management denied", permission: "apikey.manage", reason: "no_grant" }), status: 403,
     body: { error: "key management denied", code: "FORBIDDEN", details: { permission: "apikey.manage", reason: "no_grant" } } },

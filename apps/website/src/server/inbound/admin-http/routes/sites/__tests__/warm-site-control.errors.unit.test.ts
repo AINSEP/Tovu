@@ -37,3 +37,24 @@ test('warm site control reports one redacted incident without forwarding request
   assert.match(detail.diagnostic, /warm-site-control\.errors\.unit\.test\.ts/);
   assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET|COOKIE_SHOULD_NEVER_LEAK|BODY_SHOULD_NEVER_LEAK/);
 });
+
+test('warm site control still replies with safe 503 copy if its failure reporter cannot be read', async t => {
+  const warnings = t.mock.method(console, 'warn', () => {});
+  let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
+  const app = { use: (_path: string, mounted: typeof handler) => { handler = mounted; } } as unknown as Express;
+  const prefix = '/api/admin/v1/workspaces/ws/system/sites';
+  registerWarmSiteControl({ app, workspaceId: 'ws', binding: { name: 'child', dir: '/sites/child', dirOverridden: false, switcherCompatible: true } }, {
+    env: { TOVU_DEV_WARM_SITES: '1', TOVU_DEV_WARM_CONTROL_URL: 'http://localhost:3000', TOVU_DEV_WARM_CONTROL_WORKSPACE: 'host', TOVU_DISABLE_DEV_TLS: '1' },
+  });
+  assert.ok(handler, 'the control route is registered');
+  const replies: Array<{ status: number; body: unknown }> = [];
+  const res = {
+    locals: { get failureReporter(): never { throw new Error('diagnostic adapter unavailable'); } },
+    status(status: number) { return { json(body: unknown) { replies.push({ status, body }); } }; },
+  };
+  await handler({ originalUrl: prefix, method: 'GET', headers: {} }, res);
+  assert.deepEqual(replies, [{ status: 503, body: { error: 'The dev site manager is unavailable. Return to the original dev server.' } }]);
+  assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [
+    ['tovu dev: warm site management host is unavailable.', '[diagnostic unavailable]'],
+  ]);
+});

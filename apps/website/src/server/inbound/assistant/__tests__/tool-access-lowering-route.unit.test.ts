@@ -41,3 +41,30 @@ test('successful lowering control responds only after cleanup and rejects oversi
   await started; assert.equal(responded, false); release();
   assert.equal((await response).status, 200);
 });
+
+test('the lowering route accepts exactly 1 KiB but does not dispatch a one-byte-larger control', async t => {
+  const app = express();
+  app.use(express.json());
+  const lowered: unknown[] = [];
+  registerToolAccessLoweringRoute({ app, reporter: NO_INCIDENT_REPORTER, lower: async input => {
+    lowered.push(input);
+    return { stoppedRunIds: ['answer-23'], failedRunIds: [] };
+  } });
+  const base = await startTestServer(app, t);
+  const leadingIds = Array.from({ length: 7 }, (_, index) => String(index).repeat(128));
+  const tailLength = 1024 - Buffer.byteLength(JSON.stringify({ serverIds: [...leadingIds, ''] }));
+  const input = { serverIds: [...leadingIds, 'z'.repeat(tailLength)] };
+  const send = async (lastLength: number) => {
+    const body = JSON.stringify({ serverIds: [...leadingIds, 'z'.repeat(lastLength)] });
+    const response = await fetch(base + TOOL_ACCESS_LOWERING_PATH, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+    return { bytes: Buffer.byteLength(body), status: response.status, body: await response.json() };
+  };
+  assert.deepEqual(await send(tailLength + 1), { bytes: 1025, status: 400, body: {
+    error: 'Tool access changes require agent, server, or plugin IDs in a control payload at most 1 KiB.',
+  } });
+  assert.deepEqual(lowered, []);
+  assert.deepEqual(await send(tailLength), { bytes: 1024, status: 200, body: {
+    ok: true, stoppedRunIds: ['answer-23'], failedRunIds: [],
+  } });
+  assert.deepEqual(lowered, [input]);
+});

@@ -9,10 +9,48 @@ import os from "node:os";
 import path from "node:path";
 import { readPersistedActiveSite as readPersistedActiveSiteForTest, resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import { registerAdminSitesRoutes, type AdminSitesDeps } from "#src/server/runtime/composition/modules/sites";
-import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { registerDevWarmSiteRoute } from "../../sites.js";
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
 
 const route = "/api/admin/v1/workspaces/:workspaceId/system/sites";
+
+test("dev warm start accepts only authenticated, named requests and keeps launch failures private", async t => {
+  const token = "fixture-control-token";
+  const previous = process.env.TOVU_DEV_WARM_CONTROL_TOKEN;
+  process.env.TOVU_DEV_WARM_CONTROL_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_DEV_WARM_CONTROL_TOKEN;
+    else process.env.TOVU_DEV_WARM_CONTROL_TOKEN = previous;
+  });
+  const attempts: string[] = [];
+  const app = express();
+  app.use(express.json());
+  registerDevWarmSiteRoute({ app, warmServer: async ({ name }) => {
+    attempts.push(name);
+    if (name === "busy") throw Object.assign(new Error("private host detail"), { code: "SITE_BUSY" });
+    if (name === "broken") throw "opaque launch failure";
+    return `http://localhost:4318/admin/?site=${name}`;
+  } });
+  const base = await startTestServer(app, t);
+  const post = (name: unknown, controlToken: string) => fetch(`${base}/internal/dev-warm-site`, {
+    method: "POST", headers: { "content-type": "application/json", "x-tovu-warm-control": controlToken },
+    body: JSON.stringify({ name }),
+  });
+  const hidden = await post("orchard", "wrong-token");
+  assert.deepEqual({ status: hidden.status, body: await hidden.text() }, { status: 404, body: "Not Found" });
+  const invalid = await post(7, token);
+  assert.deepEqual({ status: invalid.status, body: await invalid.text() }, { status: 400, body: "Bad Request" });
+  assert.deepEqual(attempts, []);
+  const started = await post("orchard", token);
+  assert.deepEqual({ status: started.status, body: await started.json() }, { status: 200, body: { url: "http://localhost:4318/admin/?site=orchard" } });
+  const busy = await post("busy", token);
+  assert.deepEqual({ status: busy.status, body: await busy.json() }, { status: 409, body: { code: "SITE_BUSY" } });
+  const broken = await post("broken", token);
+  assert.deepEqual({ status: broken.status, body: await broken.json() }, { status: 409, body: { code: "SITE_START_FAILED" } });
+  assert.deepEqual(attempts, ["orchard", "busy", "broken"]);
+});
+
 function fixture(overrides: Partial<AdminSitesDeps> = {}, { incidents = createRouteIncidentReporter() }: { incidents?: ReturnType<typeof createRouteIncidentReporter> } = {}) {
   const routeErrors = incidents.errors;
   const calls: unknown[] = [];

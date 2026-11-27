@@ -42,6 +42,7 @@ const controls = {
   execution: undefined as ReturnType<typeof gate> | undefined,
   overlay: undefined as ReturnType<typeof gate> | undefined,
   dispatchError: undefined as Error | undefined,
+  rehydrateError: undefined as Error | undefined,
   credential: undefined as ((token: string) => ReturnType<ReturnType<typeof access.createRunScopedCredentials>["resolveCaller"]>) | undefined,
   memory: true,
   deps: undefined as core.AgentDaemonCoreDeps | undefined,
@@ -141,8 +142,16 @@ mock.module("@jini-ai/daemon", { namedExports: { ...daemon,
   createRunLifecycle: (...args: Parameters<typeof daemon.createRunLifecycle>) => {
     const actual = daemon.createRunLifecycle(...args);
     return { ...actual,
+      rehydrate: async (...input: Parameters<typeof actual.rehydrate>) => {
+        if (controls.rehydrateError) throw controls.rehydrateError;
+        return actual.rehydrate(...input);
+      },
       stream: (...input: Parameters<typeof actual.stream>) => { controls.note("subscribe"); return actual.stream(...input); },
-      waitForTerminal: (...input: Parameters<typeof actual.waitForTerminal>) => { controls.note(`terminal:${input[0].runId}`); return actual.waitForTerminal(...input); },
+      waitForTerminal: (...input: Parameters<typeof actual.waitForTerminal>) => {
+        controls.note(`terminal:${input[0].runId}`);
+        if (input[1]?.signal) controls.note(`cleanup-wait:${input[0].runId}`);
+        return actual.waitForTerminal(...input);
+      },
     };
   },
   createAgentExecutor: (_required: Parameters<typeof daemon.createAgentExecutor>[0], optional: Parameters<typeof daemon.createAgentExecutor>[1]) => {
@@ -161,10 +170,11 @@ mock.module("@jini-ai/daemon", { namedExports: { ...daemon,
 
 const { createSiteScope } = await import("../agent-daemon-scope.js");
 
-async function harness() {
+async function harness({ rehydrateError }: { rehydrateError?: Error } = {}) {
   controls.events = []; controls.handlers = []; controls.launches = []; controls.failures = []; controls.overlays.clear();
   controls.refresh = undefined; controls.write = undefined; controls.execution = undefined; controls.overlay = undefined;
   controls.dispatchError = undefined; controls.credential = undefined; controls.memory = true; controls.deps = undefined;
+  controls.rehydrateError = rehydrateError;
   const dir = await mkdtemp(join(tmpdir(), "scope-behavior-"));
   const host = express();
   host.get("/internal/tool-catalog", (_req, res) => res.json({ tools: [] }));
@@ -206,6 +216,23 @@ async function harness() {
     },
   };
 }
+
+test("scope stays available after run rehydration fails and records the bootstrap fault", async t => {
+  const fault = new Error("retained attempts could not be loaded");
+  const errors = t.mock.method(console, "error", () => {});
+  const h = await harness({ rehydrateError: fault });
+  try {
+    const response = await fetch(`${h.url}/api/runs`, { headers: {
+      authorization: `Bearer ${h.token}`, "x-tovu-principal-id": "owner",
+    } });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body, { runs: [] });
+    assert.equal(errors.mock.calls.filter(call => call.arguments[0] === "[agent-daemon] lifecycle.rehydrate() failed").length, 1);
+    assert.deepEqual(errors.mock.calls.find(call => call.arguments[0] === "[agent-daemon] lifecycle.rehydrate() failed")?.arguments,
+      ["[agent-daemon] lifecycle.rehydrate() failed", fault]);
+  } finally { await h.close(); }
+});
 
 // Mutation: mounting the JSON parser before authentication returns 400 instead of 401.
 test("HTTP rejects malformed anonymous JSON before parsing", async () => {
@@ -254,6 +281,43 @@ test("run admission registers ownership and subscribes while refresh is blocked"
     const owned = await fetch(`${h.url}/api/runs/${runId}`, { headers: { authorization: `Bearer ${h.token}`, "x-tovu-principal-id": "owner" } });
     assert.equal(owned.status, 200); await owned.body?.cancel();
     assert.deepEqual(controls.launches, []);
+  } finally { await h.close(); }
+});
+
+test("lowering tool access notifies and cancels the affected run before confirming cleanup", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("lowering");
+    await until(() => controls.launches.length === 1);
+    let cancellations = 0;
+    const unsubscribe = h.scope.lifecycle.onCancelRequested({ runId, listener: () => { cancellations++; } });
+    const lower = () => fetch(`${h.url}/api/tool-access/lower`, {
+      method: "POST", headers: { authorization: `Bearer ${h.token}`, "content-type": "application/json" },
+      body: JSON.stringify({ agentIds: ["claude"] }),
+    });
+    let answered = false;
+    const response = lower().then(reply => { answered = true; return reply; });
+    await until(() => controls.events.includes(`cleanup-wait:${runId}`));
+    assert.equal(answered, false);
+    assert.equal(cancellations, 1);
+    unsubscribe();
+    const notices: unknown[] = [];
+    const replay = await h.scope.lifecycle.stream({ runId, onEvent: event => {
+      if (event.kind === "agent") notices.push(event.payload);
+    } });
+    if (replay.kind !== "ok") assert.fail("the live run's notice stream must be readable");
+    replay.unsubscribe();
+    assert.ok(notices.some(value => typeof value === "object" && value !== null
+      && "label" in value && value.label === "tool_access_changed"
+      && "detail" in value && value.detail === "Stopped because tool access changed."));
+    assert.ok(notices.some(value => typeof value === "object" && value !== null
+      && "type" in value && value.type === "text_delta"
+      && "delta" in value && value.delta === "\n\nStopped because tool access changed."));
+    await h.scope.lifecycle.finish({ runId, status: "cancelled", code: null, signal: null, resumable: false });
+    const reply = await response;
+    assert.equal(reply.status, 200);
+    assert.deepEqual(await reply.json(), { ok: true, stoppedRunIds: [runId], failedRunIds: [] });
   } finally { await h.close(); }
 });
 

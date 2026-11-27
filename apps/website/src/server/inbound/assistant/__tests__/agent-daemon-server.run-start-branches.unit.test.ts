@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
-import type { AgentExecutorRunInput } from "@jini-ai/daemon";
+import { createInMemoryEventLog, createRunLifecycle, type AgentExecutorRunInput } from "@jini-ai/daemon";
 import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 import { CONCURRENT_RUN_REFUSAL_MESSAGE } from "../../../../assistant/agent-session-preset.js";
@@ -119,6 +119,28 @@ describe("resolveSessionBinding — which stored session a run resumes", () => {
   });
 });
 
+test("a failed durable resume clears only its attempt's dead session locator", async () => {
+  const runId = "durable-resume";
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  await lifecycle.start({ contextRef: "fixture" }, { runId });
+  const active = { cancelReason: null, message: { runStatus: "running" as const } };
+  const sessions = new Map([[runId, "dead-locator"], ["other-attempt", "other-locator"]]);
+  const clears: unknown[] = [];
+  const durable = { ...durablePort(active), clearSession: async (input: { runId: string; sessionId: string }) => {
+    clears.push(input);
+    if (sessions.get(input.runId) !== input.sessionId) return false;
+    return sessions.delete(input.runId);
+  } };
+  const run = conversationRun({ stored: "dead-locator", durable });
+  const launch = await captureDaemonRun({ conversationId: CONVERSATION, prompt: "Continue", assistantMessageId: "answer-23" },
+    { runId, lifecycle, bindings: { ...run.bindings, RUN_OWNER_RETENTION_MS: 1 } });
+  assert.equal(launch.resumeSessionId, "dead-locator");
+  await lifecycle.finish({ runId, status: "failed", code: 1, signal: null, resumable: false });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual(clears, [{ runId, sessionId: "dead-locator" }]);
+  assert.deepEqual([...sessions], [["other-attempt", "other-locator"]]);
+});
+
 describe("resolveSessionBinding — concurrency gate", () => {
   test("a concurrent live run refuses a memory-carrying agent that would lose its stored history", async () => {
     const run = conversationRun({ stored: "stored-session", concurrent: true });
@@ -199,6 +221,17 @@ describe("onStarted continuation — durable attempt ownership", () => {
 });
 
 describe("onStarted continuation — early stops and prompt assembly", () => {
+  test("a malformed run context fails with safe copy before site tools prepare", async () => {
+    const run = conversationRun();
+    const siteStarts: unknown[] = [];
+    await assert.rejects(captureDaemonRun({}, {
+      request: { contextRef: JSON.stringify({ prompt: "go" }) },
+      bindings: { ...run.bindings, siteTools: { start: async (input: unknown) => { siteStarts.push(input); } } },
+    }), { message: "The assistant could not start: the request was malformed." });
+    assert.deepEqual(siteStarts, []);
+    assert.deepEqual(run.calls.errors, ["[agent-daemon] run daemon-test-run: malformed contextRef contextRef did not decode to a non-empty 'principalId'"]);
+  });
+
   test("a refused attachment claim stops before the executor", async () => {
     await assert.rejects(captureDaemonRun({ prompt: "go" }, { bindings: { resolveAttachmentRunFields: async () => null } }),
       { message: "onStarted did not call the executor" });
@@ -206,6 +239,19 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
 
   const site = (preflight: () => Promise<{ prefix: string | null; refusalPrefix: string }>) => ({ start: async () => {}, preflight,
     withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} });
+
+  test("a CLI removed during preparation cannot launch with the earlier tool admission", async () => {
+    let launchPath: string | null = process.execPath;
+    const resolutions: Array<string | null> = [];
+    await assert.rejects(captureDaemonRun({ prompt: "go" }, { bindings: {
+      resolveAgentLaunch: () => { resolutions.push(launchPath); return { launchPath }; },
+      siteTools: site(async () => {
+        launchPath = null;
+        return { prefix: "", refusalPrefix: "" };
+      }),
+    } }), { message: "Tool access changed before this answer started. Send your message again to review it." });
+    assert.deepEqual(resolutions, [process.execPath, null]);
+  });
 
   test("a refused plugin prefix stops before the executor", async () => {
     await assert.rejects(captureDaemonRun({ prompt: "go" }, { bindings: { siteTools: site(async () => ({ prefix: null, refusalPrefix: "" })) } }),

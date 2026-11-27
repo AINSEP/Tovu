@@ -79,6 +79,32 @@ test("component requests refresh the server snapshot and fail closed without a c
   host.finish({ runId: "run" });
 });
 
+test("a component snapshot arriving after the run ended is refused rather than admitted", { timeout: 4_000 }, async () => {
+  let deliver!: (response: Response) => void;
+  let started!: () => void;
+  const waiting = new Promise<void>(resolve => { started = resolve; });
+  const requests: URL[] = [];
+  const host = createDaemonSiteTools({ baseUrl: "http://localhost:3000", token: "private", localRegistry: createToolRegistry({}), contextFor: () => ({}) }, {
+    fetch: async (input) => {
+      const url = new URL(String(input));
+      requests.push(url);
+      if (requests.length === 1) return Response.json({ tools: [] });
+      return new Promise<Response>(resolve => { deliver = resolve; started(); });
+    },
+  });
+  await host.start({ runId: "ending", principalId: "alice" });
+  const refresh = host.refreshComponents({ runId: "ending" });
+  const refused = assert.rejects(refresh, { message: "a live run is required for site discovery" });
+  await waiting;
+  host.finish({ runId: "ending" });
+  deliver(Response.json({ snapshot: { generation: "late", siteProvider: "example", providers: [] } }));
+  await refused;
+  assert.equal(requests.at(-1)?.pathname, "/internal/component-catalog");
+  assert.equal(requests.at(-1)?.search, "?runId=ending");
+  assert.throws(() => host.withRun({ runId: "ending", fn: () => host.components.describe({ id: "recharts.bar-chart" }) }),
+    { message: "a live run is required for site discovery" });
+});
+
 test("a catalog read completing after terminal cleanup cannot resurrect its principal", async () => {
   let release!: (response: Response) => void;
   const host = createDaemonSiteTools({ baseUrl: "http://localhost:3000", token: "private", localRegistry: createToolRegistry({}), contextFor: () => ({}) },

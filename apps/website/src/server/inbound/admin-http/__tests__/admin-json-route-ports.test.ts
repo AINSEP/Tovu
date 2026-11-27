@@ -12,6 +12,7 @@ import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "../authorize-guard.js";
 import { mountAdminJsonRoute, mountPublicJsonRoute } from "../admin-json-route-ports.js";
+import { listen } from "./fixtures/port-harness.js";
 
 /**
  * B8 gate for every Jini route spec mounted through the host ports: a returned parse failure, a
@@ -88,6 +89,24 @@ test("returned parse, returned handler and thrown refusal all answer in the flat
   assert.deepEqual(await s.send({ mode: "handle" }), { status: 404, body: { error: "probe not found", code: "NOT_FOUND" } });
   assert.deepEqual(await s.send({ mode: "refuse" }), { status: 409, body: { error: "probe is busy", code: "PROBE_BUSY" } });
   assert.deepEqual(await s.send({ mode: "ok" }), { status: 201, body: { done: true } });
+});
+
+test("a returned validation refusal keeps its field details in the flat admin envelope", async t => {
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "caller", kind: "user" }; next(); });
+  const spec = defineJsonRoute<void, void, object, { id: string }>({
+    method: "get", path: "/admin/report",
+    parse: () => err({ error: { code: "BAD_REQUEST", message: "Invalid report date.", details: { field: "publishedAfter" } } }),
+    handle: async () => assert.fail("a rejected input cannot start the report"),
+  });
+  mountAdminJsonRoute({ app, spec, errors: createRouteIncidentReporter().errors, deps: {
+    workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }),
+  } });
+  const server = await listen({ app });
+  t.after(server.close);
+  assert.deepEqual(await server.call("/admin/report"), { status: 400, body: {
+    code: "BAD_REQUEST", error: "Invalid report date.", details: { field: "publishedAfter" },
+  } });
 });
 
 test("the Express cap answers the exact legacy 413 before the route runs", async (t) => {

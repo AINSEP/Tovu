@@ -12,6 +12,13 @@ import { childProcessCoverageEnv } from "../../../../contracts/core/__tests__/he
 const ISOLATION_ERROR = "Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.";
 const realHome = os.userInfo().homedir;
 
+test("test-home isolation distinguishes an owner storage descendant from a sibling with the same prefix", () => {
+  const ownerStorage = path.join(realHome, ".tovu");
+  assert.throws(() => assertTestHomeIsolation({ homeDir: isolatedCatalogHome }, { paths: [path.join(ownerStorage, "site-keys")] }),
+    { message: ISOLATION_ERROR });
+  assert.equal(assertTestHomeIsolation({ homeDir: isolatedCatalogHome }, { paths: [path.join(realHome, ".tovu-fixture", "site-keys")] }), undefined);
+});
+
 test("node:test refuses an unisolated HOME before resolving the sites workspace or local site keys", () => {
   assert.ok(process.env.NODE_TEST_CONTEXT, "the guard must be exercised under node:test");
   const previousHome = process.env.HOME;

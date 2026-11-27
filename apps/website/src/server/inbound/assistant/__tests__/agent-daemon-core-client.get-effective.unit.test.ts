@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { DaemonCoreError } from '#src/assistant/daemon-core-protocol';
 import { createDaemonCoreClient } from '../agent-daemon-core-client.js';
+
+test('the private RPC client refuses a non-loopback listener, an unsupported protocol, or an absent credential', () => {
+  for (const required of [
+    { baseUrl: 'http://site.example:1234', token: 'fixture-private-rpc' },
+    { baseUrl: 'ftp://127.0.0.1:1234', token: 'fixture-private-rpc' },
+    { baseUrl: 'http://127.0.0.1:1234', token: '' },
+  ]) {
+    assert.throws(() => createDaemonCoreClient(required), (error: unknown) =>
+      error instanceof DaemonCoreError && error.code === 'DAEMON_CORE_UNAVAILABLE'
+      && error.message === "the daemon needs its site's authenticated loopback listener");
+  }
+});
 
 // The daemon reads settings through the site's RPC: what crosses the wire must be the setting
 // coordinate, never the caller's repo handle or the optional coercers bag.

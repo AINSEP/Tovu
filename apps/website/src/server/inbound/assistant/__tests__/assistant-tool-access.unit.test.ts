@@ -107,3 +107,24 @@ test('the real addressed-layer CAS returns stale instead of overwriting a concur
   assert.equal((await f.layer()).raw.concurrentField, 'keep-newer');
   assert.equal((await f.layer()).raw.byAgent, undefined);
 });
+
+test('an unexpected settings-write error propagates rather than masquerading as stale consent', async () => {
+  const f = await fixture();
+  const failure = new Error('settings storage unavailable');
+  let authorizations = 0;
+  f.afterAuthorize(() => { if (++authorizations === 2) throw failure; });
+  await assert.rejects(allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: 0, isLive: () => true }),
+    (error: unknown) => error === failure);
+  assert.equal(authorizations, 2);
+  assert.equal((await f.layer()).revisionSeq, 0);
+});
+
+test('a settings writer rejecting with null preserves the original reason without saving consent', async () => {
+  const f = await fixture();
+  let authorizations = 0;
+  f.afterAuthorize(() => { if (++authorizations === 2) return Promise.reject(null); });
+  await assert.rejects(allowAssistantRunTools({ ...f.base, keys: ['userMcp'], expectedRevisionSeq: 0, isLive: () => true }),
+    (error: unknown) => error === null);
+  assert.equal(authorizations, 2);
+  assert.equal((await f.layer()).revisionSeq, 0);
+});

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
 import { sweepOwnedTempRoots, withOwnedTempRoot, type OwnedTempRootLock } from "@jini-ai/platform/fs";
 import { captureSqliteBackupBytes } from "@jini-ai/db/transfer";
-import { bindOwnedTempRootScope, siteTempRootLock, SITE_TEMP_PREFIXES, type SiteTempPrefix } from "#src/platform/temp/site-temp-roots";
+import { bindOwnedTempRootScope, siteTempRoot, siteTempRootLock, SITE_TEMP_PREFIXES, type SiteTempPrefix } from "#src/platform/temp/site-temp-roots";
 import { rebuildImportDatabase } from "#src/features/site-backup/import-database";
 import { rewriteArchiveMedia, sanitizeShareDatabase } from "#src/features/site-backup/share-database/repo.sqlite";
 import { captureStaticSite } from "#src/features/site-backup/static-download-host";
@@ -22,6 +22,31 @@ import { createSiteTempRootPolicy } from "./temp-roots.js";
 const source = (file: string) => fs.readFileSync(new URL(file, import.meta.url), "utf8");
 const OLD = new Date(0);
 const noSpace = async () => ({ bavail: 0, bsize: 1 });
+
+test("the process temp-root binding reports failed removal and leaves the marker for tidy", async t => {
+  const parent = tempParent(t);
+  const warn = t.mock.method(console, "warn", () => {});
+  const rm = fsPromises.rm;
+  let rootToKeep: string | undefined;
+  t.mock.method(fsPromises, "rm", (target: Parameters<typeof rm>[0], options?: Parameters<typeof rm>[1]) => {
+    if (target === rootToKeep) return Promise.reject(Object.assign(new Error("simulated busy folder"), { code: "EBUSY" }));
+    return rm(target, options);
+  });
+  const work = siteTempRoot({ parent, prefix: SITE_TEMP_PREFIXES.snapshot });
+  const root = await work({ work: async ({ root }) => {
+    rootToKeep = root;
+    await fsPromises.writeFile(path.join(root, "snapshot"), "unfinished");
+    return root;
+  } });
+  assert.equal(path.dirname(root), parent);
+  assert.match(path.basename(root), /^tovu-snapshot-[a-f0-9-]{36}$/);
+  assert.equal(fs.readFileSync(path.join(root, "snapshot"), "utf8"), "unfinished");
+  assert.deepEqual(JSON.parse(fs.readFileSync(root + ".owner", "utf8")), { version: 1, prefix: "tovu-snapshot-" });
+  assert.equal(fs.existsSync(root + ".lock"), false);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [
+    [`[temp-roots] A temporary folder could not be removed yet; the daily tidy will retry: ${root}`],
+  ]);
+});
 /** A lock that always acquires: stands in for a proven-dead owner without a real process. */
 const acquiring: OwnedTempRootLock = ({ run }) => run();
 

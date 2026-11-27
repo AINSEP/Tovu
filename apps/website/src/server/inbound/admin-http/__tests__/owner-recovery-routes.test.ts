@@ -1,11 +1,14 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test, beforeEach, afterEach } from 'node:test';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { registerOwnerRecoveryRoutes } from '../owner-recovery-routes.js';
 import type { RouteDeps } from '#src/server/routes/types';
+import { createInMemoryIdentityRouteDeps } from '#src/features/identity/wiring';
+import { createPermissionGrantRegistry } from '@jini-ai/user-management/identity/permission-grants';
 
 let savedOrigin: string | undefined;
 beforeEach(() => { savedOrigin = process.env.TOVU_PUBLIC_URL; delete process.env.TOVU_PUBLIC_URL; });
@@ -15,15 +18,15 @@ afterEach(() => { if (savedOrigin === undefined) delete process.env.TOVU_PUBLIC_
 // hold for whatever writes the reply: the status, the JSON body, the headers and what was read before it.
 // It replaces the earlier harness, "Direct invocation with injected admission: no listeners, timers, Electron or real sleeps.":
 // still no timers, Electron or real sleeps; the one listener is loopback-only and closed after each request.
-function fixture(options: { caller?: string; desktop?: boolean; allowed?: boolean; failedStore?: boolean; capability?: string; local?: boolean; forwarded?: boolean } = {}) {
+function fixture(options: { caller?: string; desktop?: boolean; allowed?: boolean; failedStore?: boolean; capability?: string; local?: boolean; forwarded?: boolean; deps?: RouteDeps } = {}) {
   const app = express();
   // TLS is terminated in front of the app unless this request arrives forwarded (then plain http + x-forwarded-proto).
   app.use((req, _res, next) => { if (!options.forwarded) Object.defineProperty(req, 'protocol', { value: 'https' }); next(); });
   app.use(express.json());
   let writes = 0;
-  const deps = { workspaceId: 'workspace', identityReady: Promise.resolve(), ownerPrincipalId: Promise.resolve('owner'),
+  const deps = options.deps ?? ({ workspaceId: 'workspace', identityReady: Promise.resolve(), ownerPrincipalId: Promise.resolve('owner'),
     recoveryCodes: options.failedStore ? undefined : { clear: async () => { writes++; } },
-  } as unknown as RouteDeps;
+  } as unknown as RouteDeps);
   registerOwnerRecoveryRoutes({ errors: createRouteIncidentReporter().errors, app, deps, desktopOwnerReset: options.desktop ?? false,
     acceptsDesktopCapability: ({ capability }) => capability === "launch-proof",
     authenticate: async () => options.caller ? { id: options.caller } : null,
@@ -100,4 +103,38 @@ test('TLS forwarded by a same-origin host passes origin admission without trust 
   const result = await fixture({ forwarded: true, failedStore: true }).invoke('recover-owner');
   assert.equal(result.status, 503);
   assert.match(JSON.stringify(result.result), /owner-recovery-recover/);
+});
+
+test('the signed-in owner receives a no-store recovery kit backed by digests for that site and owner', async () => {
+  const workspaceId = 'kit-workspace';
+  const password = 'fixture-owner-passphrase';
+  const clock = { nowIso: () => '2026-11-27T00:00:00.000Z', nowMs: () => Date.parse('2026-11-27T00:00:00.000Z') };
+  let nextId = 0;
+  const idGen = { newId: () => `kit-id-${++nextId}` };
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId, clock, idGen, permissionGrants: createPermissionGrantRegistry(),
+    ownerCredentials: { username: 'fixture-owner', password } });
+  await identity.identityReady;
+  const owner = await identity.ownerPrincipalId;
+  type Store = NonNullable<RouteDeps['recoveryCodes']>;
+  const storage = new Map<string, string[]>();
+  const key = (scope: { workspaceId: string; principalId: string }) => JSON.stringify([scope.workspaceId, scope.principalId]);
+  const recoveryCodes: Store = {
+    replace: async input => { storage.set(key(input), [...input.hashes]); },
+    contains: async input => storage.get(key(input))?.includes(input.hash) ?? false,
+    clear: async input => { storage.delete(key(input)); },
+  };
+  let nextCode = 0;
+  const tokens = { newToken: () => (++nextCode).toString(16).padStart(64, '0'), hashToken: identity.tokens.hashToken.bind(identity.tokens) };
+  const deps = { ...identity, workspaceId, clock, idGen, recoveryCodes, tokens } as RouteDeps;
+  const { invoke } = fixture({ caller: owner, deps });
+  const scope = { workspaceId, principalId: owner };
+  assert.equal(storage.has(key(scope)), false);
+  const issued = await invoke('recovery-codes', { password });
+  assert.equal(issued.status, 200);
+  assert.equal(issued.headers.get('cache-control'), 'no-store');
+  const expectedCodes = Array.from({ length: 10 }, (_, index) => (index + 1).toString(16).padStart(64, '0'));
+  assert.deepEqual(issued.result, { codes: expectedCodes });
+  const expectedHashes = expectedCodes.map(code => createHash('sha256').update(JSON.stringify(['owner-recovery-v1', workspaceId, owner, code])).digest('hex'));
+  assert.deepEqual([...storage], [[key(scope), expectedHashes]]);
+  assert.deepEqual((await invoke('owner-recovery')).result, { isOwner: true, available: true, desktopOwnerReset: false });
 });
