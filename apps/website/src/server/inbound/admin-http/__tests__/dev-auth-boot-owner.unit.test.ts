@@ -187,10 +187,12 @@ test("boot proof for an owner without an enrolled factor still issues a verifiab
   await deps.identityReady;
   const principalId = await deps.ownerPrincipalId;
   const lookups: unknown[] = [];
-  deps.mfaStore = {
+  const store = deps.mfaStore;
+  assert.ok(store, "the in-memory composition wires an MFA store");
+  deps.mfaStore = { ...store,
     factor: async scope => { lookups.push(scope); return null; },
     savePending: async () => assert.fail("no factor means no pending MFA proof"),
-  } as import("@jini-ai/user-management/server").MfaStore;
+  };
   const response = bootResponse({});
   const signedIn = await redeemOwnerBootSession({ deps, res: response.res, token: "launch-proof" }, { redeem: () => true });
   assert.equal(signedIn?.id, principalId);

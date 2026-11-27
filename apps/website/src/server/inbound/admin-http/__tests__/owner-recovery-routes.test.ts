@@ -125,7 +125,7 @@ test('the signed-in owner receives a no-store recovery kit backed by digests for
   };
   let nextCode = 0;
   const tokens = { newToken: () => (++nextCode).toString(16).padStart(64, '0'), hashToken: identity.tokens.hashToken.bind(identity.tokens) };
-  const deps = { ...identity, workspaceId, clock, idGen, recoveryCodes, tokens } as RouteDeps;
+  const deps = { ...identity, workspaceId, clock, idGen, recoveryCodes, tokens } as unknown as RouteDeps;
   const { invoke } = fixture({ caller: owner, deps });
   const scope = { workspaceId, principalId: owner };
   assert.equal(storage.has(key(scope)), false);

@@ -449,11 +449,11 @@ test("delegated calls resolve the run's tracked principal, attenuated only for a
     await until(() => controls.launches.length === 1);
     const resolve = controls.delegatedDeps?.resolvePrincipal;
     assert.equal(typeof resolve, "function");
-    const tracked = resolve!({ request: { runId, toolId: "content_read", input: {} } });
+    const tracked = await resolve!({ request: { runId, toolId: "content_read", toolUseId: "use-1", input: {} } });
     assert.equal(tracked.id, "owner");
-    assert.deepEqual(resolve!({ request: { runId, toolId: "content_read", input: {}, requireReadOnly: true } }), constrainPrincipalToReadOnlyTools(tracked));
+    assert.deepEqual(await resolve!({ request: { runId, toolId: "content_read", toolUseId: "use-2", input: {}, requireReadOnly: true } }), constrainPrincipalToReadOnlyTools(tracked));
     assert.notDeepEqual(constrainPrincipalToReadOnlyTools(tracked), tracked);
-    assert.throws(() => resolve!({ request: { runId: "untracked-run", toolId: "content_read", input: {} } }), { message: 'no principal is tracked for run "untracked-run"' });
+    assert.throws(() => resolve!({ request: { runId: "untracked-run", toolId: "content_read", toolUseId: "use-3", input: {} } }), { message: 'no principal is tracked for run "untracked-run"' });
   } finally { await h.close(); }
 });
 
