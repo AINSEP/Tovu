@@ -360,6 +360,22 @@ test('detached delivery rechecks the receipt: a forged, withdrawn or stale-polic
   assert.equal(await allowed({ receiptId: id, policyVersion: f.policy }), false);
 });
 
+test('a failing exclusion check or receipt read fails closed: no proof is captured and nothing delivers', async t => {
+  const f = await publicFixture({ t });
+  const excludedChecks: unknown[] = [];
+  bindCookieConsentAnalyticsGate({ deps: f.deps }, { isExcluded: async ({ request }) => { excludedChecks.push(request); throw new Error('exclusion list unreadable'); } });
+  // The exclusion check throws before the gate reads any request field, so a header-only stand-in suffices.
+  const request = { headers: { cookie: 'jini_region=us' } } as unknown as express.Request;
+  assert.equal(await f.deps.visitorAnalyticsProof!({ request }), undefined);
+  assert.deepEqual(excludedChecks, [request]);
+  const accepted = await postChoice(f);
+  const { id } = await accepted.json() as { id: string };
+  const proof = { receiptId: id, policyVersion: f.policy };
+  assert.equal(await f.deps.visitorAnalyticsDeliveryAllowed!({ proof }), true, 'precondition: the receipt delivers while the clock reads');
+  f.deps.clock = { ...f.deps.clock, nowMs: () => { throw new Error('clock unavailable'); } };
+  assert.equal(await f.deps.visitorAnalyticsDeliveryAllowed!({ proof }), false);
+});
+
 test('US no-choice collectors allow analytics except under DNT; strict regions deny', async t => {
   const f = await publicFixture({ t });
   const send = (headers: Record<string, string>) => fetch(f.base + PLUGIN_PATH + '/collect', { method: 'POST', headers: { origin: f.base, ...headers }, body: 'event' });
