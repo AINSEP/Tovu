@@ -366,3 +366,16 @@ test("a key whose label and site-qualified label are both taken in Shared Keys g
     assert.equal(await projectToken(f, "deploy-c"), "fake-deploy-three-3333");
   } finally { await f.close(); }
 });
+
+test("a saved key whose provider column is empty is named by its label and site alone", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Deploy");
+    await f.a.kernel.execute(sql`UPDATE secrets_vault SET provider = NULL WHERE id = ${"vercel-a"}`);
+    const choices = await f.siteKeys.list({});
+    const row = choices.find(item => item.siteName === "site-a");
+    assert.ok(row, `expected a site-a row, got ${choices.map(item => item.name).join(" | ")}`);
+    assert.equal(row.name, "Deploy, site-a");
+    assert.equal(row.keyId.endsWith(":vercel-a"), true);
+  } finally { await f.close(); }
+});
