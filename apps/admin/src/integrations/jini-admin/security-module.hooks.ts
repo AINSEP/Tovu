@@ -67,9 +67,10 @@ export function SecurityModuleLoading({ useAdminLocaleHook }: { useAdminLocaleHo
   return createElement('p', { role: 'status' }, createSecurityTranslator({ locale })('loading'));
 }
 
-/** Mount the `/access-tokens` route through the host's Jini module scope; `tabId` is the route's `?tab=`. */
-export function SecurityModulePanel({ tabId }: { tabId?: string | null }, _optional: Record<string, never> = {}): ReactNode {
+/** Mount the `/access-tokens` route through the host's Jini module scope; `tabId` is the route's `?tab=`.
+ * `useAdminLocaleHook` is required: the loading status renders before any module scope can supply one. */
+export function SecurityModulePanel({ tabId, useAdminLocaleHook }: { tabId?: string | null; useAdminLocaleHook: UseAdminLocaleHook }, _optional: Record<string, never> = {}): ReactNode {
   const query = new URLSearchParams(tabId ? { tab: tabId } : {});
   return useModulePanel({ moduleId: 'security', pageId: 'secrets', route: { view: null, params: {}, query } },
-    { loadingContent: createElement(SecurityModuleLoading) }).content;
+    { loadingContent: createElement(SecurityModuleLoading, { useAdminLocaleHook }) }).content;
 }

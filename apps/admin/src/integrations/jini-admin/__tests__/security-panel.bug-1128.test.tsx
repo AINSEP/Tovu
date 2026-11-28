@@ -7,7 +7,7 @@ afterEach(cleanup);
 
 it('BUG T-B07: the Security panel shows its loading status while the admin scope is pending', () => {
   render(<AdminModulesProvider permissions={['*']} useAdminLocaleHook={() => 'en'} useAdminModulesHook={() => null}>
-    <SecurityModulePanel />
+    <SecurityModulePanel useAdminLocaleHook={() => 'en'} />
   </AdminModulesProvider>);
 
   expect(screen.getByRole('status').textContent).toBe('Loading credentials…');
