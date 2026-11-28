@@ -91,3 +91,27 @@ test('every MFA reply is no-store: origin 403, 429 with Retry-After, status 200 
     assert.ok(!text.includes('hunter2'));
   } finally { server.close(); }
 });
+
+test('owner enrollment looks up the owner by the server-selected principal before the service runs', async () => {
+  const app = express();
+  app.use(express.json());
+  const lookups: unknown[] = [];
+  const deps = { workspaceId: 'site', ownerPrincipalId: Promise.resolve('owner'), identityReady: Promise.resolve(), mfaStore: { factor: async () => null },
+    userRepo: { findByPrincipalId: async (input: unknown) => { lookups.push(input); return { username: 'site-owner' }; } },
+  } as unknown as RouteDeps;
+  registerOwnerMfaRoutes({ errors: createRouteIncidentReporter().errors, app, deps, authenticate: async () => ({ principal: { id: 'owner' }, kind: 'session' }),
+    limiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) } });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  try {
+    const enroll = await fetch(`${base}/api/admin/v1/auth/mfa/enroll`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ password: 'pw-a', principalId: 'someone-else' }) });
+    const text = await enroll.text();
+    assert.deepEqual(lookups, [{ workspaceId: 'site', principalId: 'owner', password: 'pw-a', code: '' }]);
+    // This fixture has no password store, so the service then fails: the reply stays the redacted MFA failure.
+    assert.equal(enroll.status, 500);
+    assert.equal((JSON.parse(text) as { code?: string }).code, 'MFA_UNAVAILABLE');
+    assert.ok(!text.includes('pw-a'));
+  } finally { server.close(); }
+});
