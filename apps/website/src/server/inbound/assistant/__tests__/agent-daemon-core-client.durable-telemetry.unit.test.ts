@@ -39,15 +39,15 @@ const HEAD = {
 test('durable find answers null for an absent run and the validated head for a retained one', async () => {
   const { sent, fetch } = rpc(({ input }) => ({ value: (input as { runId: string }).runId === 'run-1' ? HEAD : null }));
   const client = createDaemonCoreClient(BASE, { fetch });
-  assert.equal(await client.durable.find({ runId: 'missing' } as never), null);
-  assert.deepEqual(await client.durable.find({ runId: 'run-1' } as never), HEAD);
+  assert.equal(await client.durable.find({ runId: 'missing' } as never, {}), null);
+  assert.deepEqual(await client.durable.find({ runId: 'run-1' } as never, {}), HEAD);
   assert.deepEqual(sent, [{ operation: 'find', input: { runId: 'missing' } }, { operation: 'find', input: { runId: 'run-1' } }]);
 });
 
 test('durable find refuses a retained head without its authority fields instead of using it', async () => {
   const { fetch } = rpc(() => ({ value: { ...HEAD, workspaceId: undefined, principalId: 7 } }));
   const client = createDaemonCoreClient(BASE, { fetch });
-  await assert.rejects(client.durable.find({ runId: 'run-1' } as never), (error: unknown) =>
+  await assert.rejects(client.durable.find({ runId: 'run-1' } as never, {}), (error: unknown) =>
     error instanceof Error && error.name === 'ZodError' && /workspaceId/.test(error.message) && /principalId/.test(error.message));
 });
 
@@ -55,18 +55,18 @@ test('the durable session and tool-ledger operations send their own operation na
   const answers: Record<string, unknown> = { captureSession: true, clearSession: null, guardTool: 'stale', completeTool: null, sessionForAttempt: 'sess-9' };
   const { sent, fetch } = rpc(({ operation }) => ({ value: answers[operation] }));
   const client = createDaemonCoreClient(BASE, { fetch });
-  assert.equal(await client.durable.captureSession({ runId: 'run-1', sessionId: 's' } as never), true);
-  assert.equal(await client.durable.clearSession({ runId: 'run-1' } as never), undefined);
-  assert.equal(await client.durable.guardTool({ runId: 'run-1', toolUseId: 't' } as never), 'stale');
-  assert.equal(await client.durable.completeTool({ runId: 'run-1', toolUseId: 't' } as never), undefined);
+  assert.equal(await client.durable.captureSession({ runId: 'run-1', sessionId: 's' } as never, {}), true);
+  assert.equal(await client.durable.clearSession({ runId: 'run-1' } as never, {}), undefined);
+  assert.equal(await client.durable.guardTool({ runId: 'run-1', toolUseId: 't' } as never, {}), 'stale');
+  assert.equal(await client.durable.completeTool({ runId: 'run-1', toolUseId: 't' } as never, {}), undefined);
   assert.equal(await client.getSessionForAttempt({ runId: 'run-1' }), 'sess-9');
   assert.deepEqual(sent.map(request => request.operation), ['captureSession', 'clearSession', 'guardTool', 'completeTool', 'sessionForAttempt']);
   assert.deepEqual(sent[2]!.input, { runId: 'run-1', toolUseId: 't' });
 
   answers.guardTool = 'granted';
-  await assert.rejects(client.durable.guardTool({ runId: 'run-1', toolUseId: 't' } as never), { name: 'ZodError' });
+  await assert.rejects(client.durable.guardTool({ runId: 'run-1', toolUseId: 't' } as never, {}), { name: 'ZodError' });
   answers.captureSession = 'yes';
-  await assert.rejects(client.durable.captureSession({ runId: 'run-1', sessionId: 's' } as never), { name: 'ZodError' });
+  await assert.rejects(client.durable.captureSession({ runId: 'run-1', sessionId: 's' } as never, {}), { name: 'ZodError' });
   answers.sessionForAttempt = null;
   assert.equal(await client.getSessionForAttempt({ runId: 'run-1' }), null);
 });
@@ -88,6 +88,7 @@ test('the trace sink starts at the requested capture level and follows the level
   assert.equal(sink.capture, 'off', 'a later RPC envelope carries the live provider policy');
   const event = { kind: 'span', name: 'model-call' } as unknown as AiTraceEvent;
   sink.record(event);
+  assert.ok(sink.flush, "the trace sink drains through the client");
   await sink.flush();
   assert.deepEqual(sent.slice(1), [{ operation: 'telemetryTrace', input: event }, { operation: 'telemetryFlush', input: {} }]);
 });
