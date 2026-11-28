@@ -127,3 +127,13 @@ test('a payment migration that fails during warmup is retried on the next worker
   assert.equal(paymentMigrations, 2, 'the failed migration is attempted again');
   assert.doesNotMatch(outcome, /boom/);
 });
+
+test('a payment alert with no payment id is de-duplicated by its kind and detail', async t => {
+  reset(); capturedAlerts = undefined; const { warnings } = fixture(t); await settled();
+  const alerts = capturedAlertPort(); assert.ok(alerts, 'the composition hands its alert port to the inbox worker');
+  const raise = (kind: 'inbox-dead-letter' | 'quarantine', detail: string) => alerts.raise({ alert: { kind, workspaceId: 'ws', mode: 'live', paymentId: null, detail } });
+  await raise('inbox-dead-letter', 'row-a'); await raise('inbox-dead-letter', 'row-a');
+  await raise('inbox-dead-letter', 'row-b'); await raise('quarantine', 'row-a');
+  assert.deepEqual(warnings.filter(line => line.startsWith('Payment settlement needs attention: ')).map(line => JSON.parse(line.slice('Payment settlement needs attention: '.length)) as { kind: string; detail: string })
+    .map(({ kind, detail }) => `${kind}/${detail}`), ['inbox-dead-letter/row-a', 'inbox-dead-letter/row-b', 'quarantine/row-a']);
+});
