@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "@jini-ai/cms/settings/site/admin-interface";
 import { createSiteRouteDeps } from "../../deps.js";
 import type { SiteStore } from "../../open-site-store.js";
 
@@ -116,4 +117,20 @@ test("visitor analytics proof: analytics off or an excluded visitor never reads 
   // No consent cookie was sent, so the included visitor still has no proof; reading the cookie is what tells the outcomes apart.
   assert.deepEqual(await visit({ dnt: "0" }), { proof: undefined, cookieRead: true }, "included visitor");
   assert.deepEqual(asked, [{ workspaceId: deps.workspaceId }, { workspaceId: deps.workspaceId }, { workspaceId: deps.workspaceId }]);
+});
+
+test("saving the chat agent-plugin mode writes through the finished deps' current settings write, read again on every save", async t => {
+  const { deps } = await bootSite(t);
+  const writes: Array<{ by: string; args: unknown[] }> = [];
+  const replaceSet = (by: string) => { deps.set = (async (...args: unknown[]) => { writes.push({ by, args }); }) as unknown as Deps["set"]; };
+  replaceSet("first");
+  await deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: "user-7", expectedRevisionSeq: 3 });
+  replaceSet("second");
+  await deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: "user-8", expectedRevisionSeq: 4 });
+  assert.deepEqual(writes.map(write => write.by), ["first", "second"]);
+  const [required, optional] = writes[0].args as [{ input: unknown }, unknown];
+  assert.deepEqual(required.input, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: "auto", scope: "user",
+    workspaceId: deps.workspaceId, principalId: "user-7", callerPrincipalId: "user-7", authWorkspaceId: deps.workspaceId });
+  assert.deepEqual(optional, { expectedRevisionSeq: 3 });
+  assert.deepEqual(writes[1].args[1], { expectedRevisionSeq: 4 });
 });
