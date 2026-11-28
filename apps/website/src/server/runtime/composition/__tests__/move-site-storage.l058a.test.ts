@@ -49,3 +49,35 @@ test("a broken site metadata file is reported as a storage move validation error
   assert.equal(fs.readFileSync(meta, "utf8"), '{"storage":');
   assert.deepEqual(fs.readdirSync(siteDir), [".site-meta.json"]);
 });
+
+test("a lock that names no process yet still refuses the move as a running site, with the process unknown", async (t) => {
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "move-pidless-lock-"));
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const meta = JSON.stringify({ storage: { kind: "pglite" } });
+  fs.writeFileSync(path.join(siteDir, ".site-meta.json"), meta);
+  const dataDir = path.join(siteDir, "pglite");
+  fs.mkdirSync(dataDir);
+  // A just-created lock file without its pid: a starter between create and write (fresh, so not stale).
+  fs.writeFileSync(path.join(dataDir, "tovu-owner.pid"), "");
+  await assert.rejects(moveSiteStorage({ siteDir, connectionString: "unused", secretRef: "site" }), (error: unknown) => {
+    assert(error instanceof ValidationError);
+    assert.equal(error.message, "storage move: the site is running (process unknown); stop it, then move it");
+    return true;
+  });
+  assert.equal(fs.readFileSync(path.join(siteDir, ".site-meta.json"), "utf8"), meta);
+});
+
+test("a lock failure that is not a running site propagates as itself, not as a storage move refusal", async (t) => {
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "move-lock-error-"));
+  t.after(() => fs.rmSync(siteDir, { recursive: true, force: true }));
+  const meta = JSON.stringify({ storage: { kind: "pglite" } });
+  fs.writeFileSync(path.join(siteDir, ".site-meta.json"), meta);
+  // The data dir "exists" but is a plain file, so the owner lock cannot be created inside it.
+  fs.writeFileSync(path.join(siteDir, "pglite"), "not a directory");
+  await assert.rejects(moveSiteStorage({ siteDir, connectionString: "unused", secretRef: "site" }), (error: unknown) => {
+    assert.equal(error instanceof ValidationError, false);
+    assert.equal((error as NodeJS.ErrnoException).code, "ENOTDIR");
+    return true;
+  });
+  assert.equal(fs.readFileSync(path.join(siteDir, ".site-meta.json"), "utf8"), meta);
+});
