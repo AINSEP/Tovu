@@ -39,6 +39,8 @@ const EXCHANGE_PATH = "/api/admin/v1/mcp-ui/tool-calls";
 let launches: string[] = [];
 let cancels: string[] = [];
 let answers: Array<{ principal: string | undefined; body: unknown }> = [];
+/** The bearer each exchange answer carried, kept beside `answers` so its shape stays as the tests read it. */
+let answerBearers: Array<string | undefined> = [];
 let lastEventIds: Array<string | undefined> = [];
 /** AG-UI segment subscriptions to the daemon event stream still held open (decremented on the
  *  response's own close). */
@@ -122,6 +124,7 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
       }
       if (req.method === "POST" && url === EXCHANGE_PATH) {
         answers.push({ principal: req.headers[RUN_PRINCIPAL_HEADER.toLowerCase()] as string | undefined, body });
+        answerBearers.push(req.headers.authorization);
         // Like the real exchange store: the first answer is delivered, a later one finds it closed.
         res.writeHead(answers.length === 1 ? 202 : 409, { "content-type": "application/json" }).end("{}");
         return;
@@ -189,7 +192,7 @@ async function boot(t: import("node:test").TestContext) {
     byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler, clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   { approvals }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
-  launches = []; cancels = []; answers = []; lastEventIds = []; openEventStreams = 0; mode = "approval";
+  launches = []; cancels = []; answers = []; answerBearers = []; lastEventIds = []; openEventStreams = 0; mode = "approval";
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   const conversationId = `conv-${randomUUID()}`;
@@ -286,6 +289,54 @@ test("admin resume by another owner or for another run is refused in plain words
   const owner = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId }) });
   assert.equal(owner.status, 200, "the owner's claim survived every refused probe");
   assert.equal(answers.length, 1);
+});
+
+test("a resume whose addressing is malformed is refused before any claim, and the owner's card stays answerable", { timeout: 60_000 }, async (t) => {
+  const { baseUrl, cookie, conversationId } = await boot(t);
+  const first = await startTurn({ baseUrl, cookie, conversationId });
+  const interruptId = first.finished.outcome!.interrupts[0]!.id;
+  const entry = { interruptId, status: "resolved", payload: "allow" };
+  const base = JSON.parse(resumeBody({ conversationId, parentRunId: first.runId, interruptId })) as Record<string, unknown>;
+  for (const [label, patch] of [
+    ["no resume entry", { resume: [] }],
+    ["two resume entries", { resume: [entry, entry] }],
+    ["a null resume entry", { resume: [null] }],
+    ["an interrupt id past 128 characters", { resume: [{ ...entry, interruptId: "i".repeat(129) }] }],
+    ["an empty interrupt id", { resume: [{ ...entry, interruptId: "" }] }],
+    ["a non-string run id", { runId: 7 }],
+    ["a run id past 128 characters", { runId: "r".repeat(129) }],
+  ] as const) {
+    const refused = await resume({ baseUrl, cookie, body: JSON.stringify({ ...base, ...patch }) });
+    assert.deepEqual([refused.status, refused.text], [400, REFUSAL], label);
+  }
+  assert.equal(answers.length, 0, "no malformed resume reached the daemon");
+  const owner = await resume({ baseUrl, cookie, body: resumeBody({ conversationId, parentRunId: first.runId, interruptId, runId: "r".repeat(128) }) });
+  assert.equal(owner.status, 200, "a 128-character run id is in bounds and the parked claim survived every refusal");
+  assert.equal(answers.length, 1);
+});
+
+test("the daemon exchange answer carries the bearer only when a token exists, and a refused or unreachable daemon is a failed answer", { timeout: 60_000 }, async (t) => {
+  await boot(t);
+  const { answerDaemonApprovalExchange } = await import("../runtime/composition/modules/assistant-ag-ui.js");
+  assert.equal(await answerDaemonApprovalExchange({ owner: "owner-a", toolId: "posts.delete", exchangeId: "ex-7", allow: false }), true, "a 202 is a delivered answer");
+  const savedToken = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  const savedUrl = process.env.JINI_AGENT_DAEMON_URL;
+  t.after(() => { process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = savedToken; process.env.JINI_AGENT_DAEMON_URL = savedUrl; });
+  delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  assert.equal(await answerDaemonApprovalExchange({ owner: "owner-b", toolId: "posts.delete", exchangeId: "ex-8", allow: true }), false, "a 409 is not a delivered answer");
+  assert.deepEqual(answers, [
+    { principal: "owner-a", body: { toolName: "posts.delete", params: { __exchangeId: "ex-7", decision: "cancel" } } },
+    { principal: "owner-b", body: { toolName: "posts.delete", params: { __exchangeId: "ex-8", decision: "confirm" } } },
+  ]);
+  assert.deepEqual(answerBearers, [`Bearer ${TOKEN}`, undefined], "no token means no authorization header at all");
+  const closed = createServer();
+  closed.listen(0, "127.0.0.1");
+  await once(closed, "listening");
+  const port = (closed.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => closed.close(() => resolve()));
+  process.env.JINI_AGENT_DAEMON_URL = `http://127.0.0.1:${port}`;
+  assert.equal(await answerDaemonApprovalExchange({ owner: "owner-c", toolId: "posts.delete", exchangeId: "ex-9", allow: true }), false, "a daemon that refuses the connection is a failed answer, not a throw");
+  assert.equal(answers.length, 2);
 });
 
 test("replayed admin resume does nothing", { timeout: 60_000 }, async (t) => {

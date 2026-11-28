@@ -34,7 +34,9 @@ const TOKEN = "e".repeat(64);
 const launched = new Set<string>();
 let launches: Array<{ runId?: string; idempotencyKey?: string; contextRef?: string }> = [];
 let cancels: string[] = [];
-let eventsMode: "answer" | "stays-open" | "held" = "answer";
+let eventsMode: "answer" | "stays-open" | "held" | "late-headers" = "answer";
+/** `late-headers`: the stand-in's event stream closed by the server before or after it answered. */
+let lateStreamClosed: Promise<void> | null = null;
 let subscribed: (() => void) | null = null;
 let release: (() => void) | null = null;
 /** Event streams the stand-in leaves open (`stays-open`, `held`). The server's run finalizer follows
@@ -63,8 +65,10 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
       if (req.method === "POST" && url === "/api/runs") {
         const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { runId?: string; idempotencyKey?: string; contextRef?: string };
         launches.push(body);
-        if (body.runId) launched.add(body.runId);
-        res.writeHead(201, { "content-type": "application/json" }).end(JSON.stringify({ run: { id: body.runId } }));
+        // The legacy start sends no run id; like the real daemon, the stand-in mints one.
+        const id = body.runId ?? `legacy-${launches.length}`;
+        launched.add(id);
+        res.writeHead(201, { "content-type": "application/json" }).end(JSON.stringify({ run: { id } }));
         return;
       }
       const events = url.match(/^\/api\/runs\/([^/?]+)\/events/);
@@ -72,6 +76,14 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         const runId = decodeURIComponent(events[1]!);
         // Like the real daemon, a run that was never launched has no event stream.
         if (!launched.has(runId)) { res.writeHead(404, { "content-type": "application/json" }).end(JSON.stringify({ error: "run not found" })); return; }
+        // Only the AG-UI segment's own subscription (`node:http`, no user agent) answers late; the
+        // durable transcript watch (global fetch, UA "node") answers as an ordinary finished run.
+        if (eventsMode === "late-headers" && req.headers["user-agent"] !== "node") {
+          lateStreamClosed = new Promise<void>((resolve) => { res.on("close", () => resolve()); });
+          release = () => { res.writeHead(200, { "content-type": "text/event-stream" }); res.flushHeaders(); keepOpen(runId, res); };
+          subscribed?.();
+          return;
+        }
         res.writeHead(200, { "content-type": "text/event-stream" });
         subscribed?.();
         if (eventsMode !== "answer") keepOpen(runId, res);
@@ -124,12 +136,12 @@ async function boot(t: import("node:test").TestContext) {
   createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }),
     byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
-  launches = []; cancels = []; eventsMode = "answer"; subscribed = null; release = null;
+  launches = []; cancels = []; eventsMode = "answer"; subscribed = null; release = null; lateStreamClosed = null;
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   // The owner's conversation exists first, as the admin chat creates it before any run starts.
   const history = deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: me.user.id });
-  for (const id of ["conv-attach-1", "conv-attach-2", "conv-attach-3", "conv-durable-1", "conv-durable-2", "conv-stop-1", "conv-stop-2", "conv-stop-3", "conv-stop-4"]) await history.create({ id });
+  for (const id of ["conv-attach-1", "conv-attach-2", "conv-attach-3", "conv-durable-1", "conv-durable-2", "conv-stop-1", "conv-stop-2", "conv-stop-3", "conv-stop-4", "conv-agent-1", "conv-agent-2", "conv-legacy-1", "conv-detach-1"]) await history.create({ id });
   return { baseUrl, cookie, deps };
 }
 
@@ -350,4 +362,70 @@ test("an AG-UI Stop of one run leaves another run's attachments and staging unto
   assert.deepEqual((JSON.parse(other!.request.contextRef) as { attachmentIds?: string[] }).attachmentIds, ["att-b"]);
   assert.deepEqual(parseRunStartContextRef({ contextRef: launches[1]!.contextRef! }).attachmentIds, ["att-b"], "each run stages only its own attachments");
   for (const reader of readers) await reader.cancel().catch(() => undefined);
+});
+
+function agUiBody({ conversationId, messageId, agentId }: { conversationId: unknown; messageId: unknown; agentId?: string }): string {
+  return JSON.stringify({ threadId: "client-thread", runId: "client-segment-1", messages: [{ role: "user", content: "hello" }],
+    forwardedProps: { ...(agentId ? { agentId } : {}), durableRun: { conversationId, assistantMessageId: messageId } } });
+}
+
+test("a durable start carries the chosen agent only when one was sent, and a conversation the owner does not have answers 404", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  const ledger = ctx.deps.chatRunLedger.durable!;
+  const withAgent = await postAttachment(ctx, agUiBody({ conversationId: "conv-agent-1", messageId: "msg-agent-1", agentId: "codex" }));
+  assert.equal(withAgent.status, 200, await withAgent.clone().text());
+  await withAgent.text();
+  assert.equal((await ledger.load({ messageId: "msg-agent-1" }, {}))?.request.agentId, "codex", "the chosen agent is accepted with the run");
+  const agentless = await postAttachment(ctx, agUiBody({ conversationId: "conv-agent-2", messageId: "msg-agent-2" }));
+  assert.equal(agentless.status, 200, await agentless.clone().text());
+  await agentless.text();
+  const accepted = await ledger.load({ messageId: "msg-agent-2" }, {});
+  assert.equal(accepted?.conversationId, "conv-agent-2");
+  assert.equal(Object.hasOwn(accepted!.request, "agentId"), false, "no agent was sent, so the accepted request names none");
+
+  const missing = await postAttachment(ctx, agUiBody({ conversationId: "conv-not-created", messageId: "msg-missing-1", agentId: "claude" }));
+  assert.equal(missing.status, 404);
+  assert.deepEqual(await missing.json(), { error: "not found", code: "NOT_FOUND" });
+  assert.equal(await ledger.load({ messageId: "msg-missing-1" }, {}), null, "nothing is accepted for a conversation the owner does not have");
+  assert.equal(launches.length, 2, "the refused start launches nothing");
+});
+
+test("a malformed durable identity keeps the legacy per-request start and accepts nothing durably", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  const ledger = ctx.deps.chatRunLedger.durable!;
+  for (const [label, conversationId, messageId] of [
+    ["a non-string conversation id", 42, "msg-legacy-1"],
+    ["a non-string message id", "conv-legacy-1", 42],
+    ["a conversation id with characters outside the id alphabet", "conv legacy/1", "msg-legacy-2"],
+    ["a message id past 128 characters", "conv-legacy-1", "m".repeat(129)],
+  ] as const) {
+    launches = [];
+    const res = await postAttachment(ctx, agUiBody({ conversationId, messageId, agentId: "claude" }));
+    assert.equal(res.status, 200, `${label}: ${await res.clone().text()}`);
+    const events = parse(await res.text());
+    assert.equal(events.find((e) => e.type === "RUN_STARTED")?.runId, "client-segment-1", `${label}: the legacy stream keeps the client's own segment id`);
+    assert.equal(events.filter((e) => e.type === "TEXT_MESSAGE_CONTENT" && e.delta === "Durable answer.").length, 1, `${label}: the daemon run the legacy start launched is followed`);
+    assert.equal(launches.length, 1, label);
+    assert.equal(launches[0]?.idempotencyKey, undefined, `${label}: the legacy start carries no durable idempotency key`);
+    assert.doesNotMatch(launches[0]?.contextRef ?? "", /assistantMessageId/, `${label}: no durable identity reaches the daemon`);
+  }
+  for (const messageId of ["msg-legacy-1", "msg-legacy-2"]) assert.equal(await ledger.load({ messageId }, {}), null, `${messageId} was not durably accepted`);
+});
+
+test("a durable reader that leaves while the daemon's event stream is still connecting detaches it without a Stop", { timeout: 60_000 }, async (t) => {
+  const ctx = await boot(t);
+  eventsMode = "late-headers";
+  const subscribing = new Promise<void>((resolve) => { subscribed = resolve; });
+  const controller = new AbortController();
+  const pending = postDurable(ctx, { conversationId: "conv-detach-1", messageId: "msg-detach-1", signal: controller.signal }).catch((error: unknown) => error);
+  await subscribing;
+  controller.abort();
+  assert.ok((await pending) instanceof Error, "the client gave up before any response");
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  release?.();
+  const closedInTime = await Promise.race([lateStreamClosed!.then(() => true), new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000))]);
+  assert.equal(closedInTime, true, "the late subscription is closed as soon as it connects");
+  assert.deepEqual(cancels, [], "leaving before the stream connected is a detach, not a Stop");
+  const run = await ctx.deps.chatRunLedger.durable!.load({ messageId: "msg-detach-1" }, {});
+  assert.equal(run?.cancelReason ?? null, null, "the owned run keeps going");
 });
