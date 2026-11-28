@@ -41,6 +41,8 @@ test("bearerToken reads the token from an Authorization header, case-insensitive
   assert.equal(bearerToken({ header: "  bearer   tok  " }), "tok");
   assert.equal(bearerToken({ header: "Basic dXNlcg==" }), undefined);
   assert.equal(bearerToken({ header: "Bearer" }), undefined);
+  assert.equal(bearerToken({ header: "Bearer abc\ndef" }), undefined, "a token carrying a line break is never accepted");
+  assert.equal(bearerToken({ header: "Bearer abc\u2028def" }), undefined);
 });
 
 test("the bridge gate denies by default and binds a delegated call to the credential's own run", () => {
@@ -398,6 +400,44 @@ test("Antigravity installs its static connector before a desktop turn and refuse
   });
   await assert.rejects(blocked.chat.startTurn({ prompt: "hello", agentId: "antigravity" }), /not been approved/);
   assert.equal(blocked.runs.length, 0);
+});
+
+test("without HOME the connector installs under the Windows USERPROFILE home", async t => {
+  const installed: { ctx: { home: string } }[] = [];
+  const h = await harness(t, {
+    readFullCliAccess: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
+    readLoginShellEnvironment: async () => ({}),
+    installOwnedJsonAgent: async input => { installed.push(input); },
+    env: { USERPROFILE: "/fixture-profile" },
+    run: async (required, lifecycle) => {
+      await lifecycle.finish({ runId: required.runId, status: "succeeded", code: 0, signal: null, resumable: false });
+    },
+  });
+  const { runId } = await h.chat.startTurn({ prompt: "hello", agentId: "antigravity" });
+  await h.chat.lifecycle.waitForTerminal({ runId });
+  assert.deepEqual(installed.map(input => input.ctx.home), ["/fixture-profile"]);
+});
+
+test("with no installer injected, Jini's own installer writes the static bridge into the agent's config under HOME", async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-agent-home-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const h = await harness(t, {
+    readFullCliAccess: async () => assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }),
+    readLoginShellEnvironment: async () => ({}),
+    mcpServeScript: "/app/bridge.js",
+    env: { HOME: home },
+    run: async (required, lifecycle) => {
+      await lifecycle.finish({ runId: required.runId, status: "succeeded", code: 0, signal: null, resumable: false });
+    },
+  });
+  const { runId } = await h.chat.startTurn({ prompt: "hello", agentId: "antigravity" });
+  await h.chat.lifecycle.waitForTerminal({ runId });
+  const written = (fs.readdirSync(home, { recursive: true }) as string[])
+    .map(rel => path.join(home, rel)).filter(file => fs.statSync(file).isFile()).map(file => fs.readFileSync(file, "utf8"));
+  const configs = written.filter(text => text.includes("/app/bridge.js"));
+  assert.equal(configs.length, 1, "exactly one agent config names the bridge");
+  assert.match(configs[0]!, /"jini"/);
+  assert.doesNotMatch(configs[0]!, /JINI_DAEMON_TOKEN|JINI_RUN_ID/);
 });
 
 test("failure to publish the start error cannot prevent the run from becoming terminal", async (t) => {
