@@ -3,6 +3,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { agentPluginSourceDir } from '../../../../../../../development/test-support/agent-plugin-source.mjs';
 import type { AgentPluginLayout } from '@jini-ai/core/contracts/headless/plugin-host';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
 import { createPluginCredentialCardsLoader } from '../plugin-credential-cards.js';
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
 
@@ -262,4 +264,36 @@ test('without a refusal sink, refusals go to the console under the module prefix
   });
   assert.deepEqual(await load('workspace'), [mail]);
   assert.deepEqual(warned.mock.calls.map(call => call.arguments), [['[plugin-credential-cards] card refused for a test']]);
+});
+
+/** Materializes an enabled bundled plugin package in the fixture's real agent-plugin layout. */
+async function installEnabledPlugin({ layout, workspaceId, pluginId, digest, files }: { layout: AgentPluginLayout; workspaceId: string; pluginId: string; digest: string; files: Record<string, unknown> }, _options = {}) {
+  const workspace = layout.forWorkspace({ workspaceId });
+  const pluginDir = path.join(workspace.pluginPackagesDir({ pluginId }), digest);
+  await mkdir(pluginDir, { recursive: true });
+  for (const [name, body] of Object.entries(files)) await writeFile(path.join(pluginDir, name), JSON.stringify(body));
+  return workspace.root;
+}
+
+// Mutations: the default `loadContributions` ignores the lifecycle (`?? (async () => ({ items: [], refusals: [] }))`, l.52);
+// the default `readFile` returns '{}' instead of reading the trusted package (l.44).
+test('with no injected ports, the lifecycle over the site layout supplies active plugin cards and the files that prove ownership', async (t) => {
+  const fixture = createTempSiteLayoutFixture({}); t.after(fixture.cleanup);
+  const layout = fixture.deps.agentPluginLayout;
+  const relayCard = { ...declaredCard, target: 'relay-card', label: 'Relay key', ownedApiLabel: undefined };
+  const plugins = { 'relay-mail': 'b'.repeat(64), 'relay-other': 'c'.repeat(64) };
+  const plugin = (pluginId: string, card: unknown) => ({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: pluginId, version: '1.0.0', extensions: { tovu: { id: `test/${pluginId}`, credentialCards: [card] } } });
+  await installEnabledPlugin({ layout, workspaceId: 'ws-cards', pluginId: 'relay-mail', digest: plugins['relay-mail'], files: {
+    'plugin.json': plugin('relay-mail', relayCard),
+    'jini-mail-adapters.json': { schemaVersion: 1, adapters: [{ id: 'relay', label: 'Relay', module: 'mail.mjs', credentialLabel: 'Relay key' }] },
+  } });
+  const root = await installEnabledPlugin({ layout, workspaceId: 'ws-cards', pluginId: 'relay-other', digest: plugins['relay-other'], files: { 'plugin.json': plugin('relay-other', { ...relayCard, target: 'other-card' }) } });
+  const enabled = { enabled: true, origin: 'bundled', updatedAt: '2026-11-20T00:00:00Z', updatedBy: 'owner' };
+  await writeFile(path.join(root, 'bundled-digests.json'), JSON.stringify({ schemaVersion: 1, plugins: Object.fromEntries(Object.entries(plugins).map(([id, archiveDigest]) => [id, { archiveDigest }])) }));
+  await writeFile(path.join(root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { 'relay-mail': enabled, 'relay-other': enabled } }));
+  const refusals: string[] = [];
+  const load = createPluginCredentialCardsLoader({ agentPluginLayout: layout, loadMailCards: async () => [mail] }, { onRefusal: message => refusals.push(message) });
+  const cards = await load('ws-cards');
+  assert.deepEqual(cards.map(card => [card.providerId, card.pluginId, card.label]), [['mail', undefined, 'Mail'], ['relay-card', 'relay-mail', 'Relay key']]);
+  assert.deepEqual(refusals, ["credential card 'other-card' from 'relay-other' was refused: destination is not owned by this plugin"]);
 });
