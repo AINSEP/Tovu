@@ -106,6 +106,29 @@ test("foreign file in ops is ignored", async t => {
   assert.deepEqual(await names(opsDir), [...foreign, ...[3, 4, 5, 6, 7].map(stamp)].sort());
 });
 
+test("an abort between ops folders stops the pass before the next folder", async t => {
+  const first = await opsFixture(t, [1, 2, 3, 4, 5, 6, 7]);
+  const second = await opsFixture(t, [1, 2, 3, 4, 5, 6, 7]);
+  const controller = new AbortController();
+  const coordinator = createCopyCoordinator({}, {});
+  const entered: string[] = [];
+  const mutex = {
+    held: coordinator.held,
+    runExclusive: async <T>(required: { opsDir: string; work: () => Promise<T> }) => {
+      entered.push(required.opsDir);
+      const result = await coordinator.runExclusive(required);
+      controller.abort();
+      return result;
+    },
+  };
+  const policy = createDatabaseCopyPolicy({ opsDirs: [first, second], verify: async () => true, listProtected: async () => [],
+    mutex, fs, selectCopies: selectDatabaseCopiesToPrune, signal: controller.signal });
+  assert.deepEqual(await policy.sweep({ now: 0 }), { removed: 2, freedBytes: 20 });
+  assert.deepEqual(entered, [first]);
+  assert.deepEqual(await names(first), [3, 4, 5, 6, 7].map(stamp));
+  assert.equal((await names(second)).length, 7, "the folder after the abort is never entered");
+});
+
 test("migration callback uses pruneMigrationCopies", () => {
   const contentDb = readFileSync(new URL("../../../../platform/db/sqlite/content-db.ts", import.meta.url), "utf8");
   assert.match(contentDb, /onBackupComplete:[\s\S]*?pruneMigrationCopies\(/);
