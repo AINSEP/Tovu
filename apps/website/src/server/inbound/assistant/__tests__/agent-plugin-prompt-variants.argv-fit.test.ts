@@ -146,3 +146,17 @@ test("catalog overflow uses paged discovery without dropping a pin", { timeout: 
   assert.equal(bytes(composed(pick(variants, "catalog"))), LIMIT + 1, "the rejected catalog kept the pin and was one byte over");
   assert.deepEqual(commits, [{ runId, offerId: "offer-1", deliveredIds: [] }]);
 });
+
+test("the executor's cancellation signal is forwarded to the commit, and no signal is invented without one", async () => {
+  const seen: Array<{ required: Commit; optional: { signal?: AbortSignal } | undefined }> = [];
+  const selection = pluginPromptSelection({ offer: offerOf({ fullPrefix: "full guidance", catalogPrefix: "catalog" }), variants: [],
+    commit: async (required, optional) => { seen.push({ required: { ...required, deliveredIds: [...required.deliveredIds] }, optional }); } });
+  const controller = new AbortController();
+  await selection.onSelected({ runId: "run-signal", id: "full" }, { signal: controller.signal });
+  await selection.onSelected({ runId: "run-plain", id: "catalog" });
+  assert.equal(seen.length, 2);
+  assert.deepEqual(seen[0]?.required, { runId: "run-signal", offerId: "offer-1", deliveredIds: ["holography"] });
+  assert.equal(seen[0]?.optional?.signal, controller.signal);
+  assert.deepEqual(seen[1]?.required, { runId: "run-plain", offerId: "offer-1", deliveredIds: [] });
+  assert.deepEqual(seen[1]?.optional, {});
+});
