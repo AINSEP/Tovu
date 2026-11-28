@@ -4,6 +4,8 @@ import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
 
 const failure = () => Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' });
+let paymentMigrations = 0; let paymentMigrationFailures = 0;
+let workerRun: (() => Promise<void>) | undefined;
 let activeFailure = false; let probeFailure = false; let configFailure = false; let ledgerFailure = false; let storageExists = false;
 const database = await import('@jini-ai/db/kernel');
 mock.module('@jini-ai/db/kernel', { namedExports: { ...database, tableExists: async () => { if (probeFailure) throw failure(); return storageExists; } } });
@@ -15,12 +17,12 @@ mock.module('@jini-ai/commerce/repo', { namedExports: { ...repo, commerceStorefr
 }) } });
 const sql = await import('@jini-ai/commerce/payments/ledger/sql');
 mock.module('@jini-ai/commerce/payments/ledger/sql', { namedExports: { ...sql,
-  migrateCommercePayments: async () => {}, sqlPaymentsLedger: () => ({ transaction: async () => { if (ledgerFailure) throw failure(); return false; } }),
+  migrateCommercePayments: async () => { paymentMigrations += 1; if (paymentMigrationFailures > 0) { paymentMigrationFailures -= 1; throw failure(); } }, sqlPaymentsLedger: () => ({ transaction: async () => { if (ledgerFailure) throw failure(); return false; } }),
 } });
 const drain = await import('../commerce-drain.js');
 mock.module(new URL('../commerce-drain.js', import.meta.url).href, { namedExports: { ...drain, readCommerceDrain: async () => null } });
 const worker = await import('../commerce-worker.js');
-mock.module(new URL('../commerce-worker.js', import.meta.url).href, { namedExports: { ...worker, createCommerceWorker: () => ({ kick: async () => {}, close: async () => {} }) } });
+mock.module(new URL('../commerce-worker.js', import.meta.url).href, { namedExports: { ...worker, createCommerceWorker: (options: { run: () => Promise<void> }) => { workerRun = options.run; return { kick: async () => {}, close: async () => {} }; } } });
 const settings = await import('@jini-ai/commerce');
 mock.module('@jini-ai/commerce', { namedExports: { ...settings, readCommerceConfiguration: async () => { if (configFailure) throw failure(); return null; } } });
 const paymentsKernel = await import('@jini-ai/commerce/payments/kernel');
@@ -32,7 +34,7 @@ mock.module('@jini-ai/commerce/payments/kernel', { namedExports: { ...paymentsKe
 const capturedAlertPort = () => capturedAlerts;
 const { composeCommerce } = await import('../commerce.js');
 
-function reset() { activeFailure = false; probeFailure = false; configFailure = false; ledgerFailure = false; storageExists = false; }
+function reset() { paymentMigrations = 0; paymentMigrationFailures = 0; workerRun = undefined; activeFailure = false; probeFailure = false; configFailure = false; ledgerFailure = false; storageExists = false; }
 function fixture(t: TestContext) {
   const kernel = openMemorySqliteKernel<unknown>();
   const warnings: string[] = [];
@@ -112,4 +114,16 @@ test('payment alerts are warned once per payment and the dedupe memory forgets o
   await raise(1);
   assert.equal(settlement().length, 1002);
   assert.equal(settlement().at(-1), 'Payment settlement needs attention: {"kind":"unknown-aged","workspaceId":"ws","mode":"test","paymentId":"pay-1","detail":"aged"}');
+});
+
+test('a payment migration that fails during warmup is retried on the next worker cycle instead of replaying the old failure', async t => {
+  reset(); storageExists = true; paymentMigrationFailures = 1;
+  const { warnings } = fixture(t); await settled(); await settled();
+  redacted(warnings.find(line => line.includes('Commerce is unavailable; the rest of the site remains online.')));
+  assert.equal(paymentMigrations, 1);
+  const run = workerRun; assert.ok(run, 'the composition hands its cycle to the settlement worker');
+  // The stubbed ledger cannot serve the inbox step that follows, so the cycle may still fail there; it must not fail on the old migration error.
+  const outcome = await run().then(() => 'completed', (error: unknown) => String(error));
+  assert.equal(paymentMigrations, 2, 'the failed migration is attempted again');
+  assert.doesNotMatch(outcome, /boom/);
 });
