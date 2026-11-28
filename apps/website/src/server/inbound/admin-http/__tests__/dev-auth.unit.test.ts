@@ -237,3 +237,23 @@ test("login attempts beyond the per-client minute budget are refused with 429 an
   assert.equal(refused.headers.get("retry-after"), String(body.details.retryAfterSeconds));
   assert.equal(verify.mock.callCount(), 0, "a throttled attempt never reaches the password hasher");
 });
+
+test("a valid API key for an operator principal resolves as an api_key credential, not a session", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const { apiKeyServiceDepsFrom } = await import("../routes/api-keys/deps.js");
+  const { createApiKeyPrincipal } = await import("@jini-ai/user-management/identity/api-key-service");
+  const { issueApiKey } = await import("../../../../features/identity/api-key-binding.js");
+  const service = apiKeyServiceDepsFrom(deps);
+  const callerPrincipalId = await deps.ownerPrincipalId;
+  assert.equal(typeof callerPrincipalId, "string");
+  const { principal } = await createApiKeyPrincipal({ deps: service, input: { workspaceId: deps.workspaceId, callerPrincipalId: callerPrincipalId!, displayName: "Build machine" } });
+  const policyId = deps.idGen.newId();
+  await deps.policyRepo.save({ version: 1, id: policyId, workspaceId: deps.workspaceId, name: "Credential test policy", isBuiltin: false, isFrozen: false });
+  const { rawKey } = await issueApiKey({ deps: service, input: { workspaceId: deps.workspaceId, callerPrincipalId: callerPrincipalId!, principalId: principal.id, label: "Credential test key", policyIds: [policyId] } });
+  const req = { headers: { authorization: `Bearer ${rawKey}` }, socket: { localPort: 0 } } as unknown as Request;
+  const resolved = await currentCredential({ deps, req });
+  assert.equal(resolved?.kind, "api_key");
+  assert.equal(resolved?.principal.id, principal.id);
+  assert.equal(resolved?.principal.kind, "api_key");
+});
