@@ -14,7 +14,7 @@ import { SqlMagicLinkTokenRepo, SqlMemberSessionRepo } from "@jini-ai/user-manag
 import { memberSqlDeps } from "#src/features/members/repo.sqlite";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "@jini-ai/user-management/members/repo.memory";
 import { requestSignInLink, requestPasswordReset } from "@jini-ai/user-management/members/member-challenge-request";
-import { MagicLinkTokenRejectedError, type MemberRecord } from "@jini-ai/user-management/members/types";
+import { MagicLinkTokenRejectedError, MemberAuthError, type MemberRecord } from "@jini-ai/user-management/members/types";
 import type { OutboundEmail } from "@jini-ai/platform/mail";
 import { issueMemberSession } from "@jini-ai/user-management/members/member-credentials";
 import {
@@ -607,4 +607,40 @@ test("password sign-in analytics: a refused attempt is observed once; an admitte
   await settle();
   assert.deepEqual(events, ["member_sign_in_requested", "member_signed_in"]);
   assert.deepEqual([...new Set(paths)], [`${BASE}/password/sign-in`]);
+});
+
+test("sign-out: a credential refusal is the uniform 401; a session store failure answers the redacted member-auth 500, never a 204 or the raw cause", async t => {
+  const h = harness(); const member = await h.seed();
+  const cookie = await h.cookieFor(member);
+  h.deps.memberSessionRepo.revoke = async () => { throw new MemberAuthError("session already rotated"); };
+  const base = await startTestServer(h.app, t);
+  const refused = await post(base, "sign-out", {}, { cookie });
+  assert.equal(refused.status, 401);
+  assert.deepEqual(await refused.json(), INVALID);
+  h.deps.memberSessionRepo.revoke = async () => { throw new Error("session store offline: secret-detail"); };
+  const response = await post(base, "sign-out", {}, { cookie });
+  assert.equal(response.status, 500);
+  const body = await response.json() as { error: string };
+  assert.equal(body.error, "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.");
+  assert.equal(JSON.stringify(body).includes("secret-detail"), false);
+});
+
+test("forgot-password: a delivery that throws after acceptance is reported under public:member-delivery", async t => {
+  const h = harness(); await h.seed();
+  h.deps.mailer.send = async () => { throw new Error("smtp socket closed"); };
+  const recorded: Array<{ operation: string; error: unknown }> = [];
+  let reported!: () => void;
+  const delivered = new Promise<void>(resolve => { reported = resolve; });
+  const app = express();
+  app.use(express.json());
+  registerPublicMemberForgotPasswordRoute({ errors: createRouteIncidentReporter().errors, app, deps: h.deps,
+    reporter: { record: (input: { operation: string; error: unknown }) => { recorded.push(input); reported(); return { errorId: "ERR-0000-0000-0000-0042" }; } } });
+  const base = await startTestServer(app, t);
+  const response = await post(base, "forgot-password", { email: "ada@example.test" });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { accepted: true });
+  const timedOut = await Promise.race([delivered.then(() => false), new Promise<true>(resolve => { setTimeout(() => resolve(true), 3000).unref(); })]);
+  assert.equal(timedOut, false, "the detached delivery failure was never reported");
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].operation, "public:member-delivery");
 });
