@@ -79,3 +79,41 @@ test("closing the store waits for site-app boot work started after boot", async 
   await store.close();
   assert.equal(pending.size, 0, "the store closed while site-app boot work was still running");
 });
+
+test("the bound site export always uses the site's own route deps, even when the caller forwards a routeDeps key", async t => {
+  const { deps } = await bootSite(t);
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "assembly-phases-export-"));
+  t.after(() => fs.rmSync(outputDir, { recursive: true, force: true }));
+  // A non-literal bag, so the stray `routeDeps` key passes excess-property checks exactly as a forwarded options object would.
+  const forwarded = { outputDir, clean: true, routeDeps: { bogus: "not-route-deps" } };
+  const report = await deps.exportSiteBound(forwarded);
+  assert.deepEqual(report.routes.failed, []);
+  const exported = report.routes.succeeded.map(route => route.path);
+  assert.ok(exported.includes("/"), exported.join(", "));
+  assert.ok(fs.existsSync(path.join(outputDir, "index.html")), "the home page was written to the output folder");
+});
+
+type ProofRequest = Parameters<NonNullable<Deps["visitorAnalyticsProof"]>>[0]["request"];
+
+test("visitor analytics proof: analytics off or an excluded visitor never reads the consent cookie; an included visitor's cookie is read", async t => {
+  const { deps } = await bootSite(t);
+  const real = deps.analyticsConfig;
+  const stored = await real.get({ workspaceId: deps.workspaceId });
+  const asked: unknown[] = [];
+  let enabled = false;
+  // Replaced in place after boot: the gate reads the finished deps' analytics config on every visit.
+  deps.analyticsConfig = { ...real, get: async (query) => { asked.push(query); return { ...stored, enabled, honorDoNotTrack: true }; } };
+  const visit = async (headers: Record<string, string>) => {
+    const read: string[] = [];
+    const request = { hostname: "example.test", path: "/about", ip: "203.0.113.5", socket: { remoteAddress: "203.0.113.5" }, headers,
+      get: (name: string) => { read.push(name.toLowerCase()); return headers[name.toLowerCase()]; } } as unknown as ProofRequest;
+    const proof = await deps.visitorAnalyticsProof?.({ request });
+    return { proof, cookieRead: read.includes("cookie") };
+  };
+  assert.deepEqual(await visit({}), { proof: undefined, cookieRead: false }, "analytics off");
+  enabled = true;
+  assert.deepEqual(await visit({ dnt: "1" }), { proof: undefined, cookieRead: false }, "Do Not Track visitor excluded");
+  // No consent cookie was sent, so the included visitor still has no proof; reading the cookie is what tells the outcomes apart.
+  assert.deepEqual(await visit({ dnt: "0" }), { proof: undefined, cookieRead: true }, "included visitor");
+  assert.deepEqual(asked, [{ workspaceId: deps.workspaceId }, { workspaceId: deps.workspaceId }, { workspaceId: deps.workspaceId }]);
+});
