@@ -122,7 +122,8 @@ function recordingVault(name: string, seen: string[]) {
   return { list: async (input: { workspaceId: string; kind: string }) => { seen.push(`${name}:${input.workspaceId}:${input.kind}`); return []; } };
 }
 
-// Mutations: l.91 builds the source-control half with `kind: "vendor"`; l.102 wraps `projectVault.repo` for every half
+// Mutations: l.91 builds the source-control half with the vendor adapter (`new VendorCredentialSetVaultRepo({ vault,
+// kind: "vendor", vendor: true })`; a bare `kind: "vendor"` is equivalent: the source-control adapter pins its own kind); l.102 wraps `projectVault.repo` for every half
 // (`repo: () => new VendorCredentialSetVaultRepo({ vault: projectVault!.repo, ... })`).
 test("with a project vault, the source-control and vendor stores each fall back to the project's own vault halves under their own kind", async () => {
   const seen: string[] = [];

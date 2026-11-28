@@ -52,7 +52,9 @@ test("host.wrapFetch reports each outbound call to the provider plugins' observa
   const calls: unknown[] = [];
   const observability = { trackOutboundCall: (target: unknown) => ({ run: (fn: () => unknown) => fn(), end: (outcome: unknown) => calls.push({ target, outcome }) }) };
   const { host } = compose({ observability: () => observability }).mediaStorePorts();
-  const wrapped = host.wrapFetch((async () => ({ status: 207 })) as unknown as typeof fetch);
+  const { wrapFetch } = host;
+  assert.ok(wrapFetch, "the composed media host supplies wrapFetch");
+  const wrapped = wrapFetch((async () => ({ status: 207 })) as unknown as typeof fetch);
   assert.equal((await wrapped("https://bucket.example/obj-1", { method: "PUT" })).status, 207);
   assert.deepEqual(calls, [{ target: { method: "PUT", url: "https://bucket.example/obj-1" }, outcome: { statusCode: 207 } }]);
 });
