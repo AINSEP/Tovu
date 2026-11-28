@@ -46,3 +46,23 @@ test("server plugin consent reaches only its live owning daemon run", async t =>
   await lifecycle.finish({ runId: run.id, status: "succeeded", code: 0, signal: null, resumable: false });
   assert.equal((await post("member")).status, 404, "a retained owner record does not make a terminal run live");
 });
+
+test("an authenticated plugin event that is not a valid event is refused with 400 and never reaches the run", async t => {
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  const { run } = await lifecycle.start({ contextRef: "{}" });
+  const lookups: unknown[] = [];
+  const app = express();
+  registerAgentPluginEvents({ app, lifecycle, principalFor: (required) => { lookups.push(required); return "member"; } },
+    { env: { TOVU_AGENT_DAEMON_TOKEN: "server-secret" } });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/internal/agent-plugin-events`, { method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer server-secret" },
+    body: JSON.stringify({ runId: run.id, principalId: "member", payload: { type: "not_a_plugin_event" } }) });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "invalid plugin event" });
+  assert.deepEqual(lookups, [], "an invalid event is refused before any owner lookup");
+  const payloads: unknown[] = [];
+  const subscription = await lifecycle.stream({ runId: run.id, onEvent: event => { if (event.kind === "agent") payloads.push(event.payload); } });
+  if (subscription.kind === "ok") subscription.unsubscribe();
+  assert.deepEqual(payloads, []);
+});
