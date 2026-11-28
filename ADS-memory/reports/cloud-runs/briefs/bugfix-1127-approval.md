@@ -9,3 +9,11 @@ Binding notes for the executor:
 4. **Two cloud runs** as in the plan's table. Run 2 consumes Run 1's heads. At most 4 subagents. Use the keep-dispatching loop from `gap-fill-1127-round3.md` (don't end early while batches remain).
 5. The desktop-host extraction starts only after D01–D06 and J01 are green on its base.
 6. Usual rules: no `--no-verify`, no `gitleaks:allow`, no guard/threshold edits, no npm publish. Use gitleaks 8.28.0.
+
+## Addendum (owner, 2026-11-27 ~7:20 PM)
+7. **Run 2 also removes dead code instead of keeping it as a coverage EXCEPTION.** Covers impossible branches after a guard that already ran, unreachable `??`/`:` fallbacks, unused fields and params, never-run handlers, redundant try/catch, and unimported files (e.g. `CustomSelectMarkup.tsx`). Sources: the REFACTOR/EXCEPTION lists in the A3, B3, C3a, C3b, C4a and C4b reports and their job ledgers.
+   - Remove the branch, or tighten the type so it can't exist, then delete its EXCEPTION line. Prove each cut per the anti-over-engineering skill (callers, config, dynamic refs, published consumers).
+   - Keep as EXCEPTIONS only: barrel/entry files, platform-specific paths (e.g. case-sensitive filesystems), and deterministic sort tie-breakers.
+   - `runtime-core.ts:102-103` (an installDir of "/" refuses every uninstall) is a real fix: test first.
+8. **Also fix BUG 7** (`core/registration-kit.ts:371` double period) **and BUG 8** (`access-token-actions.ts:87` blank name) from A3.
+9. **Owner approved the small items:** the per-file `// @vitest-environment jsdom` docblock in @jini-ai/plugins is OK. For the case-insensitive-FS test, use the plan's default: keep it as is, with a comment saying it only runs on case-sensitive filesystems.
