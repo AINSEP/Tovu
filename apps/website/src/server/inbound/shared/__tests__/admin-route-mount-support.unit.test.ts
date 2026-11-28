@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { adminBrowserWriteOrigin, adminSameOriginWrites, routeAdapterFor } from "../admin-route-mount-support.js";
+import { adminBrowserWriteOrigin, adminSameOriginWrites, requireRouteErrors, routeAdapterFor } from "../admin-route-mount-support.js";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 
 type Headers = Record<string, unknown>;
@@ -30,4 +30,11 @@ test("a bound mount without an origin policy fails closed; a given policy and th
   assert.equal(unbound.errors, errors);
   assert.equal(unbound.originPolicy.isSameOrigin({ req: { headers: { origin: "http://admin.example.test", host: "admin.example.test" } } } as never), false);
   assert.equal(routeAdapterFor({ origin: adminSameOriginWrites, errors }).adapter.originPolicy, adminSameOriginWrites.originPolicy);
+});
+
+test("a mount without the site's route error reporter is refused by name; given ports pass through", () => {
+  const errors = createRouteIncidentReporter().errors;
+  assert.throws(() => requireRouteErrors({ path: "/api/admin/widgets", errors: undefined }),
+    { message: /^route \/api\/admin\/widgets: mount needs the site's route error reporter/ });
+  assert.equal(requireRouteErrors({ path: "/api/admin/widgets", errors }), errors);
 });

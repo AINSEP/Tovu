@@ -53,3 +53,57 @@ test("an admitted OAuth attempt reaches the handler and carries no Retry-After",
   assert.deepEqual(await response.json(), { ok: true });
   assert.equal(handledCount(), 1);
 });
+
+test("the admission's noStore writer stamps the kit's headers on the response the handler then sends", async t => {
+  const app = express();
+  const registrar = registeringWithOAuthAdmission({
+    app, method: "get",
+    limiter: { check: async () => ({ allowed: true }) },
+    before: async (facts, next) => { facts.noStore({ "Cache-Control": "no-store", Pragma: "no-cache" }); await next(); },
+  });
+  registrar.get("/oauth/callback", (_req, res) => { res.status(200).json({ ok: true }); });
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}/oauth/callback`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("pragma"), "no-cache");
+  assert.deepEqual(await response.json(), { ok: true });
+});
+
+test("the admission's session gate refuses an API-key caller with the shared 403 shape; a session caller passes", async t => {
+  const app = express();
+  let handled = 0;
+  // Stands in for requireAdminSession, which records how the caller authenticated.
+  app.use((req, res, next) => { res.locals.authCredentialKind = req.get("x-test-credential") ?? "api_key"; next(); });
+  const registrar = registeringWithOAuthAdmission({
+    app, method: "post",
+    limiter: { check: async () => ({ allowed: true }) },
+    before: async (facts, next) => {
+      if (!facts.requireSession({ message: "connecting needs a signed-in session", permission: "oauth:connect" })) return;
+      await next();
+    },
+  });
+  registrar.post("/oauth/connect", (_req, res) => { handled += 1; res.status(200).json({ ok: true }); });
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}/oauth/connect`, { method: "POST" });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error: "connecting needs a signed-in session", code: "FORBIDDEN",
+    details: { permission: "oauth:connect", reason: "credential_kind_not_permitted" },
+  });
+  assert.equal(handled, 0);
+
+  const admitted = await fetch(`${baseUrl}/oauth/connect`, { method: "POST", headers: { "x-test-credential": "session" } });
+  assert.equal(admitted.status, 200);
+  assert.deepEqual(await admitted.json(), { ok: true });
+  assert.equal(handled, 1);
+});
+
+test("without an admission hook the routes mount straight on the app", () => {
+  const app = express();
+  assert.equal(registeringWithOAuthAdmission({ app, method: "post", limiter: { check: async () => ({ allowed: true }) } }), app);
+});
