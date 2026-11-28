@@ -2390,62 +2390,62 @@ Fixed unless marked OPEN.
 - **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
 - **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
 
-## 2026-11-28 — 55 suspected bugs from the Codex coverage ledger (OPEN, unverified)
+## 2026-11-28 — 55 suspected bugs from the Codex coverage ledger (OPEN; run BP 11-28: 51 CONFIRMED, 4 not tested — `cloud-results/bugproof-1128-BP.md`)
 
 From `development/coverage-ledger-2026-11-28.md` (Codex 6.2 read-only pass over the 19 cloud coverage reports, checked against merge-28 code). Not yet proven by a failing test; the bug-fix run verifies each first. Some may duplicate items in `cloud/bugfix-1127` (e.g. J-B06 = BUG 7, J-B07 = BUG 8). Jini paths start at `packages/`; Tovu prefixes are in the ledger legend.
 
-- J-B01 `plugins/src/host/activation-polling.ts:138–151`: Readiness can reject before the interval attaches its first rejection handler.
-- J-B02 `cms/src/forms/submission-evidence.ts:62`: String coercion accepts array provenance instead of requiring an allowed string value.
-- J-B03 `cms/src/html/document-marks.ts:88`: Inherited object properties can be used as mark renderers.
-- J-B04 `agent-runtime/src/defs/codex/home-config.ts:188`: Inline MCP isolation refusal uses the wrong error class.
-- J-B06 `core/src/registration-kit.ts:371–372`: Schema decoration appends a second period to already punctuated refusal text.
-- J-B07 `admin/src/security/host/hooks/access-token-actions.ts:83–87`: Public hook can seed a blank draft name before stores arrive, masking the saved name after load.
-- J-B09 `integrations/src/web-screenshot/web-screenshot.ts:395–405`: Own-site URL resolution can fail after opening the loopback server but before the cleanup scope.
-- J-B10 `admin/src/pages/hooks/page-editor-workspace.hooks.ts:211–221`: Unchanged-Save preflush can consume the current canvas value before save reads it.
-- J-B11 `admin/src/recovery/hooks/use-restore-flow.hooks.ts:207–211`: Prior-point disclosure completion can overwrite the currently selected point.
-- J-B12 `admin/src/screens/collections/hooks/use-collection-entry-editor.hooks.ts:428`: A prior row’s slug can beat the exact ID in a single `find`.
-- J-B13 `admin/src/screens/consent/use-consent-page.hooks.ts:108–112`: Publish reads the draft after awaiting, attributing later edits to the published revision.
-- J-B14 `admin/src/screens/email/hooks/use-email-activity.hooks.ts:88–103`: A prior filter’s pending page can replace current results.
-- J-B15 `admin/src/screens/email/hooks/use-email-template-editor.hooks.ts:140`: New template load retains the previous preview and undeclared fields.
-- J-B17 `admin/src/screens/plugins/hooks/use-plugin-install.hooks.ts:36`, `use-agent-plugin-install.hooks.ts:57`: Refusal copy uses inherited properties as lookup entries.
-- J-B19 `admin/src/screens/routines/routines-api.ts:61`: `in` admits inherited refusal names to the result-state map.
-- J-B20 `admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts:123–143`: A cancelled start can later reopen or navigate the provider flow and install listeners.
-- J-B21 `devops/src/deploy/site/agent-tools.ts:121`: Catalog says asset failures do not flip `ok`, unlike `export-run.ts:108`.
-- J-B22 `agent-plugins/github/source-control/commit-site.mjs:114`: Parsed null JSON on refusal is dereferenced.
-- J-B24 `agent-plugins/src/connect/token-sign-in.ts:53`: Rejected injected probe escapes the documented nonthrowing operation.
-- J-B25 `agent-plugins/src/site/memory-i18n.ts:171`: Dictionary lets inherited values replace literal copy.
-- J-B26 `admin/src/shell/lib/unique-id.ts:23`: Concatenating variable-width words does not uniquely encode the pair.
-- J-B27 `admin/src/shell/components/AssistantDock/hooks/messages-change.hooks.ts:84–87`: Same-ID retries can reset events without resetting the published-progress mark.
-- J-B28 `db/src/recovery/journal-repo.sql.ts:202`: Resolution update does not enforce the repository’s site scope.
-- J-B29 `db/src/recovery/tool-registrations.ts:215`: Successful confirm output can lack a token and still proceed to execute.
-- J-B30 `db/src/react/recovery/Recovery.tsx:324`: React click event is forwarded into the zero-argument create port.
-- J-B31 `cms/src/content-duplication/tool-registrations.ts:67`: Array `overrides` passes the record gate.
-- J-B32 `cms/src/forms/destinations/rewrite-actions.ts:50`: A plain `Uint8Array` is stringified as numbers instead of decoded as HTML.
-- J-B33 `cms/src/posts/post-retire.ts:117`, `persistRetirement`: Unconditional save can overwrite a version advanced during slug lookup.
-- J-B34 `cms/src/posts/preview-tool.ts:69`: Preview advertises ID or slug but performs ID-only lookup.
-- J-B35 `cms/src/posts/sql/revision-thinning.ts:58–59`: Date parsing accepts nonexistent dates by rolling into the next month.
-- J-B36 `cms/src/public-http/http/site/form-validation-i18n.ts:40`: Inherited locale property can replace the form copy table.
-- J-B37 `cms/src/public-http/http/site/render/doc/doc-nodes.ts:325`: Inherited handler can replace rendering of the node’s children.
-- J-B38 `cms/src/posts/post-tool-policy.ts:124`: Optional MIME argument is narrower than its published host port under exact optionals.
-- J-B39 `cms/src/seo/site/page-head-contributor.ts:36`: URL equality discards an explicitly authored image from JSON-LD.
-- J-B41 `cms/src/settings/site/visitor-tools-configure.ts:33`: Configure rejects dotted identities admitted by the list catalog.
-- J-B42 `cms/src/trash/site/adapters/media.ts:55–62`: Same-tick idempotent retry can emit a duplicate change event.
-- J-B45 `devops/src/static-export/site/media-original-urls.ts:30`: Verified custom port is discarded when assembling canonical origin.
-- J-B46 `mcp/src/react/external-mcp/hooks/external-mcp-form.rules.ts:42`: Empty stdio argument is lost on an unrelated edit.
-- J-B47 `devops/src/backup/site/static-download-layout.ts:70–78`: Removing a missing `srcset` URL leaves its descriptor as a separate candidate.
-- J-B48 `devops/src/deploy/site/static-publish/admin-publish-read.ts:67`: Preview ignores the selected credential when checking readiness.
-- J-B49 `cms/src/react/collections/CollectionEntryEditor.fields.tsx:170`: An intentionally cleared optional number falls back to its saved value in the editor.
-- J-B50 `chat/src/react/hooks/useSurfaceRecovery.ts:72`: First settled answer can clear the second answer’s abort controller.
-- J-B51 `platform/src/secrets/root-key/files.ts:69–88`: Failure before the link cleanup scope can leave candidate key material on disk.
-- J-B52 `desktop-host/src/logging.ts:40–47`: Diagnostic fallback serializes the unserializable message again.
-- T-B01 `I/assistant/assistant-tool-access.ts:65–66`: Null settings rejection is dereferenced and the original rejection is lost.
-- T-B03 `C/modules/assistant-ag-ui-approval-segment.ts:54`: SSE line regex consumes the separator needed to see the next `id:` line.
-- T-B04 `C/modules/assistant-routines.ts:134–136`: Adapter drops request-side `limit`, so pages can be unbounded.
-- T-B05 `C/commerce.ts:105,192,262`: Shutdown marks storage closed before draining a worker that can still resolve its payment context, producing a false missing-configuration alert.
-- T-B06 `apps/admin/src/components/AssistantDock/chat-cleanup-copy.ts:51`: Inherited property can replace generic retention copy.
-- T-B07 `apps/admin/src/integrations/jini-admin/security-module.hooks.ts:71–74`: Loading view is rendered without its required locale hook.
-- T-B08 `W/assistant/site/tools.ts:168`: Joining truncated body nodes adds separators outside the promised character budget.
-- T-B09 `W/features/theme/code-tier-asset-normalizer.ts:201`: Attribute pattern also matches inside `data-src`.
-- T-B10 `W/features/theme/visitor-publication.ts:74`: Lowercasing can shift the index used to splice the original body.
-- T-B11 `D/main/boot/storage-idle-compaction.ts:72–76`: Overlapping ticks can both select a site before either reserves the child slot.
-- T-B12 `D/storage/storage-sheet-actions.ts:100–103`: Parallel confirmations can both pass the check before awaiting.
+- J-B01 `plugins/src/host/activation-polling.ts:138–151`: Readiness can reject before the interval attaches its first rejection handler. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B02 `cms/src/forms/submission-evidence.ts:62`: String coercion accepts array provenance instead of requiring an allowed string value. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B03 `cms/src/html/document-marks.ts:88`: Inherited object properties can be used as mark renderers. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B04 `agent-runtime/src/defs/codex/home-config.ts:188`: Inline MCP isolation refusal uses the wrong error class. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B06 `core/src/registration-kit.ts:371–372`: Schema decoration appends a second period to already punctuated refusal text. — **NOT TESTED** in run BP (no Codex test; still unverified)
+- J-B07 `admin/src/security/host/hooks/access-token-actions.ts:83–87`: Public hook can seed a blank draft name before stores arrive, masking the saved name after load. — **NOT TESTED** in run BP (no Codex test; still unverified)
+- J-B09 `integrations/src/web-screenshot/web-screenshot.ts:395–405`: Own-site URL resolution can fail after opening the loopback server but before the cleanup scope. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B10 `admin/src/pages/hooks/page-editor-workspace.hooks.ts:211–221`: Unchanged-Save preflush can consume the current canvas value before save reads it. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B11 `admin/src/recovery/hooks/use-restore-flow.hooks.ts:207–211`: Prior-point disclosure completion can overwrite the currently selected point. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B12 `admin/src/screens/collections/hooks/use-collection-entry-editor.hooks.ts:428`: A prior row’s slug can beat the exact ID in a single `find`. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B13 `admin/src/screens/consent/use-consent-page.hooks.ts:108–112`: Publish reads the draft after awaiting, attributing later edits to the published revision. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B14 `admin/src/screens/email/hooks/use-email-activity.hooks.ts:88–103`: A prior filter’s pending page can replace current results. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B15 `admin/src/screens/email/hooks/use-email-template-editor.hooks.ts:140`: New template load retains the previous preview and undeclared fields. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B17 `admin/src/screens/plugins/hooks/use-plugin-install.hooks.ts:36`, `use-agent-plugin-install.hooks.ts:57`: Refusal copy uses inherited properties as lookup entries. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B19 `admin/src/screens/routines/routines-api.ts:61`: `in` admits inherited refusal names to the result-state map. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B20 `admin/src/screens/settings/hooks/use-external-mcp-oauth-connect.hooks.ts:123–143`: A cancelled start can later reopen or navigate the provider flow and install listeners. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B21 `devops/src/deploy/site/agent-tools.ts:121`: Catalog says asset failures do not flip `ok`, unlike `export-run.ts:108`. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B22 `agent-plugins/github/source-control/commit-site.mjs:114`: Parsed null JSON on refusal is dereferenced. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B24 `agent-plugins/src/connect/token-sign-in.ts:53`: Rejected injected probe escapes the documented nonthrowing operation. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B25 `agent-plugins/src/site/memory-i18n.ts:171`: Dictionary lets inherited values replace literal copy. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B26 `admin/src/shell/lib/unique-id.ts:23`: Concatenating variable-width words does not uniquely encode the pair. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B27 `admin/src/shell/components/AssistantDock/hooks/messages-change.hooks.ts:84–87`: Same-ID retries can reset events without resetting the published-progress mark. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B28 `db/src/recovery/journal-repo.sql.ts:202`: Resolution update does not enforce the repository’s site scope. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B29 `db/src/recovery/tool-registrations.ts:215`: Successful confirm output can lack a token and still proceed to execute. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B30 `db/src/react/recovery/Recovery.tsx:324`: React click event is forwarded into the zero-argument create port. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B31 `cms/src/content-duplication/tool-registrations.ts:67`: Array `overrides` passes the record gate. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B32 `cms/src/forms/destinations/rewrite-actions.ts:50`: A plain `Uint8Array` is stringified as numbers instead of decoded as HTML. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B33 `cms/src/posts/post-retire.ts:117`, `persistRetirement`: Unconditional save can overwrite a version advanced during slug lookup. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B34 `cms/src/posts/preview-tool.ts:69`: Preview advertises ID or slug but performs ID-only lookup. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B35 `cms/src/posts/sql/revision-thinning.ts:58–59`: Date parsing accepts nonexistent dates by rolling into the next month. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B36 `cms/src/public-http/http/site/form-validation-i18n.ts:40`: Inherited locale property can replace the form copy table. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B37 `cms/src/public-http/http/site/render/doc/doc-nodes.ts:325`: Inherited handler can replace rendering of the node’s children. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B38 `cms/src/posts/post-tool-policy.ts:124`: Optional MIME argument is narrower than its published host port under exact optionals. — **CONFIRMED** run BP (type-only; its red test breaks the cms build) · test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B39 `cms/src/seo/site/page-head-contributor.ts:36`: URL equality discards an explicitly authored image from JSON-LD. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B41 `cms/src/settings/site/visitor-tools-configure.ts:33`: Configure rejects dotted identities admitted by the list catalog. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B42 `cms/src/trash/site/adapters/media.ts:55–62`: Same-tick idempotent retry can emit a duplicate change event. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B45 `devops/src/static-export/site/media-original-urls.ts:30`: Verified custom port is discarded when assembling canonical origin. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B46 `mcp/src/react/external-mcp/hooks/external-mcp-form.rules.ts:42`: Empty stdio argument is lost on an unrelated edit. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B47 `devops/src/backup/site/static-download-layout.ts:70–78`: Removing a missing `srcset` URL leaves its descriptor as a separate candidate. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B48 `devops/src/deploy/site/static-publish/admin-publish-read.ts:67`: Preview ignores the selected credential when checking readiness. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B49 `cms/src/react/collections/CollectionEntryEditor.fields.tsx:170`: An intentionally cleared optional number falls back to its saved value in the editor. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B50 `chat/src/react/hooks/useSurfaceRecovery.ts:72`: First settled answer can clear the second answer’s abort controller. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B51 `platform/src/secrets/root-key/files.ts:69–88`: Failure before the link cleanup scope can leave candidate key material on disk. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- J-B52 `desktop-host/src/logging.ts:40–47`: Diagnostic fallback serializes the unserializable message again. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Jini `codex/bugproof-1128`
+- T-B01 `I/assistant/assistant-tool-access.ts:65–66`: Null settings rejection is dereferenced and the original rejection is lost. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B03 `C/modules/assistant-ag-ui-approval-segment.ts:54`: SSE line regex consumes the separator needed to see the next `id:` line. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B04 `C/modules/assistant-routines.ts:134–136`: Adapter drops request-side `limit`, so pages can be unbounded. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B05 `C/commerce.ts:105,192,262`: Shutdown marks storage closed before draining a worker that can still resolve its payment context, producing a false missing-configuration alert. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B06 `apps/admin/src/components/AssistantDock/chat-cleanup-copy.ts:51`: Inherited property can replace generic retention copy. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B07 `apps/admin/src/integrations/jini-admin/security-module.hooks.ts:71–74`: Loading view is rendered without its required locale hook. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B08 `W/assistant/site/tools.ts:168`: Joining truncated body nodes adds separators outside the promised character budget. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B09 `W/features/theme/code-tier-asset-normalizer.ts:201`: Attribute pattern also matches inside `data-src`. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B10 `W/features/theme/visitor-publication.ts:74`: Lowercasing can shift the index used to splice the original body. — **CONFIRMED** run BP · red test `*.bug-1128.test.*` on Tovu `codex/bugproof-1128`
+- T-B11 `D/main/boot/storage-idle-compaction.ts:72–76`: Overlapping ticks can both select a site before either reserves the child slot. — **NOT TESTED** in run BP (no Codex test; still unverified)
+- T-B12 `D/storage/storage-sheet-actions.ts:100–103`: Parallel confirmations can both pass the check before awaiting. — **NOT TESTED** in run BP (no Codex test; still unverified)
