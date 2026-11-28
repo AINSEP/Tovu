@@ -120,6 +120,26 @@ test("launch surfaces a daemon refusal as an error naming the status; no token m
   assert.equal("Authorization" in calls[0]!.headers, false);
 });
 
+test("launch without an injected readiness gate waits on the shared daemon demand gate and sends nothing when it refuses", async (t) => {
+  withToken(t, "tok-launch");
+  const { resetAssistantDaemonSingletonForTests } = await import("../../../lifecycle/daemon-supervisor.js");
+  resetAssistantDaemonSingletonForTests();
+  const { calls, fetch } = recordingFetch(() => new Response("accepted", { status: 202 }));
+  const client = createHttpRunDaemonClient({ observability }, { currentUrl: () => "http://127.0.0.1:4200", fetch });
+  await assert.rejects(client.launch!({ run: { runId: "run-10", principalId: "owner" } as never, request: { contextRef: "ctx-2" } }, {}),
+    { message: "the assistant daemon lifecycle is not configured" });
+  assert.equal(calls.length, 0, "no continuation is sent past an unready daemon");
+});
+
+test("launch for a run with no principal refuses before waiting on readiness or sending anything", async () => {
+  let ready = 0;
+  const { calls, fetch } = recordingFetch(() => new Response("accepted", { status: 202 }));
+  const client = createHttpRunDaemonClient({ observability }, { ensureReady: async () => { ready++; }, currentUrl: () => "http://127.0.0.1:4200", fetch });
+  await assert.rejects(client.launch!({ run: { runId: "run-11", principalId: "" } as never, request: { contextRef: "ctx-3" } }, {}),
+    { message: "assistant continuation has no principal id" });
+  assert.deepEqual([ready, calls.length], [0, 0]);
+});
+
 test("cancel fences the run on the daemon that still owns it: the replayed current origin once adopted, else the live prior daemon", async () => {
   const { calls, fetch } = recordingFetch((url) => new Response(null, { status: url.endsWith("/api/runs/run%2F1") && url.includes(":4300") ? 200 : 404 }));
   const client = createHttpRunDaemonClient({ observability }, {
