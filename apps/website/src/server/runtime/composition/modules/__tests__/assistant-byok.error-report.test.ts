@@ -74,3 +74,31 @@ test(`a failed BYOK turn reports once, including a throw after its error event (
 });
 
 }
+
+test("a turn that fails before its stream opens hands the error to the host's error middleware", async (t) => {
+  const deps = createRouteDeps();
+  const surface = createByokToolSurface(Object.assign(deps, { reporter: testToolReporter() }), { installExtensions: false });
+  const boom = new Error("tool surface failed to become ready");
+  // `ready` is awaited after the inputs resolve and before beginStream: the only failure point here.
+  const failingSurface = { ...surface, get ready() { return Promise.reject(boom); } };
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: failingSurface }).registerRoutes?.({ app });
+  const received: unknown[] = [];
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    received.push(error);
+    res.status(599).json({ handled: "host" });
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({
+    messages: [{ role: "user", content: "hello" }],
+    byok: { protocol: "anthropic", apiKey: "fake-one", model: "fixture", baseUrl: "http://127.0.0.1:9" },
+  }) });
+  assert.equal(response.status, 599);
+  assert.deepEqual(await response.json(), { handled: "host" });
+  assert.deepEqual(received, [boom]);
+  assert.deepEqual(logged, [["[assistant-byok] unhandled error", boom]]);
+});
