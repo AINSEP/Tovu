@@ -73,3 +73,24 @@ test("memory root: the three post-construction assignments are in place and sett
   const lists = await deps.newsletterListRepo.list({ workspaceId: deps.workspaceId });
   assert.equal(lists.length >= 1, true, "the default newsletter list is seeded while the literal is evaluated");
 });
+
+test("the hermetic root's deploy, source-control, workflow, key-card and auth-scheme loaders read the bundled plugins' own declarations", async () => {
+  const deps = createRouteDeps();
+  assert.equal(typeof deps.loadDeployWorkflowFiles, "function", "the hermetic root wires the bundled workflow reader");
+  const ops = await deps.loadDeployOps({ workspaceId: deps.workspaceId });
+  assert.ok(ops.list().some((entry) => entry.pluginId === "github"), "the bundled GitHub plugin's deploy ops are listed");
+  assert.ok(ops.list().some((entry) => entry.pluginId === "fly"), "the bundled Fly plugin's deploy ops are listed");
+  const sourceControl = await deps.loadSourceControlProviders({ workspaceId: deps.workspaceId });
+  assert.ok(sourceControl.list().some((entry) => entry.pluginId === "github"), "the bundled GitHub source-control declaration is listed");
+  assert.ok((await deps.loadDeployWorkflowFiles!({ workspaceId: deps.workspaceId })).includes("fly-deploy.yml"));
+  assert.ok((await deps.loadPluginCredentialCards(deps.workspaceId)).some((card) => card.pluginId === "resend" && card.providerId === "resend"));
+  assert.deepEqual((await deps.loadAuthSchemes({ workspaceId: deps.workspaceId })).find((rule) => rule.id === "fly-io"), { id: "fly-io", prefix: "FlyV1", scheme: "FlyV1" });
+});
+
+test("a supplied publish-content peer client is the one the hermetic root dials peers with; without one it builds its own", () => {
+  const client = { send: async () => { throw new Error("fixture peer client never dials"); } };
+  assert.equal(createRouteDeps({ publishContentPeerHttpClient: client }).publishContentPeerHttpClient, client);
+  const built = createRouteDeps().publishContentPeerHttpClient;
+  assert.notEqual(built, client);
+  assert.equal(typeof built.send, "function");
+});
