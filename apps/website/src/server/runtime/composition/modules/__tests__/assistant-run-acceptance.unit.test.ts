@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { ROUTINES_RELEASE_ENABLED } from "@tovu/contracts/routines";
 import { acceptOwnedAssistantRun, assistantRunAcceptancePorts, cancelOwnedRun, createOwnerChatAcceptance, ownerChatAcceptanceFor, sanitizeBrowserRunContext, type AssistantAcceptanceRouteDeps } from "../assistant-run-acceptance.js";
+import { assistantRunFinalizerFor } from "../run-finalizer/shared.js";
 
 /**
  * @file Owner-chat acceptance seam. The marker tests are the security-relevant ones: a routine marker
@@ -242,4 +243,38 @@ test("the production owner-chat acceptance captures the run's own principal and 
   assert.deepEqual(readyCalls, ["ensure"], "the queued owned run is launched through the HTTP daemon client, which wakes the daemon first");
   assert.deepEqual(captures, [[{ name: "assistant_run_started", userId: "owner-9" },
     { properties: { chatSurface: "admin", logicalRunId: "m-own", eventId: "assistant-start:m-own" } }]]);
+});
+
+test("settlement reads past an unknown status and malformed events, settling with empty text when the saved content is not a string", async () => {
+  const odd = JSON.stringify({ runStatus: 7, content: "partial", events: "not-a-list" });
+  const done = JSON.stringify({ runStatus: "succeeded", content: 42 });
+  const h = harness({ polls: [{ cursor: "a", messageJson: odd }, { cursor: "b", messageJson: done }] });
+  const seen: unknown[][] = [];
+  const result = await h.acceptance.watchSettlement({ principalId: "owner", workspaceId: "ws", messageId: "m1" }, { onEvents: (events) => { seen.push([...events]); } });
+  assert.deepEqual(result, { status: "completed", text: "" });
+  assert.deepEqual(seen, [[], []], "a non-array events field is observed as no events");
+  assert.deepEqual(h.sleeps, [1000], "a numeric status is not terminal, so it waits once");
+
+  const quiet = harness({ polls: [{ cursor: "c", messageJson: JSON.stringify({ runStatus: "failed", content: "boom" }) }] });
+  assert.deepEqual(await quiet.acceptance.watchSettlement({ principalId: "owner", workspaceId: "ws", messageId: "m1" }), { status: "failed", text: "boom" },
+    "no event observer is needed to settle");
+});
+
+test("the production owner-chat cancel reads a head-less store by load and recovers through the shared finalizer", async () => {
+  const cancels: unknown[] = [];
+  const store = {
+    load: async (input: unknown) => (input as { messageId: string }).messageId === "m1"
+      ? { runId: "run-9", messageId: "m1", conversationId: "c1", principalId: "owner", workspaceId: "ws" } : null,
+    cancel: async (input: unknown) => { cancels.push(input); },
+    poll: async () => null,
+  };
+  const deps = productionDeps({ durable: store });
+  const recovered: unknown[] = [];
+  assistantRunFinalizerFor({ ledger: deps.chatRunLedger }, {}).recover = async (...args: unknown[]) => { recovered.push(args); return "finalized"; };
+  const acceptance = ownerChatAcceptanceFor({ deps })!;
+  assert.equal(await acceptance.cancelChatRun({ principalId: "owner", workspaceId: "ws", messageId: "m1", conversationId: "c1" }), true);
+  assert.deepEqual(cancels, [{ runId: "run-9", reason: "user-stop" }]);
+  assert.deepEqual(recovered, [[{ messageId: "m1", trigger: "browser" }, {}]]);
+  assert.equal(await acceptance.cancelChatRun({ principalId: "owner", workspaceId: "ws", messageId: "m-gone", conversationId: "c1" }), false);
+  assert.equal(cancels.length, 1);
 });
