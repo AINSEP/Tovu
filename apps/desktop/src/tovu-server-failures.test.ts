@@ -234,6 +234,7 @@ test("an inherited secret-named variable with no value neither breaks boot nor m
   f.child.stdout.write("plugin loaded with kept-fixture-value\n");
   f.child.stdout.write(`tovu serve: dir=${f.input.siteDir} port=4321 schemaVersion=1 workspaceId=site-a\n`);
   const handle = await started;
+  assert.ok(handle.outputTail, "a started handle exposes its redacted output tail");
   const tail = handle.outputTail();
   assert.match(tail, /plugin loaded with \S+\n/);
   assert.equal(tail.includes("kept-fixture-value"), false);
