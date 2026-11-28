@@ -480,3 +480,49 @@ test("provider selection changing between a settings read and the lane resolutio
   assert.equal(result.outcome, "accepted");
   assert.deepEqual(destinations, ["owner@example.com"]);
 });
+
+/** Seeds an inactive package for `PLUGIN_TOGGLE`'s plugin (or none), owning `firstadapter`, then disables it on a fresh mailer boot. */
+async function disableInactivePackage(t: { after: (fn: () => void) => void }, adaptersFile: string | null) {
+  const fixture = createTempSiteLayoutFixture({}); t.after(fixture.cleanup);
+  const layout = fixture.deps.agentPluginLayout;
+  const workspace = layout.forWorkspace({ workspaceId: WS });
+  await mkdir(workspace.root, { recursive: true });
+  if (adaptersFile !== null) {
+    const digest = 'b'.repeat(64);
+    const pluginDir = path.join(workspace.pluginPackagesDir({ pluginId: PLUGIN_TOGGLE.pluginId }), digest);
+    await mkdir(pluginDir, { recursive: true });
+    await writeFile(path.join(pluginDir, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: PLUGIN_TOGGLE.pluginId, version: '1.0.0', extensions: { tovu: { id: 'test/mail-package' } } }));
+    await writeFile(path.join(pluginDir, 'jini-mail-adapters.json'), adaptersFile);
+    await writeFile(path.join(workspace.root, 'bundled-digests.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { archiveDigest: digest } } }));
+    await writeFile(path.join(workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [PLUGIN_TOGGLE.pluginId]: { enabled: false, origin: 'bundled', updatedAt: '2026-10-21T00:00:00Z', updatedBy: 'owner' } } }));
+  }
+  const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
+  await writeMailProviderSetting({ writePolicies: SETTINGS_WRITE_POLICIES, deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: 'owner', value: { transactional: 'firstadapter', bulk: null } });
+  const toggled: SetAgentPluginEnabledInput[] = [];
+  const site = createSiteMailer(required, { setAgentPluginEnabled: async input => { toggled.push(input); return { pluginId: input.pluginId, enabled: input.enabled, warnings: [] }; } });
+  await site.ready;
+  await site.setAgentPluginEnabled({ ...PLUGIN_TOGGLE, agentPluginLayout: layout });
+  return { setting: await readMailProviderSetting({ settingsRepo, workspaceId: WS }), toggled };
+}
+
+test("disable cleanup recovers ownership only from the disabled plugin's own valid package", async t => {
+  const valid = JSON.stringify({ schemaVersion: 1, adapters: [{ id: 'firstadapter', label: 'Mail', module: 'mail.mjs', credentialLabel: 'Mail key' }] });
+  assert.deepEqual((await disableInactivePackage(t, valid)).setting, { transactional: null, bulk: null });
+  // No installed package for the plugin: nothing to recover, the selection it may once have owned stays.
+  const missing = await disableInactivePackage(t, null);
+  assert.deepEqual(missing.setting, { transactional: 'firstadapter', bulk: null });
+  assert.deepEqual(missing.toggled.map(input => [input.pluginId, input.enabled]), [[PLUGIN_TOGGLE.pluginId, false]]);
+  // A package whose adapters file does not parse proves no ownership either.
+  assert.deepEqual((await disableInactivePackage(t, JSON.stringify({ schemaVersion: 1, adapters: 'firstadapter' }))).setting, { transactional: 'firstadapter', bulk: null });
+});
+
+test("the purpose-gate probe refuses production notification mail until the durable outbox is ready, which defaults to never", async () => {
+  const { required, release } = await rig(); release(); await required.settingsReady;
+  required.resolve.mode = "production";
+  const ask = { capabilityName: "forms", lane: "notification" } as const;
+  assert.equal(await createSiteMailer(required).operations.mailPurposeGate(ask), false);
+  const asked: string[] = [];
+  const ready = createSiteMailer(required, { durableOutboxReady: ({ capabilityName }) => { asked.push(capabilityName); return true; } });
+  assert.equal(await ready.operations.mailPurposeGate(ask), true);
+  assert.deepEqual(asked, ["forms"]);
+});
