@@ -417,3 +417,22 @@ test("the refusal host and a closed host expose inert boot, wake and approval po
   await closing;
   assert.equal(await host.reconcile({ reason: "wake" }), undefined);
 });
+
+test("a signed-in non-owner is refused FORBIDDEN with its reason, a non-object create body reaches the factory's 400, and a repeated toggle is a no-op", async (t) => {
+  const beacons: number[] = [];
+  const h = harness(t, { writeBeacon: async ({ enabled }) => { beacons.push(enabled); return { ok: true }; } });
+  try {
+    await h.compose();
+    const denied = await h.call(`get ${ROUTINE_ROUTE_BASE}`, { context: { id: "someone-else", workspaceId: "ws-1" } });
+    if (denied.ok) assert.fail("a non-owner must be refused");
+    assert.equal(denied.error.code, "FORBIDDEN");
+    assert.equal((denied.error.details as { reason: string }).reason, "ROUTINES_FORBIDDEN");
+    const arrayBody = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: [{ name: "Daily" }] });
+    if (arrayBody.ok) assert.fail("an array body is not a routine draft");
+    assert.deepEqual([arrayBody.error.code, arrayBody.error.message], ["BAD_REQUEST", "body must be a JSON object"], "the body is passed through untouched, not spread into an object");
+    const before = beacons.length;
+    h.toggle(true);
+    await flush();
+    assert.equal(beacons.length, before, "re-announcing the current state neither restarts the host nor rewrites the beacon");
+  } finally { await h.close(); }
+});
