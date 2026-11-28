@@ -51,7 +51,7 @@ function buildSite() {
   return { siteDir, themesDir, held };
 }
 
-function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string; explain?: typeof explainThemeTree } = {}) {
+function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string; explain?: typeof explainThemeTree; presentationMissing?: boolean } = {}) {
   const routeErrors = createRouteIncidentReporter().errors;
   const site = buildSite();
   const themes = discoverAllBuiltInThemes({ dir: site.themesDir, source: "built-in" });
@@ -71,7 +71,7 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
     explainThemeTree: options.explain ?? explainThemeTree,
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock: { nowMs: () => Date.parse("2026-11-24T00:00:00Z") }, idGen: { newId: () => `plan-${++serial}` }, authorize: authorizeStub }) },
     presentationRepo: {
-      findByWorkspaceId: async () => ({ workspaceId: WORKSPACE_ID, activeThemeId: presentation.activeThemeId, updatedAt: "" }),
+      findByWorkspaceId: async () => (options.presentationMissing ? null : { workspaceId: WORKSPACE_ID, activeThemeId: presentation.activeThemeId, updatedAt: "" }),
       save: async () => { presentation.saved += 1; },
       listAll: async () => [],
     },
@@ -372,6 +372,23 @@ test("held-back refusals keep their exact body shape and an unexpected failure k
   assert.deepEqual(Object.keys(failed.json), ["code", "error", "problems"]);
 
   const broken = buildApp({ explain: () => { throw new Error("disk exploded"); } });
+  const unexpected = await call(t, broken.app, { path: "/check", body: { themeId: GOOD } });
+  assert.equal(unexpected.status, 500);
+  assert.match(JSON.stringify(unexpected.json), /ERR-/);
+  assert.doesNotMatch(JSON.stringify(unexpected.json), /disk exploded/);
+});
+
+test("held-back list on a site with no saved presentation lists the themes and shows no notice", async (t) => {
+  const site = buildApp({ presentationMissing: true });
+  fs.writeFileSync(path.join(site.held, "held-back-choice.json"), JSON.stringify({ chosenThemeId: GOOD, fallbackThemeId: "live-one" }));
+  const { status, json } = await call(t, site.app);
+  assert.equal(status, 200);
+  assert.deepEqual(json.themes.map((theme: { id: string }) => theme.id), ["declarative/bad-tier", "declarative/has-code", GOOD]);
+  assert.equal(json.chosenThemeHeldBack, null);
+});
+
+test("held-back check that throws a non-Error value answers 500 with a reference, not a refusal", async (t) => {
+  const broken = buildApp({ explain: () => { throw "disk exploded"; } });
   const unexpected = await call(t, broken.app, { path: "/check", body: { themeId: GOOD } });
   assert.equal(unexpected.status, 500);
   assert.match(JSON.stringify(unexpected.json), /ERR-/);
