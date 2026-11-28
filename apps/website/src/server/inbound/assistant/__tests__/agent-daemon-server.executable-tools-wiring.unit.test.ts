@@ -14,8 +14,10 @@ test("server executable plugin tools share the server's confirmation store", () 
   assert.match(serverSurface, /surfaces:\s*\{\s*surfaceExchanges\s*\}/);
   assert.match(serverSurface, /surfaceExchanges,\s*\n\s*executeMetaTool/);
   assert.match(serverModule, /surfaces:\s*\{\s*surfaceExchanges:\s*resolvedToolSurface\.surfaceExchanges,\s*assertAccessApprover:\s*createAccessApprover\(routeDeps\)\s*\}/);
-  assert.match(serverModule, /registry\.register\(automaticPluginRuns\.loadRegistration\)/);
+  // The run controller is created after the surface, so the options read it through a late-bound getter.
+  assert.match(serverModule, /registry\.register\(automaticPluginRuns\(\)\.loadRegistration\)/);
+  assert.match(serverModule, /automaticPluginRuns: \(\) => automaticPluginRuns,/);
   const daemon = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n");
   assert.equal(daemon.includes("attachAssistantToolExtensions"), false);
-  assert.match(daemon, /registerMcpUiToolCallsRoute\(app, \{ toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler \}\)/);
+  assert.match(daemon, /registerMcpUiToolCallsRoute\(\{ app, deps: \{ toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler \}, errors: routeErrors \}\)/);
 });
