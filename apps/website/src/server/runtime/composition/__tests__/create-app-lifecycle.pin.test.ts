@@ -28,7 +28,7 @@ mock.module("../../lifecycle/daemon-supervisor.js", {
     },
   },
 });
-const { createApp, createRouteDeps } = await import("../app.js");
+const { createApp, createRouteDeps, siteFailureReporter } = await import("../app.js");
 const { siteAppBootWorkByDeps } = await import("../site-app-boot-work.js");
 const { createAssistantByokModule } = await import("../modules/assistant-byok.js");
 
@@ -186,4 +186,14 @@ test("stopForIdle: a share backend or campaign repo that cannot answer counts as
   assert.deepEqual(await outcome((deps) => {
     Object.defineProperty(deps.newsletterCampaignRepo, "hasSending", { value: undefined });
   }), { reply: { idle: false }, stops: 0 }, "a campaign repo with no sending probe is treated as busy");
+});
+
+test("siteFailureReporter: a host-injected reporter wins; otherwise each site keeps one reporter and another site gets its own", () => {
+  const siteA = createRouteDeps(), siteB = createRouteDeps();
+  const injected = siteFailureReporter({ routeDeps: siteB });
+  assert.equal(siteFailureReporter({ routeDeps: siteA }, { errorReporter: injected }), injected);
+  const first = siteFailureReporter({ routeDeps: siteA });
+  assert.notEqual(first, injected, "siteA's own reporter is not siteB's");
+  assert.equal(siteFailureReporter({ routeDeps: siteA }), first, "the second call for the same site reuses its reporter");
+  assert.equal(siteFailureReporter({ routeDeps: siteB }), injected);
 });

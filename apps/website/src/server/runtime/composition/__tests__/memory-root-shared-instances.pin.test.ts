@@ -94,3 +94,35 @@ test("a supplied publish-content peer client is the one the hermetic root dials 
   assert.notEqual(built, client);
   assert.equal(typeof built.send, "function");
 });
+
+test("memory root: the trash sweep purges a post whose retention ran out, and only adapter-backed types are trashable", async () => {
+  const deps: any = createRouteDeps();
+  const workspaceId = deps.workspaceId as string;
+  assert.equal(deps.isTrashableEntityType({ entityType: "post" }), true);
+  assert.equal(deps.isTrashableEntityType({ entityType: "no-such-domain" }), false);
+  await deps.postRepo.save({ id: "post-expired", workspaceId, title: "Expired", slug: "post-expired", bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc", bodyHtml: null, status: "draft", kind: "post", updatedAt: AT, version: 1 });
+  const marker = await deps.trash.trash({ workspaceId, entityType: "post", entityId: "post-expired", actor: { principalId: "owner" },
+    display: { title: "Expired" }, at: AT, expectedVersion: 1 });
+  assert.equal(marker.ok, true);
+  const trashed = async () => (await deps.trash.list({ workspaceId, now: AT, limit: 50 })).items.map((row: { entityId: string }) => row.entityId);
+  assert.deepEqual(await trashed(), ["post-expired"]);
+  const sweep = (now: string) => deps.sweepTrash({ now, leaseOwner: "sweeper", leaseUntil: "2099-01-01T00:00:00.000Z", limit: 5 });
+  assert.deepEqual(await sweep(AT), { claimed: 0, purged: 0, results: [] }, "a fresh marker is not due");
+  const report = await sweep("2099-01-01T00:00:00.000Z");
+  assert.deepEqual({ claimed: report.claimed, purged: report.purged, outcomes: report.results.map((row: { outcome: string }) => row.outcome) },
+    { claimed: 1, purged: 1, outcomes: ["purged"] });
+  assert.deepEqual(await trashed(), []);
+  assert.equal(await deps.postRepo.findById({ workspaceId, id: "post-expired" }), null);
+});
+
+test("memory root: resolveStorefrontProducts reads the commerce catalog that is on routeDeps when it is called", async () => {
+  const deps: any = createRouteDeps();
+  deps.commerceCatalog = undefined;
+  assert.deepEqual(await deps.resolveStorefrontProducts(), [], "no commerce catalog exposes no products");
+  const product = { id: "product-1", name: "Book", slug: "book" };
+  const asked: unknown[] = [];
+  deps.commerceCatalog = { listProducts(this: unknown, required: unknown) { asked.push([this === deps.commerceCatalog, required]); return Promise.resolve([product]); } };
+  assert.deepEqual(await deps.resolveStorefrontProducts(), [product]);
+  assert.deepEqual(asked, [[true, {}]], "the catalog is called once, bound to itself, with an empty request");
+});
