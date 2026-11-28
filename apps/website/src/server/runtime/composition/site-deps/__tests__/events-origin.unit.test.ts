@@ -28,10 +28,8 @@ function boot(t: test.TestContext, env: Partial<Record<(typeof ENV)[number], str
 }
 
 test("a configured public URL is registered as the workspace's origin", async t => {
-  const { origin } = boot(t, { TOVU_PUBLIC_URL: "https://shop.example.org", TOVU_RUNTIME_MODE: "production" });
-  const registered = await origin();
-  assert.deepEqual([registered.scheme, registered.host], ["https", "shop.example.org"]);
-  assert.notEqual(registered.source, "dev-capability");
+  const { origin } = boot(t, { TOVU_PUBLIC_URL: "https://shop.example.org:8443", TOVU_RUNTIME_MODE: "production" });
+  assert.deepEqual(await origin(), { scheme: "https", host: "shop.example.org", port: 8443, source: "workspace-setting" });
 });
 
 test("in local mode with nothing configured, an https listener without a port seeds localhost on 443", async t => {
@@ -49,4 +47,6 @@ test("in production with nothing configured, boot registers no origin and warns"
   assert.equal(await composed.originReady, undefined);
   await assert.rejects(composed.originRegistry.canonicalOrigin({ workspaceId: "ws-o" }), /no verified origin registered for workspace 'ws-o'/);
   assert.equal(warnings.mock.callCount(), 1);
+  const [message] = warnings.mock.calls[0].arguments as [string];
+  assert.match(message, /^No public origin is configured for this production deployment: TOVU_PUBLIC_URL is unset or was refused/);
 });

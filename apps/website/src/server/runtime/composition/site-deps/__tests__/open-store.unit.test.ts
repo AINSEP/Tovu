@@ -43,13 +43,20 @@ test("releasing a supplied client store drains boot work, then disposes registra
 
 test("a supplied SQLite opener opens the client's content database, and closing the store closes it", async t => {
   const dir = siteDir(t);
-  const openedFiles: string[] = [];
-  const sqliteOpen = ((file: string, options?: Parameters<typeof openNativeSqlite>[1]) => { openedFiles.push(String(file)); return openNativeSqlite(file, options); }) as Overrides["sqliteOpen"];
+  const opened: { file: string; handle: ReturnType<typeof openNativeSqlite> }[] = [];
+  const sqliteOpen = ((file: string, options?: Parameters<typeof openNativeSqlite>[1]) => {
+    const handle = openNativeSqlite(file, options);
+    opened.push({ file: String(file), handle });
+    return handle;
+  }) as Overrides["sqliteOpen"];
   const dbPath = path.join(dir, "content.db");
   const { store, release } = await openCompositionStore({ dbPath }, { overrides: { sqliteOpen, storeRole: "client" } as Overrides });
-  assert.equal(openedFiles.includes(dbPath), true, openedFiles.join(", "));
+  const content = opened.find(entry => entry.file === dbPath);
+  assert.ok(content !== undefined, opened.map(entry => entry.file).join(", "));
+  assert.equal(content.handle.open, true);
   assert.equal(release, store.close);
   await release();
+  assert.equal(content.handle.open, false, "releasing the store left the content database open");
 });
 
 /** A site folder whose `.site-meta.json` names a storage kind no store can open. */

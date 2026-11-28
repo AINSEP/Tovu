@@ -40,7 +40,14 @@ type Analytics = Parameters<typeof routeDepsProviderAnalytics>[0];
 type ThemesDeps = Required<ReturnType<typeof routeDepsSiteThemesTelemetry>>;
 type AnalyticsDeps = Required<ReturnType<typeof routeDepsProviderAnalytics>>;
 const TRACEPARENT = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
-const capturedInput = (name: string) => (captured[name] as { input: Record<string, unknown> }).input;
+const capturedInput = (name: string) => {
+  assert.ok(name in captured, `${name} was not built`);
+  return (captured[name] as { input: Record<string, unknown> }).input;
+};
+/** Each compose starts with no captured boundary inputs, so a test never reads a previous test's build. */
+function resetCaptured(): void {
+  for (const key of Object.keys(captured)) delete captured[key];
+}
 
 function providerPlugins(calls: unknown[][]) {
   const record = (name: string) => async (input: unknown) => { calls.push([name, input]); return `${name}-done`; };
@@ -55,6 +62,7 @@ function themesTelemetry(t: test.TestContext, { mediaIsRemoteByEnv, observabilit
   productRoot = fs.mkdtempSync(path.join(os.tmpdir(), "product-"));
   t.after(() => fs.rmSync(productRoot, { recursive: true, force: true }));
   if (version !== undefined) fs.writeFileSync(path.join(productRoot, "package.json"), version);
+  resetCaptured();
   const calls: unknown[][] = [];
   const loadPluginContributions = async () => [];
   const deps = routeDepsSiteThemesTelemetry({
@@ -83,7 +91,7 @@ test("the mail feedback route loads this workspace's mail adapters through the a
 
 test("change sets stamp the active trace parent on their co-persisted events, and none when observability has no reader", t => {
   const event = { id: "evt-1", type: "post.updated", payload: {} };
-  const prepare = () => (captured.changeSets as { options: { prepareOutboxEvent: (input: { event: unknown }) => Parameters<typeof readOutboxTraceParent>[0]["event"] } }).options.prepareOutboxEvent({ event });
+  const prepare = () => { assert.ok("changeSets" in captured, "no change-set repo was built"); return (captured.changeSets as { options: { prepareOutboxEvent: (input: { event: unknown }) => Parameters<typeof readOutboxTraceParent>[0]["event"] } }).options.prepareOutboxEvent({ event }); };
   themesTelemetry(t, { mediaIsRemoteByEnv: false, observability: { activeTraceparent: () => TRACEPARENT } });
   assert.equal(readOutboxTraceParent({ event: prepare() }), TRACEPARENT);
   themesTelemetry(t, { mediaIsRemoteByEnv: false, observability: {} });
@@ -128,6 +136,7 @@ test("provider analytics: applies-at forwards to provider plugins, legacy keys a
   credentialCalls.length = 0;
   const repo = { repo: 2 };
   const sealer = { sealer: 2 };
+  resetCaptured();
   const deps = routeDepsProviderAnalytics({
     agentPluginLifecycle: { loadPluginContributions: async () => [] }, kernel: contentKernel({ store: db }), workspaceId: "ws-8", publishTrustRevocations: {}, clock: {}, idGen: {},
     settingsRepo: {}, siteAssistantSecretSealer: sealer, customCredentialSetRepo: repo, providerPlugins: providerPlugins(calls), projectKeys: {}, observability: {},

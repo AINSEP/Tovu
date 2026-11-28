@@ -20,11 +20,19 @@ mock.module(new URL("../../content-publish-ports.js", import.meta.url).href, { n
 const { composePublishContentApplyPort } = await import("../publish-apply.js");
 type Required = Parameters<typeof composePublishContentApplyPort>[0];
 
+/** Each compose starts with empty recorders, so a test never reads a previous test's deps, port or rescans. */
+function resetRecorders(): void {
+  for (const key of Object.keys(seen)) delete seen[key];
+  rescans.length = 0;
+}
+
 function compose() {
+  resetRecorders();
   const siteThemes = { themes: "site" };
   const seedHash = async () => "seed";
   const result = composePublishContentApplyPort({ workspaceId: "ws-1", siteThemes, resolvedThemesDir: "/site/themes", publishContentSeedHash: seedHash,
     identity: { authorize: () => true }, trashRepo: {}, trash: {} } as unknown as Required);
+  assert.ok(seen.deps !== undefined && seen.port !== undefined, "the apply-port factories were not called");
   const ports = seen.deps.ports as { "theme-files": { themesDir: string; onReplaced: () => void }; post: { reportRollbackError: (message: string, diagnostic: string) => void } };
   return { result, ports, siteThemes, seedHash };
 }

@@ -27,6 +27,8 @@ const required = (composer: string): Record<string, unknown> => {
   assert.ok(value, `${composer} was not composed`);
   return value;
 };
+/** Each phase call starts with no recorded inputs, so a test never reads a previous test's composition. */
+const resetRecorders = (): void => { seen.clear(); };
 const call = (composer: string, key: string): unknown => (required(composer)[key] as () => unknown)();
 
 const SIBLINGS: Record<string, string> = {
@@ -67,6 +69,7 @@ function late(name: string) {
 test("composeStoragePhase reads every late-built input through its getter only when the bootstrap or media storage asks", () => {
   const [tracker, routeDeps, observability, workspaceId, settingsRepo] = ["tracker", "routeDeps", "observability", "workspaceId", "settingsRepo"].map(late);
   const store = { content: { kernel: "content-kernel" } };
+  resetRecorders();
   const result = phases.composeStoragePhase({
     dbPath: "/site/content.db", overrides: {}, onStoreClose: () => undefined, store,
     lifecycleTracker: tracker.getter, routeDeps: routeDeps.getter, observability: observability.getter, workspaceId: workspaceId.getter, settingsRepo: settingsRepo.getter,
@@ -84,6 +87,7 @@ test("composeStoragePhase reads every late-built input through its getter only w
 function composeServices(t: test.TestContext, observability: () => unknown) {
   const errors = t.mock.method(console, "error", () => undefined);
   const getters = Object.fromEntries(["tracker", "pluginHost", "forms", "assetBlobRepo", "mediaRepo", "postRepo", "mediaContentTypeStore", "routeDeps"].map(n => [n, late(n)]));
+  resetRecorders();
   phases.composeSiteServicesPhase({
     mediaAccessEvidence: {}, dbPath: "/site/content.db", overrides: {}, onStoreClose: () => undefined, consoleLogger: {},
     lifecycleTracker: getters.tracker.getter, routeDepsBuiltForPluginHost: getters.pluginHost.getter, formCollectionProviders: getters.forms.getter,
@@ -133,6 +137,7 @@ function composeLifecycle({ projectStore }: { projectStore: unknown }) {
     observability: { obs: 1 }, tracker: { tr: 1 }, aiTraceSink: { sink: 1 },
   };
   const kernel = { kernel: "content" };
+  resetRecorders();
   const result = phases.composeProviderLifecyclePhase({
     onStoreClose: ({ registration }: { registration: unknown }) => { registrations.push(registration); }, bindSharedApiOAuth: () => bind,
     resolvedSiteBinding: {}, kernel, workspaceId: "ws-4", clock: {}, projectKeyReferences: {}, projectSiteId: "site-7", projectStore, providerConfigSource: {},
@@ -177,6 +182,7 @@ function composeContent({ observability }: { observability: Record<string, unkno
   const kernel = { kernel: "content" };
   const chat = { kernel: "chat" };
   instrumented.length = 0;
+  resetRecorders();
   phases.composeInstrumentedContentPhase({
     mediaAccessEvidence: {}, overrides: {}, pendingLifecycleEvents: pending, agentPluginLifecycle: {}, kernel, workspaceId: "ws-2", chat,
     clock: {}, idGen: {}, identity: {}, settingsPrincipals: {}, settingsRepo: {}, siteTitleReady: {}, originRegistry: {}, runtimeMode: "local",
@@ -207,6 +213,7 @@ test("composeInstrumentedContentPhase's content stores stamp the active trace pa
 
 test("composePublishingPhase hands the publishing stores' outputs to the apply port and returns each composer's ports", () => {
   const clock = { c: 1 };
+  resetRecorders();
   const result = phases.composePublishingPhase({ workspaceId: "ws-5", resolvedThemesDir: "/themes", clock, outbox: { o: 1 } } as unknown as Phase<"composePublishingPhase">);
   const apply = required("composePublishContentApplyPort");
   for (const key of ["publishContentBundleRepo", "publishContentBaselineRepo", "mediaContentTypeStore", "siteThemes", "publishContentSeedHash"]) {
