@@ -8,3 +8,6 @@ Wave 1 (00:27 UTC): 4 subagents — 13a (non-site-deps composition), 13b (compos
 - 01:05 UTC 14a first commit cherry-picked and pushed (57df32fa). 13a first commit pushed to codex/tv-w62-cov-web-13 (33a1e8dc).
 - 01:10 UTC 14c dispatched on the configuration/composition/small-lifecycle rows; returned 01:15: all 12 at 100/100/100 with importers (no tests needed).
 - 01:17 UTC 14d dispatched: triage the 3 red tests in job 14's files (webhook x2, production-readiness-boot AC-23/24).
+- 01:30 UTC 13b returned (site-update-binding, store-close-hooks, redirects -> 100/100/100; site-sharing up); cherry-picked + pushed (0dfda4a6). 13b2 dispatched on the remaining site-deps rows.
+- 01:40 UTC 13a returned (tool-catalog-manifest commerce confirm + Playwright render paths covered); 13a2 dispatched on the remaining composition rows.
+- 01:55 UTC 14d returned: the 3 reds were stale tests after deliberate Jini changes; fixed to assert the new contracts exactly (8865f4df pushed). 14e dispatched on local-site-host / readiness-state / agent-daemon-port / assistant-daemon-connection; 14a narrowed to daemon-supervisor + local-site-process.
