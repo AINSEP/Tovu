@@ -75,3 +75,11 @@ test("the generation changes when the injected default changes, so the admin ref
   const read = (defaultProvider: string | undefined) => readAdminChartProviderSnapshot({ workspaceId: "ws", settingsRepo, browserProviders: () => ({ generation: 1, providers: [] }), defaultProvider });
   assert.notEqual((await read("plugin.a")).generation, (await read("plugin.b")).generation);
 });
+
+test("a provider whose declared JavaScript is not among its admitted assets fails the snapshot instead of guessing an asset", async () => {
+  const missing = { pluginId: "acme/broken", version: "2.0.0", declaration: { id: "acme.broken", kinds: ["bar"], javascript: "dist/missing.js" },
+    assets: [{ path: "dist/chart.js", digest: "sha-js" }] } as never;
+  await assert.rejects(readAdminChartProviderSnapshot({ workspaceId: "ws", settingsRepo: new InMemorySettingsRepo(),
+    browserProviders: () => ({ generation: 1, providers: [provider(), missing] }), defaultProvider: undefined }),
+  { message: "chart provider acme/broken has no declared JavaScript asset" });
+});
