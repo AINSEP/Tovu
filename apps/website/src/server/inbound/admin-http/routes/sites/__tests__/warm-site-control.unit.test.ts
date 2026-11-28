@@ -59,3 +59,55 @@ test('a warm tab delegates site management with the original cookies and preserv
   const identity = await requestLoopbackHttp({ url: `${childUrl}/identity`, method: 'GET' });
   assert.deepEqual(JSON.parse(identity.body.toString()), { site: 'child' });
 });
+
+test('only a fully configured warm child delegates site management', () => {
+  const binding = { name: 'child', dir: '/sites/child', dirOverridden: false, switcherCompatible: true };
+  const mounted: unknown[] = [];
+  const app = { use: (path: unknown) => { mounted.push(path); } } as unknown as express.Express;
+  const full = { TOVU_DEV_WARM_SITES: '1', TOVU_DEV_WARM_CONTROL_URL: 'http://localhost:3000', TOVU_DEV_WARM_CONTROL_WORKSPACE: 'host-ws', TOVU_DISABLE_DEV_TLS: '1' };
+  for (const env of [{ ...full, TOVU_DEV_WARM_SITES: '0' }, { ...full, TOVU_DEV_WARM_CONTROL_URL: '' }, { ...full, TOVU_DEV_WARM_CONTROL_WORKSPACE: '' }]) {
+    assert.equal(registerWarmSiteControl({ app, workspaceId: 'child-ws', binding }, { env }), false);
+  }
+  assert.deepEqual(mounted, []);
+  assert.equal(registerWarmSiteControl({ app, workspaceId: 'child ws', binding }, { env: full }), true);
+  assert.deepEqual(mounted, ['/api/admin/v1/workspaces/child%20ws/system/sites']);
+});
+
+test('a warm tab relays non-listing replies untouched and types an untyped preview as PNG', async t => {
+  const seen: Array<{ method: string | undefined; url: string | undefined }> = [];
+  const preview = Buffer.from([9, 8, 7]);
+  const parent = createServer((req, res) => {
+    seen.push({ method: req.method, url: req.url });
+    if (req.url?.endsWith('/preview')) { res.end(preview); return; }
+    res.statusCode = req.method === 'POST' ? 202 : 200;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ sites: [{ name: 'child' }], currentSite: { name: 'host' } }));
+  });
+  const address = async (server: Server) => {
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+    return `http://localhost:${(server.address() as { port: number }).port}`;
+  };
+  const parentUrl = await address(parent);
+  const app = express();
+  registerWarmSiteControl({ app, workspaceId: 'child-ws', binding: {
+    name: 'child', dir: '/sites/child', dirOverridden: false, switcherCompatible: true,
+  } }, { env: { TOVU_DEV_WARM_SITES: '1', TOVU_DEV_WARM_CONTROL_URL: parentUrl,
+    TOVU_DEV_WARM_CONTROL_WORKSPACE: 'host-ws', TOVU_DISABLE_DEV_TLS: '1' } });
+  const prefix = `${await address(createServer(app))}/api/admin/v1/workspaces/child-ws/system/sites`;
+  const hostView = { sites: [{ name: 'child' }], currentSite: { name: 'host' } };
+  const detail = await requestLoopbackHttp({ url: `${prefix}/child`, method: 'GET' });
+  assert.equal(detail.status, 200);
+  assert.deepEqual(JSON.parse(detail.body.toString()), hostView);
+  const created = await requestLoopbackHttp({ url: prefix, method: 'POST' });
+  assert.equal(created.status, 202);
+  assert.deepEqual(JSON.parse(created.body.toString()), hostView);
+  const image = await requestLoopbackHttp({ url: `${prefix}/child/preview`, method: 'GET' });
+  assert.match(image.contentType ?? '', /^image\/png/);
+  assert.deepEqual(image.body, preview);
+  assert.deepEqual(seen, [
+    { method: 'GET', url: '/api/admin/v1/workspaces/host-ws/system/sites/child' },
+    { method: 'POST', url: '/api/admin/v1/workspaces/host-ws/system/sites' },
+    { method: 'GET', url: '/api/admin/v1/workspaces/host-ws/system/sites/child/preview' },
+  ]);
+});
