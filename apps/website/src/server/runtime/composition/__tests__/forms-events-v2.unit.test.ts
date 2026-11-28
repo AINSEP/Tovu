@@ -78,6 +78,12 @@ test('form_submitted needs every proof clause: a granted subject id, a consent r
   const unchecked = start({});
   await unchecked.bus.publish({ ...base, payload: { ...payload, analyticsProvenance: valid } });
   assert.deepEqual(unchecked.events, [], 'a host without a consent check never delivers');
+
+  // A submission whose form definition is gone (deleted after submit) sends nothing and asks no consent.
+  const before = checks;
+  await allowed.bus.publish({ ...base, id: 'event-3', payload: { ...payload, formDefinitionId: 'form-deleted', analyticsProvenance: valid } });
+  assert.equal(allowed.events.length, 1, 'no form_submitted for a form that no longer exists');
+  assert.equal(checks, before, 'the consent check is not consulted without a definition');
 });
 
 test('a notify failure with no error value is logged as its fixed line alone', async (t) => {
