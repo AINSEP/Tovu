@@ -243,3 +243,36 @@ test("availability ignores the daemon response shape and reads only the API inve
   assert.deepEqual(await response.json(), { agents: [CLAUDE_AGENT, CODEX_AGENT] });
   assert.equal(daemonRequestCount, 0);
 });
+
+test("a site with no agent inventory answers 503 AGENT_DAEMON_UNAVAILABLE without contacting the daemon", async (t) => {
+  const { baseUrl, cookie, deps } = await bootProxy(t);
+  Object.assign(deps, { assistantAgentInventory: undefined });
+  const response = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "the agent inventory is not configured", code: "AGENT_DAEMON_UNAVAILABLE" });
+  assert.equal(daemonRequestCount, 0);
+});
+
+test("a claude entry with no static models gets the live list alone, and a rejected live call logs one prefixed warning and keeps the fallback", async (t) => {
+  const { baseUrl, cookie, deps, principalId } = await bootProxy(t);
+  const provider = await startProviderServer();
+  t.after(() => new Promise<void>((resolve) => provider.server.close(() => resolve())));
+  const { models: _models, ...modelless } = CLAUDE_AGENT;
+  Object.assign(deps, { assistantAgentInventory: { ...deps.assistantAgentInventory, listAssistantAgents: async () => [modelless, CODEX_AGENT] } });
+  const credentialDeps = { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock };
+  await setExecutionCredential(credentialDeps,
+    { workspaceId: deps.workspaceId, principalId, apiKey: "sk-ant-test-key", protocol: "anthropic", baseUrl: provider.baseUrl });
+
+  const live = (await (await fetch(`${baseUrl}/api/agents`, { headers: { cookie } })).json()) as { agents: Array<{ id: string }> };
+  assert.deepEqual(live.agents[0], { ...modelless, models: [{ id: "claude-opus-5-20260101", label: "Claude Opus 5 (2026-01-01)" }], modelsSource: "live" });
+
+  // A second boot (fresh discovery cache) whose stored key the provider rejects.
+  const second = await bootProxy(t);
+  await setExecutionCredential({ repo: second.deps.adminExecutionCredentialRepo, sealer: second.deps.siteAssistantSecretSealer, keyring: second.deps.siteAssistantSecretKeyring, clock: second.deps.clock },
+    { workspaceId: second.deps.workspaceId, principalId: second.principalId, apiKey: "sk-ant-wrong-key", protocol: "anthropic", baseUrl: provider.baseUrl });
+  const warned = t.mock.method(console, "warn", () => undefined);
+  const rejected = await fetch(`${second.baseUrl}/api/agents`, { headers: { cookie: second.cookie } });
+  assert.deepEqual(await rejected.json(), { agents: [CLAUDE_AGENT, CODEX_AGENT] }, "a failed live call leaves the fallback list byte-identical");
+  assert.equal(warned.mock.callCount(), 1);
+  assert.match(String(warned.mock.calls[0].arguments[0]), /^\[assistant\] live Claude model discovery failed \(/);
+});

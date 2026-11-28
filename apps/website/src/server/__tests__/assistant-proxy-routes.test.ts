@@ -9,7 +9,7 @@ import test from "node:test";
 import { SpanKind } from "@opentelemetry/api";
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
+import { A2UI_ACTIONS_PATH, AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, isAssistantDaemonKnownFailed } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
 import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
@@ -64,6 +64,10 @@ interface RecordedRequest {
 
 let recorded: RecordedRequest[] = [];
 let demandOverride: (() => Promise<void>) | undefined;
+/** When set, the stand-in refuses `GET /api/active` with this status and a plain-text (non-JSON) body. */
+let activeRefusal: number | undefined;
+/** Resolves when the stand-in's abandoned SSE response is torn down by the proxy (see its branch below). */
+let abandonedStreamClosed: Promise<void> = Promise.resolve();
 
 /** The stand-in agent daemon: records every inbound request, then answers in the shape the real route would. */
 async function startStandInDaemon(): Promise<{ origin: string; server: Server }> {
@@ -90,6 +94,24 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
           res.write(`id: chunk-2\ndata: {"kind":"second"}\n\n`);
           res.end();
         }, 200);
+        return;
+      }
+      // An SSE stream that writes one event and then never ends on its own: only the proxy cancelling
+      // its upstream read can close it, so its `close` proves a browser disconnect reached the daemon.
+      if ((req.url ?? "").includes("/runs/run-abandoned/events")) {
+        abandonedStreamClosed = new Promise<void>((resolve) => res.on("close", () => resolve()));
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.write(`id: chunk-1\ndata: {"kind":"first"}\n\n`);
+        return;
+      }
+      if ((req.url ?? "") === "/api/runs/run-empty") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      if ((req.url ?? "") === "/api/active" && activeRefusal !== undefined) {
+        res.writeHead(activeRefusal, { "content-type": "text/plain" });
+        res.end("intake parked");
         return;
       }
       if ((req.url ?? "").startsWith("/api/frontend-sessions/stream")) {
@@ -209,6 +231,7 @@ async function bootProxy(t: import("node:test").TestContext, observability?: Obs
   const { buildApp } = await harness();
   recorded = [];
   demandOverride = undefined;
+  activeRefusal = undefined;
   const baseUrl = await startTestServer(buildApp(observability), t);
   const cookie = await loginAsOwner(baseUrl);
   return { baseUrl, cookie };
@@ -846,5 +869,80 @@ test("run start rejects malformed and non-object context envelopes before reachi
       error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR",
     });
   }
+  assert.deepEqual(recorded, []);
+});
+
+test("a body-less daemon answer (204, no content type) is relayed as an empty response without inventing a Content-Type", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const response = await fetch(`${baseUrl}/api/runs/run-empty`, { headers: { cookie } });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("content-type"), null);
+  assert.equal(await response.text(), "");
+  assert.deepEqual(recorded.map((call) => `${call.method} ${call.url}`), ["GET /api/runs/run-empty"]);
+});
+
+test("a browser that disconnects mid-stream cancels the proxy's upstream read, closing the daemon's SSE response", { timeout: 10_000 }, async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const controller = new AbortController();
+  const response = await fetch(`${baseUrl}/api/runs/run-abandoned/events`, { headers: { cookie }, signal: controller.signal });
+  const reader = response.body!.getReader();
+  const first = await reader.read();
+  assert.match(new TextDecoder().decode(first.value), /"kind":"first"/);
+  controller.abort();
+  // The stand-in never ends this response itself, so only the proxy's upstream cancel can close it.
+  const closed = await Promise.race([
+    abandonedStreamClosed.then(() => true),
+    new Promise<false>((resolve) => { const timer = setTimeout(() => resolve(false), 3_000); timer.unref(); }),
+  ]);
+  assert.equal(closed, true, "the daemon's stream stayed open after the browser left: the proxy never cancelled its read");
+});
+
+test("a non-JSON activation refusal still reports the daemon's status and a structured detail", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  activeRefusal = 503;
+  const response = await fetch(`${baseUrl}/api/frontend-sessions/activate`, { method: "POST", headers: { cookie } });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {
+    error: "The assistant could not attach to this page. Retry your message; if it keeps failing, restart the site.",
+    code: "FRONTEND_ACTIVATION_FAILED",
+    detail: 'GET /api/active: HTTP 503; {"status":503}',
+  });
+});
+
+test("an attachment upload without a content type is forwarded as octet-stream; an unreachable daemon answers 502", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const untyped = await fetch(`${baseUrl}/api/attachments?batch=batch-2&name=b.bin`, { method: "POST", headers: { cookie }, body: new Uint8Array([1, 2, 3]) });
+  assert.equal(untyped.status, 200); await untyped.text();
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].headers["content-type"], "application/octet-stream");
+
+  // A port that was just released: nothing listens there, so the upload's own fetch rejects.
+  const vacant = createServer();
+  vacant.listen(0, "127.0.0.1"); await once(vacant, "listening");
+  const vacantOrigin = `http://127.0.0.1:${(vacant.address() as AddressInfo).port}`;
+  await new Promise<void>((resolve) => vacant.close(() => resolve()));
+  const liveOrigin = process.env.JINI_AGENT_DAEMON_URL;
+  process.env.JINI_AGENT_DAEMON_URL = vacantOrigin;
+  t.after(() => { process.env.JINI_AGENT_DAEMON_URL = liveOrigin; });
+  const logged = t.mock.method(console, "error", () => undefined);
+
+  const response = await fetch(`${baseUrl}/api/attachments?batch=batch-3&name=c.txt`, {
+    method: "POST", headers: { cookie, "content-type": "text/plain" }, body: "lost bytes",
+  });
+  process.env.JINI_AGENT_DAEMON_URL = liveOrigin;
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: "assistant is unavailable", code: "BAD_GATEWAY" });
+  assert.equal(logged.mock.callCount(), 1);
+  assert.equal(logged.mock.calls[0].arguments[0], `[assistant] agent daemon unreachable at ${vacantOrigin}`);
+  assert.equal(recorded.length, 1, "nothing reached the live stand-in daemon");
+});
+
+test("a malformed A2UI action is refused with the validator's 400 and never forwarded", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const response = await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {
+    method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ message: { action: {} } }),
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" });
   assert.deepEqual(recorded, []);
 });
