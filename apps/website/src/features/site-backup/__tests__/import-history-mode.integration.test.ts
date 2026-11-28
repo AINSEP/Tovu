@@ -483,3 +483,136 @@ test("an unreadable DB probe is an error, never 'no evidence': the read fails an
   assert.equal(binding.refusal({}), undefined);
   assert.equal(bind({ root }).history.read({ run: (session) => session.kind }), "index");
 });
+
+const DAMAGED_MESSAGE = "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID.";
+const putRow = (id: string) => async (session: Parameters<Parameters<ReturnType<typeof bind>["history"]["locked"]>[0]["run"]>[0]) => {
+  if (session.kind === "index") session.store.put({ row: row(id), beforeWrite: session.beforeWrite });
+};
+const storedRow = ({ root, id }: { root: string; id: string }) =>
+  bind({ root }).history.read({ run: (session) => session.kind === "index" ? session.store.get({ importId: id, principalId: "owner" })?.importId ?? null : "legacy" });
+
+test("an indexed DB path that is not a regular file is refused as damaged and latched", async (t) => {
+  const root = tempRoot({ t });
+  await toIndexed({ root });
+  for (const name of [DB, `${DB}-wal`, `${DB}-shm`]) fs.rmSync(path.join(root, name), { force: true });
+  fs.mkdirSync(path.join(root, DB));
+  const binding = bind({ root });
+  assert.throws(() => binding.history.read({ run: () => "served" }), { code: "IMPORT_HISTORY_DAMAGED", message: DAMAGED_MESSAGE });
+  assert.equal(binding.refusal({})?.code, "IMPORT_HISTORY_DAMAGED");
+  assert.equal(fs.lstatSync(path.join(root, DB)).isDirectory(), true);
+});
+
+test("a pre-write cutover DB that is not a regular file cannot be quarantined: damaged, unlatched, nothing moved", async (t) => {
+  const root = tempRoot({ t });
+  await toCutover({ root });
+  fs.rmSync(path.join(root, DB));
+  fs.mkdirSync(path.join(root, DB));
+  const binding = bind({ root, cutoverPolicy: "rollback" });
+  await assert.rejects(binding.history.locked({ run: async () => "served" }), { code: "IMPORT_HISTORY_DAMAGED", message: DAMAGED_MESSAGE });
+  assert.equal(binding.refusal({}), undefined);
+  assert.equal(readState(root).mode, "cutover");
+  assert.equal(fs.lstatSync(path.join(root, DB)).isDirectory(), true);
+});
+
+/** A pre-write cutover whose DB is corrupt, so the next locked rollback entry quarantines it. */
+async function corruptCutover({ t }: { t: TestContext }): Promise<{ root: string; quarantine: string }> {
+  const root = tempRoot({ t });
+  const dbId = await toCutover({ root });
+  fs.writeFileSync(path.join(root, DB), Buffer.alloc(8192, 0x78));
+  return { root, quarantine: path.join(root, `site-imports.quarantine-${dbId}`) };
+}
+
+test("an interrupted quarantine resumes into its private directory; an occupied destination refuses and moves nothing", async (t) => {
+  const resumed = await corruptCutover({ t });
+  fs.mkdirSync(resumed.quarantine, { mode: 0o700 });
+  fs.writeFileSync(path.join(resumed.quarantine, `${DB}-wal`), "moved by the first pass");
+  fs.writeFileSync(path.join(resumed.root, `${DB}-shm`), "shm leftover");
+  const sessions: string[] = [];
+  await bind({ root: resumed.root, cutoverPolicy: "rollback" }).history.locked({ run: async (session) => { sessions.push(session.kind); } });
+  assert.deepEqual(sessions, ["legacy"]);
+  assert.deepEqual(fs.readdirSync(resumed.quarantine).sort(), [DB, `${DB}-shm`, `${DB}-wal`]);
+  assert.equal(fs.readFileSync(path.join(resumed.quarantine, `${DB}-wal`), "utf8"), "moved by the first pass");
+  const occupied = await corruptCutover({ t });
+  fs.mkdirSync(occupied.quarantine, { mode: 0o700 });
+  fs.writeFileSync(path.join(occupied.quarantine, DB), "an earlier copy");
+  await assert.rejects(bind({ root: occupied.root, cutoverPolicy: "rollback" }).history.locked({ run: async () => "served" }), { code: "IMPORT_HISTORY_DAMAGED" });
+  assert.equal(fs.readFileSync(path.join(occupied.quarantine, DB), "utf8"), "an earlier copy");
+  assert.deepEqual(fs.readFileSync(path.join(occupied.root, DB)), Buffer.alloc(8192, 0x78));
+  assert.equal(readState(occupied.root).mode, "cutover");
+});
+
+test("a quarantine path that is a file or a shared directory refuses before moving anything", async (t) => {
+  for (const kind of ["file", "shared"] as const) {
+    const { root, quarantine } = await corruptCutover({ t });
+    // Owner-only, so only the directory check can refuse the file.
+    if (kind === "file") fs.writeFileSync(quarantine, "not a directory", { mode: 0o600 });
+    else { fs.mkdirSync(quarantine); fs.chmodSync(quarantine, 0o755); }
+    await assert.rejects(bind({ root, cutoverPolicy: "rollback" }).history.locked({ run: async () => "served" }), { code: "IMPORT_HISTORY_DAMAGED" }, kind);
+    assert.deepEqual(fs.readFileSync(path.join(root, DB)), Buffer.alloc(8192, 0x78), kind);
+    assert.equal(readState(root).mode, "cutover", kind);
+  }
+});
+
+test("a quarantine directory that cannot be created surfaces its own error and moves nothing", async (t) => {
+  const { root, quarantine } = await corruptCutover({ t });
+  const denied: SiteImportIndexStateFs = { ...fs, mkdirSync: ((dir: fs.PathLike, ...rest: unknown[]) => {
+    if (String(dir) === quarantine) throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+    return (fs.mkdirSync as (...a: unknown[]) => unknown)(dir, ...rest);
+  }) as typeof fs.mkdirSync };
+  await assert.rejects(bind({ root, cutoverPolicy: "rollback", fs: denied }).history.locked({ run: async () => "served" }), { code: "EACCES" });
+  assert.deepEqual(fs.readFileSync(path.join(root, DB)), Buffer.alloc(8192, 0x78));
+});
+
+test("an indexed write over a witness that is a directory, a symlink or vanished mid-check fails before any SQL", async (t) => {
+  for (const kind of ["directory", "symlink", "vanished"] as const) {
+    const root = tempRoot({ t });
+    await toIndexed({ root });
+    const witness = indexStatePaths({ root }).witness;
+    fs.rmSync(witness);
+    let filesystem: SiteImportIndexStateFs = fs;
+    if (kind === "directory") fs.mkdirSync(witness);
+    if (kind === "symlink") { fs.writeFileSync(path.join(root, "target"), ""); fs.symlinkSync(path.join(root, "target"), witness); }
+    if (kind === "vanished") filesystem = { ...fs, openSync: ((file: fs.PathLike, flags: unknown, ...rest: unknown[]) => {
+      if (String(file) === witness && flags === "wx") throw Object.assign(new Error("exists"), { code: "EEXIST" });
+      return (fs.openSync as (...a: unknown[]) => number)(file, flags, ...rest);
+    }) as typeof fs.openSync };
+    const id = randomUUID();
+    await assert.rejects(bind({ root, fs: filesystem }).history.locked({ run: putRow(id) }), { code: "EEXIST" }, kind);
+    assert.equal(storedRow({ root, id }), null, kind);
+  }
+});
+
+test("retirement removes only old regular snapshot files: directories, links, special and vanished entries stay untouched", async (t) => {
+  const root = tempRoot({ t });
+  await toIndexed({ root });
+  const old = legacyFile({ root, mtimeMs: NOW - DAY });
+  const directory = path.join(root, `${randomUUID()}.json`);
+  fs.mkdirSync(directory);
+  fs.utimesSync(directory, new Date(NOW - DAY), new Date(NOW - DAY));
+  const target = legacyFile({ root, name: "target.txt", mtimeMs: NOW - DAY });
+  const link = path.join(root, `${randomUUID()}.json`);
+  fs.symlinkSync(target, link);
+  fs.lutimesSync(link, new Date(NOW - DAY), new Date(NOW - DAY));
+  const [special, ghost] = [`${randomUUID()}.json`, `${randomUUID()}.json`];
+  const unlinked: string[] = [];
+  const probing: SiteImportIndexStateFs = { ...fs,
+    readdirSync: ((dir: fs.PathLike, ...rest: unknown[]) => [...(fs.readdirSync as (...a: unknown[]) => string[])(dir, ...rest), ...(String(dir) === root ? [special, ghost] : [])]) as typeof fs.readdirSync,
+    lstatSync: ((file: fs.PathLike, ...rest: unknown[]) => path.basename(String(file)) === special
+      ? { isFile: () => false, isDirectory: () => false, isSymbolicLink: () => false, mtimeMs: NOW - DAY }
+      : (fs.lstatSync as (...a: unknown[]) => fs.Stats)(file, ...rest)) as typeof fs.lstatSync,
+    unlinkSync: ((file: fs.PathLike) => { unlinked.push(path.basename(String(file))); fs.unlinkSync(file); }) as typeof fs.unlinkSync,
+  };
+  assert.deepEqual(bind({ root, fs: probing, clock: { nowMs: () => NOW + 30 * DAY } }).retire({}), { removed: 1, finished: true });
+  assert.deepEqual(unlinked, [path.basename(old)]);
+  assert.equal(fs.lstatSync(directory).isDirectory(), true);
+  assert.equal(fs.lstatSync(link).isSymbolicLink(), true);
+  assert.equal(exists(target), true);
+});
+
+test("retire under legacy authority removes nothing and reports unfinished", async (t) => {
+  const root = tempRoot({ t });
+  const snapshot = legacyFile({ root, mtimeMs: NOW - 60 * DAY });
+  assert.deepEqual(bind({ root, cutoverPolicy: "rollback", clock: { nowMs: () => NOW + 60 * DAY } }).retire({}), { removed: 0, finished: false });
+  assert.equal(exists(snapshot), true);
+  assert.equal(exists(indexStatePaths({ root }).state), false);
+});
