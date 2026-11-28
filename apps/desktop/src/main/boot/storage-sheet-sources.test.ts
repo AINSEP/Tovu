@@ -32,8 +32,9 @@ function fakeChild(stdout: string): ChildProcess {
 
 const partitionOf = (siteDir: string) => partitionDirName(sitePartition({ siteDir }));
 
-function world({ catalog = { listSiteDirs: () => [] as readonly string[] }, activity = {} }: {
+function world({ catalog = { listSiteDirs: () => [] as readonly string[] }, activity = {}, ledger = { state: "ok", records: [] } }: {
   catalog?: { listSiteDirs(): readonly string[] }; activity?: Record<string, SiteActivity | Error>;
+  ledger?: { state: "ok"; records: readonly Record<string, unknown>[] } | { state: "unreadable" };
 } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "st18-src-")));
   const userData = path.join(root, "profile"), sites = path.join(root, "sites");
@@ -61,7 +62,7 @@ function world({ catalog = { listSiteDirs: () => [] as readonly string[] }, acti
   const sources = bindStorageSheetSources({
     projectsPath, readProjects: readProjectsFile,
     partitions: { sessionDataDir: userData, fs: nodePartitionPassFs({ fs }), isManaged: binding.isManaged, readClaims: binding.readClaims },
-    ledger: { readStrict: () => ({ state: "ok", records: [] }) as never },
+    ledger: { readStrict: () => ledger as never },
     cli: { planFor: ({ cliArgs }) => ({ command: "node", args: ["cli.js", ...cliArgs] }), spawn: ({ args }) => { calls.spawned.push([...args]); return fakeChild(REPORT); } },
     measure: async ({ path: target }) => fs.existsSync(target) ? { state: "measured", bytes: 1 } : { state: "unknown", reason: "missing" },
     trash: {
@@ -166,4 +167,20 @@ test("an unreadable activity check keeps a dismissed folder, while an unreadable
   assert.deepEqual(w.calls.fenced, [folder]);
   assert.deepEqual(w.calls.trashed, []);
   assert.equal(fs.readFileSync(data, "utf8"), "keep my draft");
+});
+
+test("a forgotten partition is named from its erased ledger record only, and an unreadable ledger leaves it unnamed", async (t) => {
+  const erasedDir = "/old-sites/bakery", strangerDir = "/old-sites/florist";
+  const records = [
+    { basis: "orphaned", partition: partitionOf(strangerDir) },
+    { basis: "erased", partition: partitionOf(erasedDir), subjectDir: erasedDir },
+  ];
+  const w = world({ ledger: { state: "ok", records } });
+  t.after(() => fs.rmSync(w.root, { recursive: true, force: true }));
+  assert.equal(w.sources.labelForPartition({ partition: partitionOf(erasedDir) }), "bakery");
+  assert.equal(w.sources.labelForPartition({ partition: partitionOf(strangerDir) }), undefined, "a record without a folder names nothing");
+  assert.equal(w.sources.labelForPartition({ partition: partitionOf("/old-sites/unrecorded") }), undefined);
+  const unreadable = world({ ledger: { state: "unreadable" } });
+  t.after(() => fs.rmSync(unreadable.root, { recursive: true, force: true }));
+  assert.equal(unreadable.sources.labelForPartition({ partition: partitionOf(erasedDir) }), undefined);
 });

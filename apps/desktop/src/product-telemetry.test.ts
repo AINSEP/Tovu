@@ -166,3 +166,15 @@ test('usage consent without an installation id does not consume the one launch e
   assert.deepEqual(f.events, [{ name: 'app_started', userId: 'system', properties: { launchMode: 'fresh' } }]);
   assert.deepEqual(f.starts, []);
 });
+
+test('a signal-only server exit reports the signal and no code', () => {
+  const reports: { error: Error; context: unknown }[] = [];
+  const tracker: Tracker = { ...createNoopTracker({}), error: ({ error }, { context } = {}) => { reports.push({ error, context }); } };
+  reportDesktopServerExit({ tracker, code: null, signal: 'SIGKILL' });
+  reportDesktopServerExit({ tracker, code: 0, signal: 'SIGTERM' });
+  assert.deepEqual(reports.map(({ error }) => error.message), ['site server exited', 'site server exited']);
+  assert.deepEqual(reports.map(({ context }) => context), [
+    { operation: 'desktop.server_exit', attributes: { signal: 'SIGKILL' } },
+    { operation: 'desktop.server_exit', attributes: { code: 0, signal: 'SIGTERM' } },
+  ]);
+});
