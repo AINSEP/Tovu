@@ -32,12 +32,19 @@ function counted<T>(value: () => T) {
   return getter;
 }
 
+/** Clears the recorders so a composition that stopped building either one cannot pass on an earlier test's recording. */
+function clearRecordings() {
+  delete handed.core;
+  delete handed.comments;
+}
+
 const clip = { id: "m-1", slug: "hero-clip", status: "active", source: { sha256: "sha-a" }, alt: "Clip", width: 640, height: 360, cssClass: null, htmlAttributes: {} };
 
 function compose(routeDeps: Record<string, unknown> = {}) {
   const calls = { mediaBySlug: [] as unknown[], contentTypes: [] as unknown[], posts: [] as unknown[], entries: [] as unknown[], forgets: [] as unknown[] };
   const posts = new Map<string, { status: string }>([["p-legacy", { status: "published" }]]);
   const registry = { registry: "forms" };
+  clearRecordings();
   const getters = {
     mediaRepo: counted(() => ({ findBySlug: async (query: unknown) => { calls.mediaBySlug.push(query); return clip; } })),
     mediaContentTypeStore: counted(() => ({ getMany: async (query: unknown) => { calls.contentTypes.push(query); return new Map([["sha-a", "video/mp4"]]); } })),

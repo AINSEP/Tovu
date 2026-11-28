@@ -139,8 +139,9 @@ function seedRecoverableChat(store: ReturnType<typeof openChatDb>): void {
 }
 
 // Mutation: l.155 reads the clock once at assembly (`now: (at => () => at)(clock.nowMs())`).
-test("chatBulkDeletionFor reads the clock on every preview: a chat kept as recoverable becomes deletable once its deadline passes", async () => {
+test("chatBulkDeletionFor reads the clock on every preview: a chat kept as recoverable becomes deletable once its deadline passes", async (t) => {
   const chat = openChatDb({ filePath: ":memory:" });
+  t.after(() => chat.close());
   seedRecoverableChat(chat);
   let nowMs = 1_000;
   const kernel = contentKernel({ store: openContentDb(":memory:") });
@@ -154,5 +155,4 @@ test("chatBulkDeletionFor reads the clock on every preview: a chat kept as recov
   nowMs = 6_000;
   const late = await deletion.preview({ before: 200 });
   assert.deepEqual([late.ids, late.kept], [["chat-1"], []]);
-  chat.close();
 });

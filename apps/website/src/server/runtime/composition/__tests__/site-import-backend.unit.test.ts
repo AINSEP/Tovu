@@ -115,14 +115,13 @@ test("under the shipped rollback policy an already-indexed history stays in use 
   const cutover = captured.backfill({});
   assert.equal(cutover.state, "cutover");
   if (cutover.state !== "cutover") return;
-  const now = Date.now();
-  fs.writeFileSync(path.join(directory, "import-index.state.json"), JSON.stringify({ schema: IMPORT_INDEX_STATE_SCHEMA, mode: "indexed", dbId: cutover.dbId, cutoverAt: cutover.cutoverAt, firstIndexedWriteAt: now, legacyRetiredAt: 0 }), { mode: 0o600 });
+  // Any positive safe-integer time is a recorded first indexed write; the policy only checks `> 0`.
+  fs.writeFileSync(path.join(directory, "import-index.state.json"), JSON.stringify({ schema: IMPORT_INDEX_STATE_SCHEMA, mode: "indexed", dbId: cutover.dbId, cutoverAt: cutover.cutoverAt, firstIndexedWriteAt: 1_800_000_000_000, legacyRetiredAt: 0 }), { mode: 0o600 });
   fs.writeFileSync(path.join(directory, ".history-indexed-v1"), "", { mode: 0o600 });
   const warn = t.mock.method(console, "warn", () => {});
   const backend = compose("indexed").backend;
   const pending = await backend.importBackup({ principalId: "owner", source: await backend.upload({ principalId: "owner", archive: h.archive }), requestId: "request-indexed" });
   assert.equal(pending.status, "needs-owner");
   const logged = warn.mock.calls.map(call => call.arguments);
-  assert.ok(logged.length > 0);
   assert.deepEqual(new Set(logged.map(args => JSON.stringify(args))), new Set([JSON.stringify(["[site-backup]", "Rollback is not possible after the first indexed import write; the index-aware store stays in use."])]));
 });
