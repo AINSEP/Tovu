@@ -12,7 +12,7 @@ let resolvedAddress = "8.8.8.8";
 let dnsLookups = 0;
 const dns = { resolve: async () => { dnsLookups++; return [resolvedAddress]; } };
 const { createHttpClient } = await import("#src/platform/http/client");
-const { readBundledPublicDnsResolverUrl, createPublicDnsResolver: resolverFromDeclaration, createTlsProbe, listSavedHostingHosts, DOMAIN_DNS_EGRESS_POLICY } = await import("../domain-dns-adapters.js");
+const { readBundledPublicDnsResolverUrl, createPublicDnsResolver: resolverFromDeclaration, createTlsProbe, listSavedHostingHosts, bindDomainDnsChecks, DOMAIN_DNS_EGRESS_POLICY } = await import("../domain-dns-adapters.js");
 
 const createPublicDnsResolver = (client: Parameters<typeof resolverFromDeclaration>[0]["client"], options: Parameters<typeof resolverFromDeclaration>[1] = {}) =>
   resolverFromDeclaration({ client, url: "https://resolver.example.test/dns-query" }, options);
@@ -272,4 +272,22 @@ test("known hosting addresses skip saved values that are not URLs or name no pub
     publishHistoryStore: { list: async () => [] },
   };
   assert.deepEqual(await listSavedHostingHosts(deps), ["kept.example-host.dev"]);
+});
+
+test("the bound domain checks authorize each operation, then run this host's TLS probe and saved-host list", async () => {
+  const authorized: unknown[] = [], probed: unknown[] = [], listed: unknown[] = [];
+  const resolver = { query: async () => { throw new Error("no DNS query expected without saved hosts"); } };
+  const createChecks = bindDomainDnsChecks({
+    resolver: resolver as unknown as Parameters<typeof bindDomainDnsChecks>[0]["resolver"],
+    probeTls: async (input) => { probed.push(input); return { status: "valid", httpStatus: 200 }; },
+    listExpectedHosts: async (required) => { listed.push(required); return []; },
+  });
+  const checks = createChecks({ authorize: (async (input: unknown) => { authorized.push(input); }) as never });
+  const tls = await checks.tlsStatus({ domain: "Example.com" });
+  assert.deepEqual([tls.domain, tls.status, tls.httpStatus], ["example.com", "valid", 200]);
+  assert.deepEqual(probed, [{ domain: "example.com" }]);
+  const dns = await checks.checkDns({ domain: "example.com" });
+  assert.deepEqual([dns.status, dns.expectedHost], ["unknown", null]);
+  assert.deepEqual(listed, [{}]);
+  assert.deepEqual(authorized, [{ operation: "tls-status" }, { operation: "check-dns" }]);
 });
