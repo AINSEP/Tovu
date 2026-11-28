@@ -3,7 +3,8 @@ import test from "node:test";
 import type { Request } from "express";
 
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
-import { resolveRequestedSlug } from "../request-policy.js";
+import { listingState } from "@jini-ai/cms/public-http/routes/site/pages/listing/listing-state";
+import { redirectLookupPath, resolveRequestedSlug } from "../request-policy.js";
 
 /** Runs the gate for one `:slug` param and records whether it fell through to the next handler. */
 function resolve(slug: string | undefined, _options = {}) {
@@ -30,4 +31,11 @@ for (const slug of ["admin", "api", "admin.html", "Pricing", "two words", "a/b",
 
 test("resolveRequestedSlug: a request without a slug param falls through instead of resolving an empty page", () => {
   assert.deepEqual(resolve(undefined), { result: undefined, fellThrough: 1 });
+});
+
+test("redirect rules match a numbered listing page's own URL, never the page its rewrite points at", () => {
+  const rewritten = { path: "/old" } as Request;
+  listingState.recordListingPageRequest({ req: rewritten, listingPage: { pagePath: "/old", page: 3 }, requestPath: "/old/page/3" });
+  assert.equal(redirectLookupPath({ req: rewritten }), "/old/page/3");
+  assert.equal(redirectLookupPath({ req: { path: "/about" } as Request }), "/about", "an ordinary request matches its own path");
 });
