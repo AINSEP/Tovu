@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
-import type { Response } from "express";
+import express, { type Response } from "express";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 
 import { createVisitorAgUiResume, type HeldVisitorApproval } from "#src/assistant/site/visitor-ag-ui-resume";
 import type { VisitorConfirmations } from "#src/assistant/site/visitor-confirmations";
-import { agUiApprovalChannel, createVisitorTurnSegments, watchSegmentClose, type VisitorSegment } from "../site-assistant-ag-ui-approval.js";
+import { agUiApprovalChannel, createVisitorTurnSegments, handleVisitorAgUiResume, watchSegmentClose, type VisitorResumePorts, type VisitorSegment } from "../site-assistant-ag-ui-approval.js";
 
 /**
  * The visitor Ask channel over the REAL park/resume (its per-client cap of two held approvals and its
@@ -106,4 +108,33 @@ test("without an approval owner there is no Ask channel", () => {
   const channel = agUiApprovalChannel({ confirmations: recordingConfirmations().confirmations, resume, segments: createVisitorTurnSegments({ initial: segment }),
     owner: null, quotaKey: QUOTA_KEY, threadId: "thread-visitor", nowMs: () => 1_000, waitMs: 45_000, abort: new AbortController() });
   assert.deepEqual(channel, {});
+});
+
+/** A resume route over recording ports: every later gate records that it was reached. */
+async function resumeRoute(t: import("node:test").TestContext, gates: { allowed: boolean; enabled: boolean }) {
+  const reached: string[] = [];
+  const ports: VisitorResumePorts = {
+    limiter: { check: async ({ key }) => { reached.push(`limiter:${key === "" ? "empty" : "ip"}`); return gates.allowed ? { allowed: true } : { allowed: false, retryAfterSeconds: 30 }; } },
+    enabled: async () => { reached.push("enabled"); return gates.enabled; },
+    allowsOrigin: async () => { reached.push("origin"); return true; },
+    resolveApprovalOwner: async () => { reached.push("owner"); return null; },
+    resume: { resumeVisitorApproval: async () => { reached.push("resume"); return "expired"; } } as unknown as VisitorResumePorts["resume"],
+    openSegment: () => { reached.push("segment"); return assert.fail("no segment opens for a refused resume"); },
+  };
+  const app = express();
+  app.use(express.json());
+  app.post("/chat", (req, res) => { void handleVisitorAgUiResume({ req, res, ports }); });
+  const baseUrl = await startTestServer(app, t);
+  const response = await fetch(`${baseUrl}/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ resume: [] }) });
+  return { status: response.status, cache: response.headers.get("cache-control"), body: await response.json() as unknown, reached };
+}
+
+test("a rate-limited resume is the 429 refusal before the enabled check, the owner lookup or any claim", async (t) => {
+  const answer = await resumeRoute(t, { allowed: false, enabled: true });
+  assert.deepEqual(answer, { status: 429, cache: "no-store", body: { error: VISITOR_TOOL_REFUSAL }, reached: ["limiter:ip"] });
+});
+
+test("a resume while visitor chat is turned off is the 404 refusal before the origin check, the owner lookup or any claim", async (t) => {
+  const answer = await resumeRoute(t, { allowed: true, enabled: false });
+  assert.deepEqual(answer, { status: 404, cache: "no-store", body: { error: VISITOR_TOOL_REFUSAL }, reached: ["limiter:ip", "enabled"] });
 });
