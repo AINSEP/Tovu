@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { closeSqliteConnection } from "#src/platform/db/kernel/index";
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
-import { sqliteClientOf, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
+import { openNativeSqlite, sqliteClientOf, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import type { SiteStorage } from "#src/platform/site-dir/types";
@@ -150,6 +150,41 @@ test("sqlite: closing a store over a caller-supplied content.db closes chat.db a
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("sqlite: a caller's opener opens both content.db and chat.db", async () => {
+  const dir = mkSiteDir();
+  try {
+    const opened: string[] = [];
+    const sqliteOpen = (filePath: string | Buffer, options?: Parameters<typeof openNativeSqlite>[1]) => {
+      opened.push(path.basename(String(filePath)));
+      return openNativeSqlite(filePath, options);
+    };
+    const store = await openSiteStore({ storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" }, { sqliteOpen });
+    await store.close();
+    assert.deepEqual([...new Set(opened)].sort(), ["chat.db", "content.db"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+for (const kind of ["postgres", "pglite"] as const) {
+  test(`${kind}: a caller-supplied SQLite content.db is refused before anything is opened`, async () => {
+    const dir = mkSiteDir();
+    const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
+    try {
+      const storage: SiteStorage = kind === "postgres" ? { kind, secretRef: { env: "TOVU_TEST_UNSET_PG_URL" } } : { kind };
+      await assert.rejects(
+        openSiteStore({ storage, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" }, { db }),
+        { message: `openSiteStore: a caller-supplied SQLite db cannot back a ${kind} site` }
+      );
+      assert.equal(fs.existsSync(path.join(dir, PGLITE_DATA_DIR_NAME)), false, "no pglite data dir is created");
+      assert.equal(fs.existsSync(path.join(dir, "chat.db")), false, "no chat.db is created");
+    } finally {
+      closeSqliteConnection({ source: db });
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
 
 test("pglite: a failed first-run preparation stops the owner, so the next owner opens the same data dir", async () => {
   const dir = mkSiteDir();
