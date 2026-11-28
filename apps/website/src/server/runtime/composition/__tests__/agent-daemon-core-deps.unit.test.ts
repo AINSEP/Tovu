@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { createAgentDaemonCoreDeps } from "../agent-daemon-core-deps.js";
-import type { ImportSiteDbDriver, SiteDbClient, SiteDbDrivers } from "#src/platform/db/client/open-site-db-client";
+import type { ImportSiteDbDriver, ResolvePostgresConnectionString, SiteDbClient, SiteDbDrivers } from "#src/platform/db/client/open-site-db-client";
 
 function fixture() {
   const calls: { operation: string; input: unknown }[] = [];
@@ -186,7 +186,7 @@ test("a composition failure whose cleanup also fails logs the cleanup error and 
 
 test("without an injected resolver, the database client resolves a Postgres secret reference from the daemon's env", async () => {
   const f = fixture();
-  let resolver: ((input: { storage: { kind: "postgres"; secretRef: { env: string } }; siteDir: string }) => Promise<string>) | undefined;
+  let resolver: ResolvePostgresConnectionString | undefined;
   const env = { TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:1234", TEST_DAEMON_DATABASE_URL: "postgres://daemon.invalid/content" };
   const deps = await createAgentDaemonCoreDeps({ env, token: "private" }, { fetch: f.fetcher, openClient: async (input) => {
     resolver = input.resolvePostgresConnectionString;
@@ -195,7 +195,7 @@ test("without an injected resolver, the database client resolves a Postgres secr
   } });
   try {
     assert.ok(resolver);
-    assert.equal(await resolver({ storage: { kind: "postgres", secretRef: { env: "TEST_DAEMON_DATABASE_URL" } }, siteDir: tmpdir() }), "postgres://daemon.invalid/content");
-    await assert.rejects(resolver({ storage: { kind: "postgres", secretRef: { env: "UNSET_DAEMON_DATABASE_URL" } }, siteDir: tmpdir() }), /UNSET_DAEMON_DATABASE_URL, which is not set/);
+    assert.equal(await resolver({ storage: { kind: "postgres", secretRef: { env: "TEST_DAEMON_DATABASE_URL" } }, siteDir: tmpdir() }, {}), "postgres://daemon.invalid/content");
+    await assert.rejects(resolver({ storage: { kind: "postgres", secretRef: { env: "UNSET_DAEMON_DATABASE_URL" } }, siteDir: tmpdir() }, {}), /UNSET_DAEMON_DATABASE_URL, which is not set/);
   } finally { await deps.close(); }
 });
