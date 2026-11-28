@@ -371,3 +371,20 @@ test('admin rejects non-auth headers before persistence and permits only declare
     assert.equal(accepted.text.includes('fixture-only'), false);
   }
 });
+
+test("a save with project keys installed answers with what the key port attached: its appliesAt and notice", async t => {
+  const seen: unknown[] = [];
+  const projectKeys = {
+    list: async () => [], listChoices: async () => [], listGranted: async () => [], permissionFor: async () => assert.fail("a settings save asks no key permission"),
+    use: async () => assert.fail("a settings save grants no key"),
+    savedResult: async ({ result }: { result: unknown }) => { seen.push(result); return { ...(result as object), appliesAt: "now", message: "Saved to the shared key and applied." }; },
+  };
+  const { call } = await serve(t, { projectKeys });
+  const saved = await call("PUT", `${WS}/plugins/obs/provider-settings`, { values: { endpoint: "https://collector.example.test", headers: "private-fixture" } });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.json.appliesAt, "now");
+  assert.equal(saved.json.message, "Saved to the shared key and applied.");
+  // The port receives the save rule's own outcome: with no live reapply hook, a restart.
+  assert.equal(seen.length, 1);
+  assert.equal((seen[0] as { appliesAt?: unknown }).appliesAt, "restart");
+});
