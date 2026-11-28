@@ -141,3 +141,47 @@ test('Copy details writes the full diagnostic rather than the inline summary', a
   assert.equal(view.byText({ text: 'Copied' })?.textContent, 'Copied');
   assert.equal(view.container.querySelector('[role="alert"]')?.textContent, 'Could not import this website.');
 });
+
+/** The picker's one file, through jsdom's own change event (see the drop-zone test above). */
+async function pickFile(view: ReturnType<typeof render>, file: File): Promise<void> {
+  const input = view.container.querySelector<HTMLInputElement>('.import-zone input[type="file"]')!;
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  await act(async () => { input.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
+}
+
+test('ImportWebsite: a .zip from the zone\'s own picker imports by the path the desktop bridge reports', async (t) => {
+  const seen: string[] = [];
+  const previous = window.tovuRunner;
+  window.tovuRunner = { getPathForFile: (file: File) => { seen.push(file.name); return '/srv/exports/site.tovu.zip'; } } as never;
+  t.after(() => { window.tovuRunner = previous; });
+  const view = render(t);
+  await pickFile(view, new File(['x'], 'site.tovu.zip'));
+  assert.deepEqual(seen, ['site.tovu.zip']);
+  assert.equal(view.calls.at(-1), 'archive:{"file":"/srv/exports/site.tovu.zip"}');
+});
+
+test('ImportWebsite: a .zip picked with no desktop bridge has no path, so it is refused rather than imported', async (t) => {
+  const previous = window.tovuRunner;
+  window.tovuRunner = undefined;
+  t.after(() => { window.tovuRunner = previous; });
+  const view = render(t);
+  await pickFile(view, new File(['x'], 'site.tovu.zip'));
+  assert.ok(!view.calls.some((call) => call.startsWith('archive:')), view.calls.join(' | '));
+  assert.equal(view.calls.at(-1), "refuse:Tovu couldn't tell where that file is. Use Choose file instead.");
+});
+
+test('ImportWebsite: a folder dropped on the page imports that folder by its real path', async (t) => {
+  const previous = window.tovuRunner;
+  window.tovuRunner = { getPathForFile: () => '/srv/sites/acme' } as never;
+  t.after(() => { window.tovuRunner = previous; });
+  const view = render(t);
+  const page = view.container.querySelector('section[aria-label="Import a website"]')!;
+  const drop = new dom.window.Event('drop', { bubbles: true, cancelable: true });
+  Object.defineProperty(drop, 'dataTransfer', { value: {
+    items: [{ kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) }],
+    files: [new File([], 'acme')],
+  } });
+  await act(async () => { page.dispatchEvent(drop); });
+  assert.equal(drop.defaultPrevented, true, 'the browser does not open the dropped folder');
+  assert.equal(view.calls.at(-1), 'drop:/srv/sites/acme');
+});
