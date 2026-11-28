@@ -1,28 +1,38 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import type { ChildProcess, Serializable } from "node:child_process";
 import { createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createDesktopAgentService, siteScopeKey } from "./desktop-agent-service.ts";
+
+type DaemonPayload = { operation: string; scopeKey?: string };
+type DaemonReply = { ok: true; payload: unknown } | { ok: false };
+/** Overrides the daemon's answer to one request; `undefined` keeps the default endpoint reply. */
+type DaemonResponder = (payload: DaemonPayload) => Promise<DaemonReply> | undefined;
 
 class DaemonChild extends EventEmitter {
   readonly pid: number;
   readonly stdout = new PassThrough(); readonly stderr = new PassThrough();
   connected = true;
   messages: Serializable[] = [];
-  constructor(pid: number) { super(); this.pid = pid; }
+  private readonly respond: DaemonResponder | undefined;
+  constructor(pid: number, respond?: DaemonResponder) { super(); this.pid = pid; this.respond = respond; }
   send(message: Serializable, callback: (error: Error | null) => void): boolean {
     this.messages.push(message);
-    const request = message as { id: string; payload: { operation: string; scopeKey?: string } };
-    queueMicrotask(() => this.emit("message", { jiniIpc: 1, kind: "reply", id: request.id, ok: true,
-      payload: { url: `http://127.0.0.1:7700${request.payload.scopeKey ? `/s/${request.payload.scopeKey}` : ""}`, pid: this.pid } }));
+    const request = message as { id: string; payload: DaemonPayload };
+    const reply = this.respond?.(request.payload) ?? Promise.resolve<DaemonReply>({ ok: true,
+      payload: { url: `http://127.0.0.1:7700${request.payload.scopeKey ? `/s/${request.payload.scopeKey}` : ""}`, pid: this.pid } });
+    void reply.then(answer => this.emit("message", { jiniIpc: 1, kind: "reply", id: request.id, ...answer }));
     callback(null); return true;
   }
   kill() { this.connected = false; this.emit("exit", 0, null); return true; }
 }
 
-function harness(cliMode: "compiled" | "source" = "compiled") {
+function harness(cliMode: "compiled" | "source" = "compiled", { respond }: { respond?: DaemonResponder } = {}) {
   const spawnArgs: string[][] = [];
   const children: DaemonChild[] = []; const environments: NodeJS.ProcessEnv[] = [];
   const output = new PassThrough(); let text = "";
@@ -37,7 +47,7 @@ function harness(cliMode: "compiled" | "source" = "compiled") {
       spawnArgs.push([...args]);
       assert.ok(Array.isArray(options.stdio)); assert.equal(options.stdio[3], "ipc");
       environments.push(options.env ?? {});
-      const child = new DaemonChild(500 + children.length); children.push(child);
+      const child = new DaemonChild(500 + children.length, respond); children.push(child);
       return child as unknown as ChildProcess;
     },
     terminate: async ({ child }) => { child.kill({}, { signal: "SIGTERM" }); },
@@ -549,4 +559,250 @@ test("daemon exit notifies only still-bound owned servers with the exited pid", 
   } finally {
     await h.service.shutdown({}, {});
   }
+});
+
+/** A daemon answer the test releases by hand, so a demand can be observed mid-flight. */
+function heldReply() {
+  let release!: (reply: DaemonReply) => void;
+  const promise = new Promise<DaemonReply>(resolve => { release = resolve; });
+  return { promise, release };
+}
+
+/** Wait (bounded) for an explicit condition the service reaches asynchronously. */
+async function waitFor(check: () => boolean, label: string): Promise<void> {
+  for (let attempt = 0; attempt < 400 && !check(); attempt++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.ok(check(), label);
+}
+
+/** The control reply's public outcome: "ok", its explicit refusal text, or "no public reason". */
+function outcome(reply: { ok: boolean }): string {
+  if (reply.ok) return "ok";
+  return (reply as { refusalReason?: string }).refusalReason ?? "no public reason";
+}
+
+test("a demand after shutdown is refused without waking the daemon", async () => {
+  const h = harness();
+  await h.service.shutdown({}, {});
+  await assert.rejects(h.demand("a"), { message: "desktop agent service is stopping" });
+  assert.equal(h.children.length, 0);
+});
+
+test("site control refuses an unproven or foreign identity, a foreign directory and the daemon's own operations", async () => {
+  const h = harness();
+  const child = new ServerChild();
+  const binding = h.service.bindServer({ child: child as unknown as ChildProcess, siteDir: "/sites/story-squid" }, {});
+  const register = (siteId: string, env: Record<string, string>) => child.ask({ operation: "register", siteId, token: "boot", env });
+  const own = { TOVU_SITE_DIR: "/sites/story-squid" };
+  const starting = "The site is still starting. Try your message again in a moment.";
+  const mismatch = "The assistant service received a different site directory. Restart the site.";
+  try {
+    assert.equal(outcome(await register("workspace-local", own)), starting, "no identity is bound before readiness");
+    binding.setIdentity({ siteId: "workspace-local" }, {});
+    assert.equal(outcome(await register("workspace-other", own)), starting, "a server cannot claim another workspace");
+    assert.equal(outcome(await register("workspace-local", { TOVU_SITE_DIR: "/sites/elsewhere" })), mismatch);
+    assert.equal(outcome(await register("workspace-local", {})), mismatch, "a registration naming no directory is not this server's");
+    for (const payload of [{ operation: "ready" }, { operation: "stopIfIdle" }, { operation: "unavailable", pid: 500 }]) {
+      assert.equal(outcome(await child.ask(payload)), "no public reason", `${payload.operation} is never a site's request`);
+    }
+    assert.equal(h.children.length, 0, "no refused request woke the daemon");
+    assert.equal(outcome(await register("workspace-local", own)), "ok");
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("a parking notice for the running daemon holds new demands until a replacement serves them; another pid changes nothing", async () => {
+  const h = harness();
+  try {
+    const boot = serverBoot(h, "old");
+    assert.equal((await boot.register()).ok, true);
+    assert.deepEqual((await boot.child.ask({ operation: "parking", pid: 999 })).payload, {});
+    await h.demand("b");
+    assert.deepEqual(daemonOperations(h).map(op => op.operation), ["ready", "register", "register"]);
+    assert.deepEqual((await boot.child.ask({ operation: "parking", pid: 500 })).payload, {});
+    let answered = false;
+    const next = h.demand("c").then(endpoint => { answered = true; return endpoint; }, (error: unknown) => { answered = true; throw error; });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(answered, false, "the parking daemon no longer serves new demands");
+    assert.deepEqual(daemonOperations(h).map(op => op.operation), ["ready", "register", "register"]);
+    h.children[0]!.connected = false;
+    h.children[0]!.emit("exit", 88, null);
+    assert.equal((await next).pid, 501, "the waiting demand is served by the replacement daemon");
+    assert.equal(h.children.length, 2);
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("a refused registration rejects the demand and the next demand registers again", async () => {
+  let registers = 0;
+  const h = harness("compiled", { respond: payload => payload.operation === "register" && ++registers === 1 ? Promise.resolve({ ok: false }) : undefined });
+  const scopeKey = siteScopeKey({ siteDir: "/sites/a" });
+  try {
+    await assert.rejects(h.demand("a"), { message: "IPC request refused" });
+    const endpoint = await h.demand("a");
+    assert.equal(endpoint.url, `http://127.0.0.1:7700/s/${scopeKey}`);
+    assert.equal(registers, 2, "the failed registration was not cached");
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("a registration answer that arrives after its scope was withdrawn is refused as stale", async () => {
+  const held = heldReply();
+  let registers = 0;
+  const h = harness("compiled", { respond: payload => payload.operation === "register" && ++registers === 1 ? held.promise : undefined });
+  const scopeKey = siteScopeKey({ siteDir: "/sites/a" });
+  try {
+    const pending = h.demand("a");
+    await waitFor(() => registers === 1, "the registration reached the daemon");
+    await h.service.withdraw({ scopeKey }, {});
+    held.release({ ok: true, payload: { url: `http://127.0.0.1:7700/s/${scopeKey}`, pid: 500 } });
+    await assert.rejects(pending, { message: "stale daemon readiness" });
+    assert.deepEqual(daemonOperations(h).map(op => op.operation), ["ready", "register", "withdraw"]);
+    assert.equal((await h.demand("a")).url, `http://127.0.0.1:7700/s/${scopeKey}`, "a fresh demand registers anew");
+    assert.equal(registers, 2);
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("withdrawing while the daemon is still starting refuses the demand and sends the daemon no withdrawal", async () => {
+  const held = heldReply();
+  let readies = 0;
+  const h = harness("compiled", { respond: payload => payload.operation === "ready" && ++readies === 1 ? held.promise : undefined });
+  try {
+    const pending = h.demand("a");
+    await waitFor(() => readies === 1, "the daemon was asked whether it is ready");
+    await h.service.withdraw({ scopeKey: siteScopeKey({ siteDir: "/sites/a" }) }, {});
+    held.release({ ok: true, payload: { url: "http://127.0.0.1:7700", pid: 500 } });
+    await assert.rejects(pending, { message: "site scope was withdrawn" });
+    assert.deepEqual(daemonOperations(h).map(op => op.operation), ["ready"]);
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("configs that name no site directory share one scope only with each other", async () => {
+  const h = harness();
+  const scopeKey = siteScopeKey({ siteDir: "/sites/undeclared" });
+  const config = (env: Record<string, string>) => ({ siteId: "workspace-local", scopeKey, token: "boot", env });
+  try {
+    const first = await h.service.demand(config({}), {});
+    assert.deepEqual(await h.service.demand(config({}), {}), first);
+    await assert.rejects(h.service.demand(config({ TOVU_SITE_DIR: "/sites/undeclared" }), {}),
+      { message: "site scope already belongs to another directory" });
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("on Windows two spellings of one site directory share a scope key", t => {
+  assert.notEqual(siteScopeKey({ siteDir: "/Sites/Story-Squid" }), siteScopeKey({ siteDir: "/sites/story-squid" }),
+    "a case-sensitive platform keeps two directories apart");
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  Object.defineProperty(process, "platform", { ...platform, value: "win32" });
+  t.after(() => { Object.defineProperty(process, "platform", platform); });
+  const key = siteScopeKey({ siteDir: "/Sites/Story-Squid" });
+  assert.equal(key, siteScopeKey({ siteDir: "/sites/story-squid" }));
+  assert.match(key, /^[0-9a-f]{32}$/);
+});
+
+test("a daemon-unavailable notice the site cannot receive is logged, not thrown", async t => {
+  const errors = t.mock.method(console, "error", () => {});
+  const h = harness();
+  try {
+    const boot = serverBoot(h, "old");
+    assert.equal((await boot.register()).ok, true);
+    const send = boot.child.send.bind(boot.child);
+    boot.child.send = (message, callback) => {
+      if ((message as { kind: string }).kind !== "request") return send(message, callback);
+      callback(new Error("pipe closed")); return false;
+    };
+    h.children[0]!.connected = false;
+    h.children[0]!.emit("exit", 88, null);
+    await waitFor(() => errors.mock.callCount() === 1, "the failed notice was logged");
+    const [message, detail] = errors.mock.calls[0]!.arguments as unknown[];
+    assert.equal(message, "[desktop-agent-service] Could not notify the site that the daemon is unavailable");
+    assert.equal(typeof detail, "string");
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("a scope withdrawal the daemon refuses after a server exit is logged and the scope is still released", async t => {
+  const warnings = t.mock.method(console, "warn", () => {});
+  const h = harness("compiled", { respond: payload => payload.operation === "withdraw" ? Promise.resolve({ ok: false }) : undefined });
+  try {
+    const boot = serverBoot(h, "old");
+    assert.equal((await boot.register()).ok, true);
+    boot.child.exitCode = 1; boot.child.emit("exit", 1, null);
+    await waitFor(() => warnings.mock.callCount() > 0, "the failed withdrawal was logged");
+    assert.deepEqual(warnings.mock.calls.map(call => call.arguments[0]), ["[desktop-agent-service] scope withdrawal failed: Error: IPC request refused"]);
+    assert.equal((await serverBoot(h, "new").register()).ok, true, "a new boot of the directory is not refused");
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("an unexpected daemon exit is reported as unavailable; a park exit is not", async t => {
+  const warnings = t.mock.method(console, "warn", () => {});
+  const logs = t.mock.method(console, "log", () => {});
+  const h = harness();
+  try {
+    await h.demand("a");
+    h.children[0]!.connected = false;
+    h.children[0]!.emit("exit", 88, null);
+    assert.equal(warnings.mock.callCount(), 0, "the idle park exit is not a failure");
+    await h.demand("a");
+    h.children[1]!.connected = false;
+    h.children[1]!.emit("exit", 1, null);
+    assert.deepEqual(warnings.mock.calls.map(call => call.arguments[0]), ["[desktop-agent-service] daemon unavailable"]);
+    assert.ok(logs.mock.calls.some(call => call.arguments[0] === "[desktop-agent-service] failure"), "the failure is logged as a lifecycle event");
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+/** A stand-in compiled daemon: publishes its registry record late, answers every request with its own pid. */
+const DAEMON_SCRIPT = `
+const fs = require("node:fs");
+setTimeout(() => fs.writeFileSync(process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH, JSON.stringify({
+  url: "http://127.0.0.1:7799", host: "127.0.0.1", port: 7799, pid: process.pid, startedAt: new Date().toISOString() })), 50);
+process.on("message", message => {
+  if (!message || message.kind !== "request") return;
+  const scope = message.payload.scopeKey ? "/s/" + message.payload.scopeKey : "";
+  process.send({ jiniIpc: 1, kind: "reply", id: message.id, ok: true, payload: { url: "http://127.0.0.1:7799" + scope, pid: process.pid } });
+});
+`;
+
+test("without injected effects the service spawns the compiled daemon, finds it through its registry file and stops it", async t => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-agent-service-"));
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const entry = path.join(repoRoot, "dist/src/server/inbound/assistant/agent-daemon-server.js");
+  fs.mkdirSync(path.dirname(entry), { recursive: true });
+  fs.writeFileSync(entry, DAEMON_SCRIPT);
+  const registryPath = path.join(repoRoot, "daemon.json");
+  const service = createDesktopAgentService({ repoRoot, registryPath, env: { PATH: process.env.PATH } });
+  const scopeKey = siteScopeKey({ siteDir: "/sites/a" });
+  let pid = 0;
+  try {
+    const endpoint = await service.demand({ siteId: "workspace-local", scopeKey, token: "boot", env: { TOVU_SITE_DIR: "/sites/a" } }, {});
+    pid = endpoint.pid;
+    assert.equal(endpoint.url, `http://127.0.0.1:7799/s/${scopeKey}`);
+    assert.equal(pid, (JSON.parse(fs.readFileSync(registryPath, "utf8")) as { pid: number }).pid, "readiness used the published record");
+    assert.notEqual(pid, process.pid);
+  } finally { await service.shutdown({}, {}); }
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" }, "shutdown stopped the real daemon");
+});
+
+test("a registration racing its server's disconnect never wakes the daemon", async () => {
+  const h = harness();
+  try {
+    const boot = serverBoot(h, "old");
+    void boot.register(); // Its channel is gone before the handler runs; no reply can arrive.
+    boot.child.connected = false;
+    boot.child.emit("disconnect");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(h.children.length, 0);
+  } finally { await h.service.shutdown({}, {}); }
+});
+
+test("a daemon exit in the instant between readiness and registration refuses the demand as unavailable", async () => {
+  const h = harness();
+  try {
+    await h.demand("a");
+    let reads = 0;
+    // The second liveness read is the demand's last check before it awaits the (already ready) daemon.
+    const server = { signalCode: null, get exitCode() {
+      if (++reads === 2) queueMicrotask(() => { h.children[0]!.connected = false; h.children[0]!.emit("exit", 88, null); });
+      return null;
+    } };
+    await assert.rejects(h.service.demand({ siteId: "workspace-local", scopeKey: siteScopeKey({ siteDir: "/sites/b" }), token: "rpc-b",
+      env: { TOVU_SITE_DIR: "/sites/b" } }, { server: server as unknown as ChildProcess }), { message: "daemon IPC unavailable" });
+    assert.equal(daemonOperations(h).filter(op => op.operation === "register").length, 1, "nothing was sent to the departed daemon");
+    assert.equal((await h.demand("b")).pid, 501, "the next demand wakes a replacement");
+  } finally { await h.service.shutdown({}, {}); }
 });

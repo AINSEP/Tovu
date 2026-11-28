@@ -4,7 +4,7 @@ import test from 'node:test';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -174,4 +174,84 @@ test('a populated CLI inventory preserves safe entry metadata but never child-on
   const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'list', fields: { store: 'project' } }, f.options);
   assert.deepEqual(result, { version: 1, action: 'list', ok: true, data: { entries: [safe] } });
   assert.equal(f.calls[0]?.killed, false);
+});
+
+/** A child whose streams and events the test drives by hand; records every kill signal. */
+function drivenChild({ endThrows = false }: { endThrows?: boolean } = {}) {
+  const stdin = new PassThrough();
+  if (endThrows) stdin.end = () => { throw new Error(secret); };
+  const kills: string[] = [];
+  const child = Object.assign(new EventEmitter(), { stdin, stdout: new PassThrough(), stderr: new PassThrough(),
+    kill: (signal: string) => { kills.push(signal); return true; } });
+  const options: OwnerStoreCliOptions = { cliMode: 'source', baseEnv: { PATH: process.env.PATH },
+    spawnFn: () => child as unknown as ChildProcessWithoutNullStreams };
+  return { child, kills, options };
+}
+
+const statusReply = `${JSON.stringify(success({ action: 'status', data: { legacy: 'available', entries: 2, grants: 1 } }))}\n`;
+const failureCode = (reply: Awaited<ReturnType<typeof runOwnerStoreCli<'status'>>>) => (reply.ok ? 'ok' : reply.error.code);
+
+for (const source of ['stdout', 'stderr', 'process'] as const) {
+  test(`a ${source} error fails the operation once, kills the child once, and a later valid reply cannot revive it`, async () => {
+    const { child, kills, options } = drivenChild();
+    const pending = runOwnerStoreCli({ repoRoot, userDataDir, action: 'status', fields: {} }, options);
+    (source === 'process' ? child : child[source]).emit('error', new Error(secret));
+    child.stdout.end(statusReply);
+    child.emit('close', 0);
+    const result = await pending;
+    assert.equal(failureCode(result), 'operation-failed');
+    assert.ok(!JSON.stringify(result).includes(secret));
+    assert.deepEqual(kills, ['SIGKILL']);
+  });
+}
+
+test('a stdin that throws while the request is written fails the operation and kills the child', async () => {
+  const { kills, options } = drivenChild({ endThrows: true });
+  const result = await runOwnerStoreCli({ repoRoot, userDataDir, action: 'status', fields: {} }, options);
+  assert.equal(failureCode(result), 'operation-failed');
+  assert.deepEqual(kills, ['SIGKILL']);
+});
+
+test('stdout past the reply cap fails once; later chunks are ignored rather than killing again', async () => {
+  const { child, kills, options } = drivenChild();
+  const pending = runOwnerStoreCli({ repoRoot, userDataDir, action: 'status', fields: {} }, options);
+  child.stdout.write('x'.repeat(1024 * 1024 + 1));
+  child.stdout.write('y');
+  child.stdout.end(statusReply);
+  await new Promise(resolve => setImmediate(resolve));
+  child.emit('close', 0);
+  assert.equal(failureCode(await pending), 'operation-failed');
+  assert.deepEqual(kills, ['SIGKILL']);
+});
+
+/** A stand-in compiled CLI: records what it was given, then answers status on stdout. */
+const CLI_SCRIPT = `
+const fs = require('node:fs'); const path = require('node:path');
+let stdin = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', chunk => { stdin += chunk; });
+process.stdin.on('end', () => {
+  fs.writeFileSync(path.join(__dirname, 'seen.json'), JSON.stringify({ argv: process.argv.slice(2), stdin, env: process.env }));
+  process.stdout.write(${JSON.stringify(statusReply)});
+});
+`;
+
+test('without an injected spawn the compiled CLI runs as a real child with an isolated env, silently dropping relocations', async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'owner-store-cli-repo-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(path.join(root, 'package.json'), JSON.stringify({ bin: { tovu: 'cli.cjs' } }));
+  writeFileSync(path.join(root, 'cli.cjs'), CLI_SCRIPT);
+  const warnings = t.mock.method(console, 'warn', () => {});
+  const result = await runOwnerStoreCli({ repoRoot: root, userDataDir, action: 'status', fields: {} },
+    { baseEnv: { PATH: process.env.PATH, TOVU_PLUGINS_DIR: '/foreign/plugins', TOVU_SITE_DIR: '/foreign/site' } });
+  assert.deepEqual(result, success({ action: 'status', data: { legacy: 'available', entries: 2, grants: 1 } }));
+  const seen = JSON.parse(readFileSync(path.join(root, 'seen.json'), 'utf8')) as { argv: string[]; stdin: string; env: NodeJS.ProcessEnv };
+  assert.deepEqual(seen.argv, ['owner-store', 'status', '--json']);
+  assert.deepEqual(JSON.parse(seen.stdin), { userDataDir });
+  assert.equal(seen.env.TOVU_PLUGINS_DIR, undefined, 'a relocation exported for another run is not inherited');
+  assert.equal(seen.env.ELECTRON_RUN_AS_NODE, '1');
+  assert.equal(path.dirname(seen.env.TOVU_SITE_DIR ?? ''), tmpdir());
+  assert.match(path.basename(seen.env.TOVU_SITE_DIR ?? ''), /^tovu-owner-store-/);
+  assert.equal(existsSync(seen.env.TOVU_SITE_DIR ?? ''), false, 'the isolated scratch site is removed afterwards');
+  assert.equal(warnings.mock.callCount(), 0, 'the dropped relocation is not logged');
 });
