@@ -29,6 +29,7 @@ let capturedAlerts: NonNullable<InboxWorkerArgs[1]>['alerts'] | undefined;
 mock.module('@jini-ai/commerce/payments/kernel', { namedExports: { ...paymentsKernel, createInboxWorker: (...args: InboxWorkerArgs) => {
   capturedAlerts = args[1]?.alerts; return paymentsKernel.createInboxWorker(...args);
 } } });
+const capturedAlertPort = () => capturedAlerts;
 const { composeCommerce } = await import('../commerce.js');
 
 function reset() { activeFailure = false; probeFailure = false; configFailure = false; ledgerFailure = false; storageExists = false; }
@@ -98,7 +99,7 @@ test('attention scan failure retains the status refusal and a safe diagnostic', 
 
 test('payment alerts are warned once per payment and the dedupe memory forgets only the oldest past 1000 entries', async t => {
   reset(); capturedAlerts = undefined; const { warnings } = fixture(t); await settled();
-  const alerts = capturedAlerts; assert.ok(alerts, 'the composition hands its alert port to the inbox worker');
+  const alerts = capturedAlertPort(); assert.ok(alerts, 'the composition hands its alert port to the inbox worker');
   const raise = (n: number) => alerts.raise({ alert: { kind: 'unknown-aged', workspaceId: 'ws', mode: 'test', paymentId: `pay-${n}`, detail: 'aged' } });
   const settlement = () => warnings.filter(line => line.startsWith('Payment settlement needs attention: '));
   await raise(1); await raise(1);
