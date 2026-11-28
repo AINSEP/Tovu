@@ -110,3 +110,43 @@ test("request facts expose the trusted serving authority to callers without addi
     },
   });
 });
+
+test("the grant-only read refuses a request that never carried a principal", () => {
+  assert.throws(() => adminPublishTrustFor({ context: undefined }), /requireAdminSession must run before this route/);
+});
+
+test("localAdmin is answered on read from the request's own socket and headers", async (t) => {
+  const app = fakeAdminApp();
+  const spec = defineJsonRoute<void, unknown, FactsDeps, OperatorPrincipalRecord>({
+    method: "get", path, parse: () => ok({ value: undefined }),
+    handle: async ({ deps, context }) => {
+      const facts = deps.requestFacts({ context });
+      return ok({ value: { localAdmin: facts.localAdmin, enumerable: Object.keys(facts) } });
+    },
+  });
+  mountAdminJsonRoute({ errors: createRouteIncidentReporter().errors, app, spec, deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }), requestFacts: adminRequestFactsFor } });
+  const server = await listen({ app });
+  t.after(server.close);
+  const local = await server.call("/api/admin/v1/workspaces/local/facts", { headers: { "x-kind": "session" } });
+  const forwarded = await server.call("/api/admin/v1/workspaces/local/facts", { headers: { "x-kind": "session", "x-forwarded-for": "192.0.2.23" } });
+  assert.deepEqual([local.status, local.body, forwarded.status, forwarded.body], [
+    200, { localAdmin: true, enumerable: ["credentialKind", "publishTrust"] },
+    200, { localAdmin: false, enumerable: ["credentialKind", "publishTrust"] },
+  ]);
+});
+
+test("request facts leave out a user agent and host the request never sent", async (t) => {
+  const { connect } = await import("node:net");
+  const app = fakeAdminApp();
+  app.get("/facts", (req, res) => { const facts = routeRequestFactsFor({ req }); res.json({ keys: Object.keys(facts).sort(), protocol: facts.protocol }); });
+  const server = await listen({ app });
+  t.after(server.close);
+  const url = new URL(server.base);
+  // HTTP/1.0 without Host or User-Agent: the one request shape where both headers are truly absent.
+  const reply = await new Promise<string>((resolve, reject) => {
+    const socket = connect({ host: url.hostname, port: Number(url.port) }, () => socket.end("GET /facts HTTP/1.0\r\n\r\n"));
+    let text = ""; socket.setEncoding("utf8"); socket.on("data", (chunk: string) => { text += chunk; }); socket.on("end", () => resolve(text)); socket.on("error", reject);
+  });
+  assert.match(reply, /^HTTP\/1\.[01] 200/);
+  assert.deepEqual(JSON.parse(reply.slice(reply.indexOf("\r\n\r\n") + 4)), { keys: ["clientAddress", "protocol"], protocol: "http" });
+});
