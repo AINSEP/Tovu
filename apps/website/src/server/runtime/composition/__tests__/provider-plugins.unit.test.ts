@@ -1134,7 +1134,7 @@ test('a throwing cookie-consent hook drops only its own contribution and warns o
 
 test('a throwing browser hook drops only its own SDK, warns once, and a live change of that provider requires restart', async () => {
   const contribution = { source: 'function(){return function(mode){};}', origins: [], supportsStatic: false, supportsLiveConsent: true };
-  const configs = { ...CONFIGS, 'analytics-healthy': HEALTHY_ANALYTICS };
+  const configs: Record<string, ProviderPluginConfig> = { ...CONFIGS, 'analytics-healthy': HEALTHY_ANALYTICS };
   const { runtime } = fakeRuntime({ installed: ['analytics-posthog', 'analytics-healthy'], factories: {
     'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
       port: { capture() {}, identify() {}, browserAnalytics: () => { throw new Error('sdk broke'); } } }) },

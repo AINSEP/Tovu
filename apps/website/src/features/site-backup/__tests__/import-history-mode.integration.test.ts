@@ -485,7 +485,7 @@ test("an unreadable DB probe is an error, never 'no evidence': the read fails an
 });
 
 const DAMAGED_MESSAGE = "Import history could not be read. Imports are paused and nothing was changed. Contact support with this error ID.";
-const putRow = (id: string) => async (session: Parameters<Parameters<ReturnType<typeof bind>["history"]["locked"]>[0]["run"]>[0]) => {
+const putRow = (id: ReturnType<typeof randomUUID>) => async (session: Parameters<Parameters<ReturnType<typeof bind>["history"]["locked"]>[0]["run"]>[0]) => {
   if (session.kind === "index") session.store.put({ row: row(id), beforeWrite: session.beforeWrite });
 };
 const storedRow = ({ root, id }: { root: string; id: string }) =>
