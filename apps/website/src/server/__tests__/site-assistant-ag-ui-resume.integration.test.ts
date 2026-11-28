@@ -239,3 +239,13 @@ test("a canonical-origin lookup that fails refuses the visitor credential and lo
   assert.deepEqual(logged.map((entry) => entry.code), ["visitor_frontend_control"]);
   assert.match(String(logged[0]?.diagnostic), /origin registry offline/);
 });
+
+test("a visitor tab on the site's canonical origin is issued its frontend credential, with no incident", { timeout: 10_000 }, async (t) => {
+  const { baseUrl, deps, logged } = await boot({ t, ask: false });
+  deps.originRegistry.canonicalOrigin = async () => ({ scheme: "https", host: "shop.example", port: 443, source: "dev-capability", verifiedAt: deps.clock.nowIso() });
+  const issued = await canonicalCredentials(baseUrl, "https://shop.example");
+  assert.equal(issued.status, 200, await issued.clone().text());
+  assert.match(String(issued.headers.get("set-cookie")), /^tovu_visitor_frontend=[^;]+; Max-Age=1800; Path=\/api\/site-assistant;.*HttpOnly; SameSite=Strict$/);
+  assert.match(String(((await issued.json()) as { tabCredential?: unknown }).tabCredential), /^[\w-]+\.[\w-]+$/, "the tab gets its own signed credential");
+  assert.deepEqual(logged, []);
+});
