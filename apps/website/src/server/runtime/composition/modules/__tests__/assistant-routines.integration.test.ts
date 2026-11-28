@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { RoutineService } from "@jini-ai/daemon";
 import { migrateJiniRoutines } from "@jini-ai/daemon/routines/sqlite";
 import { runMigrations } from "@jini-ai/db/migrate";
 import { openNativeSqlite, type NativeSqliteDatabase } from "#src/platform/db/kernel/drivers/sqlite";
@@ -434,5 +435,80 @@ test("a signed-in non-owner is refused FORBIDDEN with its reason, a non-object c
     h.toggle(true);
     await flush();
     assert.equal(beacons.length, before, "re-announcing the current state neither restarts the host nor rewrites the beacon");
+  } finally { await h.close(); }
+});
+
+test("a toggle after close is ignored and re-enabling during the drain keeps the lease", async (t) => {
+  const beacons: number[] = [];
+  const logged: string[] = [];
+  let listener: (enabled: boolean) => void = () => {};
+  const h = harness(t, { writeBeacon: async ({ enabled }) => { beacons.push(enabled); return { ok: true }; }, log: ({ event }) => { logged.push(event); },
+    onAssistantToggle: (next) => { listener = next; return () => {}; } });
+  const host = await h.compose();
+  // Off then on before the drain settles: the host must not stop or release the lease.
+  listener(false);
+  listener(true);
+  await h.clock.advance(5_000);
+  assert.equal(host.availability(), "ready");
+  assert.equal(host.bootInterruption.isLeaseOwner(), true, "the re-enabled host kept its lease");
+  assert.ok(h.clock.pending.size > 0, "the re-enabled host kept its timers");
+
+  listener(false);
+  await h.clock.advance(5_000);
+  assert.equal(host.availability(), "assistant-off");
+  assert.equal(h.clock.pending.size, 0);
+
+  await h.close();
+  const written = beacons.length;
+  const events = logged.length;
+  listener(true);
+  await flush();
+  assert.equal(host.availability(), "error", "a closed host stays closed");
+  assert.equal(beacons.length, written, "a toggle after close neither restarts nor rewrites the beacon");
+  assert.deepEqual(logged.slice(events), [], "a toggle after close never touches the closed service or store");
+});
+
+test("a failing assistant-off drain is logged as a toggle failure and the beacon is still written", async (t) => {
+  const logged: Array<{ event: string; error: unknown }> = [];
+  const beacons: number[] = [];
+  const failure = new Error("drain failed");
+  const h = harness(t, { log: (entry) => { logged.push(entry); }, writeBeacon: async ({ enabled }) => { beacons.push(enabled); return { ok: true }; } });
+  let id = 0;
+  const host = await composeAssistantRoutines(h.required, {
+    createService: ({ persistence, holderId }) => Object.assign(new RoutineService({ persistence }, {
+      now: h.clock.now, monotonicNow: h.clock.now, newId: () => `svc-${++id}`, timers: h.clock.timers, holderId, log: quiet,
+    }), { drainActive: async () => { throw failure; } }),
+  });
+  try {
+    h.toggle(false);
+    await h.clock.advance(5_000);
+    assert.deepEqual(logged.filter(({ event }) => event === "routine-toggle-failed").map(({ error }) => error), [failure]);
+    assert.equal(host.availability(), "assistant-off");
+    assert.deepEqual(beacons, [0, 0], "boot and the failed toggle each wrote the beacon");
+  } finally { await h.close(); }
+});
+
+test("an injected run handler builder wins over the composed starter", async (t) => {
+  const handled: string[] = [];
+  const h = harness(t);
+  const host = await composeAssistantRoutines(h.required, {
+    createRunHandler: ({ approvals }) => {
+      assert.equal(typeof approvals.track, "function");
+      return async ({ routine, trigger }) => {
+        handled.push(`${trigger}:${routine.id}`);
+        return { projectId: "p-2", conversationId: "c-2", agentRunId: "a-own", completion: Promise.resolve({ status: "succeeded" as const }) };
+      };
+    },
+  });
+  try {
+    assert.equal(host.availability(), "ready");
+    const created = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: { name: "Daily", prompt: "Summarize", schedule: { kind: "hourly", minute: 5 } } });
+    if (!created.ok) assert.fail(JSON.stringify(created.error));
+    const routineId = (created.value as { routine: { id: string } }).routine.id;
+    const ran = await h.call(`post ${ROUTINE_ROUTE_BASE}/:id/run`, { params: { id: routineId } });
+    if (!ran.ok) assert.fail(JSON.stringify(ran.error));
+    assert.equal((ran.value as { agentRunId: string }).agentRunId, "a-own");
+    assert.deepEqual(handled, [`manual:${routineId}`]);
+    assert.deepEqual(h.starts, [], "the composed starter is not used when a handler builder is injected");
   } finally { await h.close(); }
 });
