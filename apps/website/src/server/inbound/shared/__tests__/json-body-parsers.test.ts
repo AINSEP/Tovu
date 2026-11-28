@@ -117,6 +117,14 @@ test("jsonBodyLimitForAuthenticatedRequest gives the safe JSON limit only to med
   assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/runs" }), AUTHENTICATED_JSON_BODY_LIMIT);
 });
 
+test("jsonBodyLimitForAuthenticatedRequest keeps the public /api/p surface on the small public limit even with a session", () => {
+  assert.equal(PUBLIC_JSON_BODY_LIMIT, "128kb");
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/p" }), PUBLIC_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/API/P/forms/contact" }), PUBLIC_JSON_BODY_LIMIT);
+  // Only the /api/p segment is public: a sibling route that merely shares the prefix keeps the session limit.
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/plugins" }), AUTHENTICATED_JSON_BODY_LIMIT);
+});
+
 test("a 100 MB body declared to a publish-content route is refused by the parser; to media upload and replace it is not", async () => {
   const declared = 100 * 1024 * 1024;
   for (const [path, tooLarge] of [
