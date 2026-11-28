@@ -221,10 +221,10 @@ test('defaultOnly is true until the site saves its own consent activation', asyn
   const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
   await ensureSiteConsentDefinitions({ settingsRepo, clock, ids, principals }, { systemPrincipalId: 'system' });
   const ports = portsFor({ settingsRepo });
-  assert.equal(await ports.defaultOnly!(), true);
+  assert.equal(await ports.defaultOnly!({}), true);
   await set({ deps: { repo: settingsRepo, clock, ids, principals, authorize: async () => ({ allowed: true, reason: 'test owner' }) },
     input: { namespace: 'core.consent', key: 'enabled', value: true, scope: 'workspace', workspaceId: 'ws-1', callerPrincipalId: 'owner' } });
-  assert.equal(await ports.defaultOnly!(), false);
+  assert.equal(await ports.defaultOnly!({}), false);
 });
 
 test('privacy defaults treat an undefined privacy URL setting as empty and refuse a non-string one before touching content', async () => {
@@ -237,7 +237,7 @@ test('privacy defaults treat an undefined privacy URL setting as empty and refus
   await assert.rejects(ensureSiteConsentPrivacy({ deps: Promise.resolve(depsWith(new InMemorySettingsRepo())) }), /^Error: stop after the URL read$/);
   assert.deepEqual(listed, [{ workspaceId: 'ws-1' }]);
   const wrongType = new InMemorySettingsRepo();
-  await ensureSettingDefinitions({ settingsRepo: wrongType, clock: { nowMs: () => 0, nowIso: () => '2026-10-22T00:00:00.000Z' }, ids: { newId: () => 'def-1' }, principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } },
+  await ensureSettingDefinitions({ settingsRepo: wrongType, clock: { nowMs: () => 0 }, ids: { newId: () => 'def-1' }, principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } },
     { namespace: 'core.consent', systemPrincipalId: 'system', definitions: [{ key: 'privacyPolicyUrl', schema: { type: 'number' }, defaultValue: 7, scopes: SCOPE_BIT.workspace }] });
   await assert.rejects(ensureSiteConsentPrivacy({ deps: Promise.resolve(depsWith(wrongType)) }), { message: 'Invalid cookie consent setting: privacyPolicyUrl.' });
   assert.equal(listed.length, 1, 'a refused setting never reaches the content repository');
