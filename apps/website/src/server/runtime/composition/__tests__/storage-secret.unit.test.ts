@@ -144,3 +144,44 @@ test("new-site sealing seals with the sealer built for the new site's key id and
   assert.deepEqual(keyIds, ["k2"]);
   assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: sealing.sealer }), URL);
 });
+
+test("the site key's sealer finds the key under USERPROFILE when HOME is unset, and only that key opens the file", async (t) => {
+  const { siteSecretSealer } = await import("../storage-secret.js");
+  const dir = siteDir(t);
+  const homeWith = (name: string, hex: string) => {
+    const home = path.join(dir, name);
+    fs.mkdirSync(path.join(home, ".tovu/site-keys"), { recursive: true });
+    fs.writeFileSync(path.join(home, ".tovu/site-keys/k-profile.hex"), hex, { mode: 0o600 });
+    return home;
+  };
+  const profileHome = homeWith("profile-home", "a1".repeat(32));
+  const otherHome = homeWith("other-home", "b2".repeat(32));
+  const options = (env: NodeJS.ProcessEnv) => ({ env: { TOVU_RUNTIME_MODE: "local", TOVU_SITE_PROCESS_CWD: dir, ...env }, siteKeyId: "k-profile" });
+  await writeSealedConnectionString({ siteDir: dir, connectionString: URL }, siteSecretSealer({ siteDir: dir }, options({ USERPROFILE: profileHome })));
+  assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: siteSecretSealer({ siteDir: dir }, options({ HOME: profileHome })).sealer }), URL);
+  await assert.rejects(
+    readSealedConnectionString({ siteDir: dir }, { sealer: siteSecretSealer({ siteDir: dir }, options({ HOME: otherHome })).sealer }),
+    (err: unknown) => err instanceof StorageSecretError && /does not open with this site's key/.test(err.message),
+  );
+});
+
+test("with neither HOME nor USERPROFILE in its environment, the site key's sealer looks in the OS home directory", async (t) => {
+  const { siteSecretSealer } = await import("../storage-secret.js");
+  const dir = siteDir(t);
+  // The isolated-catalog-home import points the OS home at a throwaway temp folder.
+  const keyFile = path.join(os.homedir(), ".tovu/site-keys/k-os-home.hex");
+  fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+  fs.writeFileSync(keyFile, "c3".repeat(32), { mode: 0o600 });
+  t.after(() => fs.rmSync(keyFile, { force: true }));
+  const options = (env: NodeJS.ProcessEnv) => ({ env: { TOVU_RUNTIME_MODE: "local", TOVU_SITE_PROCESS_CWD: dir, ...env }, siteKeyId: "k-os-home" });
+  await writeSealedConnectionString({ siteDir: dir, connectionString: URL }, siteSecretSealer({ siteDir: dir }, options({})));
+  assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: siteSecretSealer({ siteDir: dir }, options({ HOME: os.homedir() })).sealer }), URL);
+});
+
+test("secretRef { env } without an injected environment reads the process environment", async (t) => {
+  const dir = siteDir(t);
+  const name = "TOVU_STORAGE_SECRET_UNIT_PG_URL";
+  process.env[name] = URL;
+  t.after(() => { delete process.env[name]; });
+  assert.equal(await resolvePostgresConnectionString({ storage: { kind: "postgres", secretRef: { env: name } }, siteDir: dir }), URL);
+});
