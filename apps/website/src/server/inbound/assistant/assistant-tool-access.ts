@@ -63,5 +63,7 @@ function selectedCapabilities({ keys }: { keys: readonly string[] }): Partial<Re
 
 
 function staleOrEnded({ error, ended }: { error: unknown; ended: Error }): boolean {
-  return error === ended || (error as { code?: string }).code === 'REVISION_CONFLICT' || (error as Error).name === 'SettingsRevisionConflictError';
+  // A thrown null/undefined is not a conflict; reading its fields must not replace it with a TypeError.
+  const fields = (error ?? {}) as { code?: string; name?: string };
+  return error === ended || fields.code === 'REVISION_CONFLICT' || fields.name === 'SettingsRevisionConflictError';
 }
