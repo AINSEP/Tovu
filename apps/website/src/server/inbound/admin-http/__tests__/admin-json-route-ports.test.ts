@@ -11,8 +11,8 @@ import { CONTENT_ENTRY_MAX_BODY_BYTES } from "@jini-ai/cms/admin-http/limits";
 
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "../authorize-guard.js";
-import { mountAdminJsonRoute, mountPublicJsonRoute } from "../admin-json-route-ports.js";
-import { listen } from "./fixtures/port-harness.js";
+import { adminJsonRoutePorts, adminPortsFor, createAdminJsonRoutePorts, mountAdminJsonRoute, mountPublicJsonRoute } from "../admin-json-route-ports.js";
+import { captureRes, listen } from "./fixtures/port-harness.js";
 
 /**
  * B8 gate for every Jini route spec mounted through the host ports: a returned parse failure, a
@@ -281,4 +281,59 @@ test("an opted-in admin rejection still reaches Express error middleware", async
   assert.deepEqual({ status: response.status, body: await response.json() }, { status: 422, body: { error: "host-selected" } });
   assert.equal(forwarded, failure);
   assert.equal(fixture.entries.length, 0);
+});
+
+// Mutation: drop the claimed-answer override in forwardUnlessClaimed (failureFor would then run twice).
+test("an opted-in admin mount answers a failure its failureFor claims itself, asking failureFor once", async (t) => {
+  const fixture = createRouteIncidentReporter();
+  const claimedError = new Error("note disk full");
+  const asked: unknown[] = [];
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "caller" }; next(); });
+  mountAdminJsonRoute({ app, errors: fixture.errors, spec: defineJsonRoute<void, never, object, { id: string }>({ method: "get", path: "/claimed", parse: () => ok({ value: undefined }), handle: async () => { throw claimedError; } }), deps: { workspaceId: "local", authorize: async () => ({ allowed: true, reason: "ok" }) } }, {
+    forwardUncaughtErrors: true,
+    failureFor: (error) => { asked.push(error); return error === claimedError ? { operation: "probe:claimed", message: "The note could not be saved." } : undefined; },
+  });
+  let forwarded: unknown;
+  const middleware: ErrorRequestHandler = (error, _req, res, _next) => { forwarded = error; res.status(418).json({ error: "host-selected" }); };
+  app.use(middleware);
+  const server = app.listen(0);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  await new Promise((resolve) => server.once("listening", resolve));
+  const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/claimed`);
+  const body = await response.json() as { error: string; errorId: string };
+  assert.equal(response.status, 500);
+  assert.equal(body.error, `The note could not be saved. (error ${String(fixture.entries[0]?.meta?.errorId)})`);
+  assert.equal(body.errorId, fixture.entries[0]?.meta?.errorId);
+  assert.equal(fixture.entries.length, 1);
+  assert.equal(forwarded, undefined);
+  assert.deepEqual(asked, [claimedError]);
+});
+
+// Mutation: `reporter ?? failureReporterOf({ res })` to `reporter!` on the route-copy path.
+test("ports built without a reporter report an unexpected failure to the response's own failure reporter", () => {
+  const recorded: Array<{ operation: string }> = [];
+  const { res, written } = captureRes({ locals: { failureReporter: { record: (input: { operation: string }) => { recorded.push({ operation: input.operation }); return { errorId: "err-local" }; } } } });
+  createAdminJsonRoutePorts({ failure: { operation: "routes/probe", code: "INTERNAL_ERROR" } }).onError!({ res: res as never, error: new Error("db locked") });
+  assert.equal(written.status, 500);
+  assert.deepEqual(recorded.map(entry => entry.operation), ["routes/probe"]);
+  assert.equal((written.body as { errorId?: string }).errorId, "err-local");
+});
+
+// Mutation: the shared-instance condition forced to true (every mount would get its own ports).
+test("an uncustomized workspace mount without a reporter shares the default admin ports; a deployment-level path does not", () => {
+  assert.equal(adminPortsFor({ path: "/api/admin/v1/workspaces/:workspaceId/probe", options: { failure: undefined } }), adminJsonRoutePorts);
+  assert.notEqual(adminPortsFor({ path: "/api/admin/v1/database/probe", options: {} }), adminJsonRoutePorts);
+  assert.notEqual(adminPortsFor({ path: "/api/admin/v1/workspaces/:workspaceId/probe", options: { failure: { operation: "routes/probe" } } }), adminJsonRoutePorts);
+});
+
+// Mutation: drop the requireSameOrigin refusal in mountPublicJsonRoute (the route would mount with no origin policy).
+test("a public JSON route that asks for same-origin writes is refused at registration and mounts nothing", async (t) => {
+  const app = express();
+  assert.throws(() => mountPublicJsonRoute({ errors: createRouteIncidentReporter().errors, app, deps: {}, failure: { operation: "public:probe", visitorError: "Try again." },
+    spec: { ...defineJsonRoute<void, { ok: true }, object>({ method: "post", path: "/public/same-origin", parse: () => ok({ value: undefined }), handle: async () => ok({ value: { ok: true as const } }) }), requireSameOrigin: true } }),
+  { message: "public JSON route /public/same-origin: requireSameOrigin needs the host's origin context" });
+  const server = await listen({ app });
+  t.after(server.close);
+  assert.equal((await fetch(`${server.base}/public/same-origin`, { method: "POST", body: "{}" })).status, 404);
 });
