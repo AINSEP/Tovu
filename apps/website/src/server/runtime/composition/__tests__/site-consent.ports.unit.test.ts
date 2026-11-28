@@ -200,3 +200,45 @@ test('static loading eligibility does not inspect comments, templates or authore
     assert.equal((await ports.declarationEvidence!({ path: '/' })).runtimeSlot, true);
   }
 });
+
+test('a themed (non-bare) published page or a stored doc body keeps runtime loading eligibility', async () => {
+  let post: Record<string, unknown> = {};
+  const ports = portsFor({ themes: [], resolveActiveThemeId: async () => 'none', postRepo: { findBySlug: async () => post } });
+  // A templated page renders inside the theme shell, so even an authored full document is not inspected.
+  post = { kind: 'page', status: 'published', templateChoice: 'landing', bodyFormat: 'html', bodyHtml: '<!doctype html><html><body>x</body></html>' };
+  assert.deepEqual(await ports.declarationEvidence!({ path: '/landing' }), { scripts: [], problems: [], runtimeSlot: true });
+  // A bare page stored as a doc is rendered by the site, which always emits the runtime slot.
+  post = { kind: 'page', status: 'published', templateChoice: '', bodyFormat: 'doc', bodyHtml: null };
+  assert.deepEqual(await ports.declarationEvidence!({ path: '/doc-page' }), { scripts: [], problems: [], runtimeSlot: true });
+});
+
+test('defaultOnly is true until the site saves its own consent activation', async () => {
+  const { InMemorySettingsRepo, set } = await import('@jini-ai/core/settings');
+  const { ensureSiteConsentDefinitions } = await import('@jini-ai/cookie-consent/site/settings');
+  const settingsRepo = new InMemorySettingsRepo();
+  let n = 0; const ids = { newId: () => `consent-${++n}` };
+  const clock = { nowMs: () => Date.parse('2026-10-22T00:00:00.000Z'), nowIso: () => '2026-10-22T00:00:00.000Z' };
+  const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
+  await ensureSiteConsentDefinitions({ settingsRepo, clock, ids, principals }, { systemPrincipalId: 'system' });
+  const ports = portsFor({ settingsRepo });
+  assert.equal(await ports.defaultOnly!(), true);
+  await set({ deps: { repo: settingsRepo, clock, ids, principals, authorize: async () => ({ allowed: true, reason: 'test owner' }) },
+    input: { namespace: 'core.consent', key: 'enabled', value: true, scope: 'workspace', workspaceId: 'ws-1', callerPrincipalId: 'owner' } });
+  assert.equal(await ports.defaultOnly!(), false);
+});
+
+test('privacy defaults treat an undefined privacy URL setting as empty and refuse a non-string one before touching content', async () => {
+  const { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } = await import('@jini-ai/core/settings');
+  const { ensureSiteConsentPrivacy } = await import('../site-consent.js');
+  const listed: unknown[] = [];
+  const depsWith = (settingsRepo: InstanceType<typeof InMemorySettingsRepo>) => ({ workspaceId: 'ws-1', settingsRepo,
+    postRepo: { list: async (input: unknown) => { listed.push(input); throw new Error('stop after the URL read'); } } }) as never;
+  // No definition registered yet: the read is empty, so the bootstrap goes on to look for a policy page.
+  await assert.rejects(ensureSiteConsentPrivacy({ deps: Promise.resolve(depsWith(new InMemorySettingsRepo())) }), /^Error: stop after the URL read$/);
+  assert.deepEqual(listed, [{ workspaceId: 'ws-1' }]);
+  const wrongType = new InMemorySettingsRepo();
+  await ensureSettingDefinitions({ settingsRepo: wrongType, clock: { nowMs: () => 0, nowIso: () => '2026-10-22T00:00:00.000Z' }, ids: { newId: () => 'def-1' }, principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } },
+    { namespace: 'core.consent', systemPrincipalId: 'system', definitions: [{ key: 'privacyPolicyUrl', schema: { type: 'number' }, defaultValue: 7, scopes: SCOPE_BIT.workspace }] });
+  await assert.rejects(ensureSiteConsentPrivacy({ deps: Promise.resolve(depsWith(wrongType)) }), { message: 'Invalid cookie consent setting: privacyPolicyUrl.' });
+  assert.equal(listed.length, 1, 'a refused setting never reaches the content repository');
+});
