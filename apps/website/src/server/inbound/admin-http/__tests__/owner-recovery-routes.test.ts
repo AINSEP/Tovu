@@ -138,3 +138,28 @@ test('the signed-in owner receives a no-store recovery kit backed by digests for
   assert.deepEqual([...storage], [[key(scope), expectedHashes]]);
   assert.deepEqual((await invoke('owner-recovery')).result, { isOwner: true, available: true, desktopOwnerReset: false });
 });
+
+test('an owner with an enrolled authenticator has the kit request verified through the site authenticator ports, not refused as unavailable', async () => {
+  const workspaceId = 'mfa-workspace';
+  const password = 'fixture-owner-passphrase';
+  const clock = { nowIso: () => '2026-11-27T00:00:00.000Z', nowMs: () => Date.parse('2026-11-27T00:00:00.000Z') };
+  let nextId = 0;
+  const idGen = { newId: () => `mfa-id-${++nextId}` };
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId, clock, idGen, permissionGrants: createPermissionGrantRegistry(),
+    ownerCredentials: { username: 'fixture-owner', password } });
+  await identity.identityReady;
+  const owner = await identity.ownerPrincipalId;
+  const replaced: unknown[] = [];
+  const factorLookups: unknown[] = [];
+  const recoveryCodes = { replace: async (input: unknown) => { replaced.push(input); }, contains: async () => false, clear: async () => {} };
+  const mfaStore = { factor: async (input: unknown) => { factorLookups.push(input); return { workspaceId, principalId: owner, secret: 'sealed', lastStep: 0 }; },
+    saveFactor: async () => {}, removeFactor: async () => {} };
+  const deps = { ...identity, workspaceId, clock, idGen, recoveryCodes, mfaStore } as unknown as RouteDeps;
+  const issued = await fixture({ caller: owner, deps }).invoke('recovery-codes', { password, code: '000000' });
+  // The composed authenticator deps reach factor verification, which needs the (absent) site key:
+  // the redacted 503, never the "Authenticator verification is unavailable" refusal.
+  assert.equal(issued.status, 503);
+  assert.doesNotMatch(JSON.stringify(issued.result), /Authenticator verification is unavailable/);
+  assert.ok(factorLookups.length >= 2, 'the factor is looked up by the kit check and again by the verifier');
+  assert.deepEqual(replaced, [], 'no kit is stored');
+});
