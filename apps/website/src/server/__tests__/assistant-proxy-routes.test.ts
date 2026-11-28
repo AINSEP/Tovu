@@ -946,3 +946,24 @@ test("a malformed A2UI action is refused with the validator's 400 and never forw
   assert.deepEqual(await response.json(), { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" });
   assert.deepEqual(recorded, []);
 });
+
+test("requests that carry no fields: a run start without contextRef is stamped with only the session principal, a cancel without ids is forwarded, a tool call without a name is refused", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
+
+  await (await fetch(`${baseUrl}/api/runs`, { method: "POST", headers: { cookie } })).text();
+  assert.deepEqual(recorded.map((call) => `${call.method} ${call.url}`), ["POST /api/runs"]);
+  const forwarded = JSON.parse(recorded[0].body) as Record<string, unknown>;
+  assert.deepEqual(Object.keys(forwarded), ["contextRef"]);
+  assert.deepEqual(JSON.parse(String(forwarded.contextRef)), { principalId: me.user.id });
+
+  recorded = [];
+  await (await fetch(`${baseUrl}/api/runs/run-1/cancel`, { method: "POST", headers: { cookie } })).text();
+  assert.deepEqual(recorded.map((call) => `${call.method} ${call.url}`), ["POST /api/runs/run-1/cancel"]);
+
+  recorded = [];
+  const toolCall = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, { method: "POST", headers: { cookie } });
+  assert.equal(toolCall.status, 400);
+  assert.deepEqual(await toolCall.json(), { error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
+  assert.deepEqual(recorded, []);
+});
