@@ -69,6 +69,22 @@ async function run(deps: StorageSheetActionsRequired, pending: Pending, dir: str
   return read.state === "exited" && read.code === 0 ? { state: "done" } : { state: "kept", reason: "in-use" };
 }
 
+/** Asks the owner, then runs at most one job per site. The in-use check repeats after the
+ *  confirmation await: two confirmations approved together must not both start a job. */
+async function confirmThenRun(required: {
+  deps: StorageSheetActionsRequired;
+  runningJobs: Set<string>;
+  entry: { pending: Pending; dir: string };
+  prompt: { action: DesktopStorageActionKind; label: string };
+}): Promise<TidyActionResult> {
+  const { deps, runningJobs, entry } = required;
+  if (runningJobs.has(entry.dir)) return { state: "kept", reason: "in-use" };
+  if (!await deps.confirm(required.prompt)) return { state: "declined" };
+  if (runningJobs.has(entry.dir)) return { state: "kept", reason: "in-use" };
+  runningJobs.add(entry.dir);
+  try { return await run(deps, entry.pending, entry.dir); } finally { runningJobs.delete(entry.dir); }
+}
+
 /**
  * @returns `tidyActions` for the view, plus `preview`/`act` for the two tidy actions.
  * @complexity O(1) per call plus one child or HTTP round trip.
@@ -97,12 +113,7 @@ export function bindStorageSheetActions(deps: StorageSheetActionsRequired, _opti
       const spent = deps.itemIds.spendConfirmation({ senderId, confirmationId });
       const target = spent ? deps.itemIds.resolve({ senderId, id: spent.id, kind: "site" }) : undefined;
       if (!entry || !spent || !target || target.kind !== "site" || target.dir !== entry.dir) return { state: "relist" };
-      if (runningJobs.has(entry.dir)) return { state: "kept", reason: "in-use" };
-      if (!await deps.confirm({ action: spent.action as DesktopStorageActionKind, label: target.label })) return { state: "declined" };
-      // Re-check after the await: two confirmations approved together must not both start a job.
-      if (runningJobs.has(entry.dir)) return { state: "kept", reason: "in-use" };
-      runningJobs.add(entry.dir);
-      try { return await run(deps, entry.pending, entry.dir); } finally { runningJobs.delete(entry.dir); }
+      return confirmThenRun({ deps, runningJobs, entry, prompt: { action: spent.action as DesktopStorageActionKind, label: target.label } });
     },
   };
 }
