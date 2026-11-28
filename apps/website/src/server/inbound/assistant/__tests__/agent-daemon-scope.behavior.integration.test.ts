@@ -529,6 +529,31 @@ test("once the scope starts disposing, the executor can no longer mint a credent
   } finally { await h.close(); }
 });
 
+// Mutations: readSnapshot ignores the principal; ignores revocation.
+test("chat_settings_get answers the run's launch snapshot to its own principal only, and nothing once tool access is lowered", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("settings-read");
+    await until(() => controls.launches.length === 1);
+    const executor = controls.delegatedDeps!.toolExecutor;
+    const read = (principalId: string) => executor.execute({ principal: { id: principalId }, run: { id: runId }, toolId: "chat_settings_get", input: {} });
+    const own = await read("owner");
+    assert.equal(own.status, "completed");
+    const snapshot = own.output as { agent: string; verdict: string; capabilities: { subagents: boolean }; toolIds: string[] };
+    // The harness policy grants subagents to "owner" only, so this snapshot is the owner's launch facts.
+    assert.deepEqual([snapshot.agent, snapshot.verdict, snapshot.capabilities.subagents], ["claude", "RUN", true]);
+    assert.ok(snapshot.toolIds.includes("chat_settings_get"));
+    assert.equal((await read("intruder")).status, "denied");
+    const lowered = fetch(`${h.url}/api/tool-access/lower`, { method: "POST", headers: { authorization: `Bearer ${h.token}`, "content-type": "application/json" }, body: JSON.stringify({ agentIds: ["claude"] }) });
+    await until(() => controls.events.includes(`cleanup-wait:${runId}`));
+    // Still before the run ends: only the revocation hides the snapshot.
+    assert.equal((await read("owner")).status, "denied");
+    await h.scope.lifecycle.finish({ runId, status: "cancelled", code: null, signal: null, resumable: false });
+    assert.equal((await lowered).status, 200);
+  } finally { await h.close(); }
+});
+
 // Mutations: fabricate a principal for an untracked run; ignore `requireReadOnly`; attenuate every call.
 test("delegated calls resolve the run's tracked principal, attenuated only for a read-only request", async () => {
   const h = await harness();
