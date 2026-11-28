@@ -25,7 +25,7 @@ function compose(t: TestContext) {
   const closes: (() => unknown)[] = [];
   const journal = composeDatabaseJournal({
     dbPath: join(dir, "data", "content.db"), workspaceId: "site-7", kernel, storeBound: { dbOps: {} },
-    onStoreClose: ({ registration }) => { closes.push(registration); },
+    onStoreClose: ({ registration }: { registration: () => unknown }) => { closes.push(registration); },
   } as unknown as Required);
   t.after(async () => {
     for (const close of closes) await close();

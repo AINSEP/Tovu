@@ -23,7 +23,9 @@ test("formCollectionProviders asks the injected getter at call time and returns 
     formCollectionProviders: () => registries[reads++],
   } as unknown as Required);
   assert.equal(reads, 0, "assembling the route deps reads no registry");
-  assert.equal(deps.formCollectionProviders(), registries[0]);
-  assert.equal(deps.formCollectionProviders(), registries[1]);
+  const read = deps.formCollectionProviders;
+  assert.notEqual(read, undefined, "the Forms routes receive a registry getter");
+  assert.equal(read!(), registries[0]);
+  assert.equal(read!(), registries[1]);
   assert.equal(reads, 2);
 });
