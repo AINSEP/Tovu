@@ -226,3 +226,43 @@ test('useImportWebsite: Cancel with no preload bridge at all changes nothing', a
   assert.equal(hook.current().importing, false);
   assert.equal(hook.current().failure, null);
 });
+
+test('useImportWebsite: an archive with no import call on the preload says to update, and starts nothing', async (t) => {
+  const hook = renderHook(t, () => useImportWebsite({ createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {}, onFailureWhileClosed: () => {} },
+    { getBridge: () => ({}) as never }));
+  await act(async () => { await hook.current().importArchive({ file: '/a.zip' }); });
+  assert.deepEqual(hook.current().failure, { message: "This version of the app can't import that. Update Tovu and try again.", details: '' });
+  assert.equal(hook.current().importing, false);
+  assert.equal(hook.current().archiveRun, 'none');
+});
+
+test('useImportWebsite: a typed share link (.zip address) is imported as an archive, not made into a new site', async (t) => {
+  const sources: unknown[] = [], made: string[] = [], imported: string[] = [];
+  const hook = renderHook(t, () => useImportWebsite(
+    { createSite: async ({ displayName }) => { made.push(displayName); return undefined; }, openSite: () => {}, onArchiveImported: ({ site: done }) => { imported.push(done.id); }, onFailureWhileClosed: () => {} },
+    { getBridge: () => ({ importSiteArchive: async (source: unknown) => { sources.push(source); return { ...site({ id: 'shared' }), warnings: [] }; } }) as never }));
+  act(() => hook.current().setAddress('https://share.example.test/s/site.tovu.zip'));
+  await act(async () => { await hook.current().importLive(); });
+  assert.deepEqual(sources, [{ url: 'https://share.example.test/s/site.tovu.zip' }]);
+  assert.deepEqual(made, []);
+  assert.deepEqual(imported, ['shared']);
+  assert.equal(hook.current().address, '');
+});
+
+test('useImportWebsite: a create that makes no site keeps the address and opens nothing', async (t) => {
+  const { hook, opened } = setup(t, async () => undefined);
+  act(() => hook.current().setAddress('example.com'));
+  await act(async () => { await hook.current().importLive(); });
+  assert.deepEqual(opened, []);
+  assert.equal(hook.current().address, 'example.com');
+  assert.equal(hook.current().importing, false);
+  assert.equal(hook.current().failure, null);
+});
+
+test('useImportWebsite: refuse shows the page\'s own sentence with nothing to copy, and clearFailure removes it', async (t) => {
+  const { hook } = setup(t, async () => undefined);
+  act(() => hook.current().refuse('Drop one file at a time.'));
+  assert.deepEqual(hook.current().failure, { message: 'Drop one file at a time.', details: '' });
+  act(() => hook.current().clearFailure());
+  assert.equal(hook.current().failure, null);
+});
