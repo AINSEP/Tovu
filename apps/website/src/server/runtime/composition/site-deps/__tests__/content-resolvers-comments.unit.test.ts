@@ -73,7 +73,7 @@ test("no later-built dependency getter is read while composing", () => {
 test("gallery media resolves through the media repo and content-type store read at render time", async () => {
   const { core, getters, calls } = compose();
   assert.ok(core.galleryMedia, "gallery media is wired");
-  const resolved = await core.galleryMedia({ refs: [{ type: "media", id: null, slug: "hero-clip", name: null }], context: { workspaceId: "site-7", preview: false } });
+  const resolved = await core.galleryMedia({ refs: [{ type: "media", id: null, slug: "hero-clip", name: null, variant: null, header: false }], context: { workspaceId: "site-7", preview: false } });
   assert.deepEqual(calls.mediaBySlug, [{ workspaceId: "site-7", slug: "hero-clip" }]);
   assert.deepEqual(calls.contentTypes, [{ workspaceId: "site-7", sha256s: ["sha-a"] }]);
   assert.deepEqual(resolved.get("hero-clip"), { componentId: "media-image", props: {
