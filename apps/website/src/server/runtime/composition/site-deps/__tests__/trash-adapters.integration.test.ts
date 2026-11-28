@@ -72,7 +72,7 @@ test("media still used by a post body is not purged: the outcome is still-refere
   const { deps } = site;
   const workspaceId = deps.workspaceId;
   const media = await uploadPng({ filename: "in-use.png", tail: 2 });
-  await deps.postRepo.save(buildPostRecord({ id: "uses-media", workspaceId, slug: "uses-media", bodyFormat: "html", bodyJson: null, bodyHtml: `<p><img src="/media/${media.id}/in-use.png"></p>` }));
+  await deps.postRepo.save(buildPostRecord({ id: "uses-media", workspaceId, slug: "uses-media", bodyFormat: "html", bodyHtml: `<p><img src="/media/${media.id}/in-use.png"></p>` }));
   assert.equal((await deps.trash.trash({ workspaceId, entityType: "media", entityId: media.id, actor: { principalId: "owner" }, display: { title: "in-use" }, at: AT, expectedVersion: null })).ok, true);
   const report = await deps.trash.purgeSelected({ workspaceId, ids: [await itemIdFor({ entityType: "media", entityId: media.id })], actor: { principalId: "owner" }, authorizeItem: async () => true });
   assert.deepEqual(report.results.map(row => row.outcome), ["still-referenced"]);
