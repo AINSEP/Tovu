@@ -207,3 +207,22 @@ test('opening an imported site opens its tab (with any admin page) and only then
     ['open', 'plain', undefined], ['stop'],
   ]);
 });
+
+test('useImportWebsite: a failure with nothing to copy after leaving the page toasts with no empty note', async (t) => {
+  const h = archiveSetup(t);
+  const close = h.hook.current().pageOpened();
+  let run!: Promise<void>;
+  act(() => { run = h.hook.current().importArchive({ file: '/a.zip' }); });
+  close();
+  await act(async () => { h.fail(new Error('')); await run; });
+  assert.deepEqual(h.toasts, [{ message: "Couldn't import that website. No website was created." }]);
+});
+
+test('useImportWebsite: Cancel with no preload bridge at all changes nothing', async (t) => {
+  const hook = renderHook(t, () => useImportWebsite({ createSite: async () => undefined, openSite: () => {}, onArchiveImported: () => {}, onFailureWhileClosed: () => {} },
+    { getBridge: () => undefined }));
+  await act(async () => { await hook.current().cancelArchive(); });
+  assert.equal(hook.current().archiveRun, 'none');
+  assert.equal(hook.current().importing, false);
+  assert.equal(hook.current().failure, null);
+});
