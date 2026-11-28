@@ -223,3 +223,19 @@ test("the default Windows stop falls back to the direct child when taskkill is n
   assert.deepEqual(taskkills, [], "no taskkill to run");
   assert.deepEqual(directKills, ["SIGTERM"], "the direct child is terminated instead, and Stop still waits for its exit");
 });
+
+test("an inherited secret-named variable with no value neither breaks boot nor mangles the redacted output", async t => {
+  const f = fixture({ t });
+  const started = startTovuServer({ ...f.input, baseEnv: { EXTRA_API_TOKEN: undefined, SITE_SECRET: "kept-fixture-value" },
+    spawnFn: (_command, _args, options) => {
+      assert.equal("EXTRA_API_TOKEN" in options.env!, true);
+      return f.child;
+    }, platform: "linux" });
+  f.child.stdout.write("plugin loaded with kept-fixture-value\n");
+  f.child.stdout.write(`tovu serve: dir=${f.input.siteDir} port=4321 schemaVersion=1 workspaceId=site-a\n`);
+  const handle = await started;
+  const tail = handle.outputTail();
+  assert.match(tail, /plugin loaded with \S+\n/);
+  assert.equal(tail.includes("kept-fixture-value"), false);
+  assert.match(tail, /tovu serve: dir=.* port=4321 schemaVersion=1 workspaceId=site-a/);
+});
