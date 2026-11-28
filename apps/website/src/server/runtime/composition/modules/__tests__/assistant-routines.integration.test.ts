@@ -513,6 +513,29 @@ test("an injected run handler builder wins over the composed starter", async (t)
   } finally { await h.close(); }
 });
 
+test("an injected run handler records onto its own run row through the composed updateRun port", async (t) => {
+  const contentDbPath = tempSite(t);
+  const h = harness(t, { contentDbPath });
+  const host = await composeAssistantRoutines(h.required, {
+    // As the composed starter does, the handler records onto the run row once it is claimed (`prepare`).
+    createRunHandler: ({ updateRun }) => async () => ({ projectId: "p-3", conversationId: "c-3", agentRunId: "a-3",
+      prepare: async (run: { id: string }) => { updateRun({ id: run.id, patch: { agentId: "agent-x", model: "model-x" } }); },
+      completion: Promise.resolve({ status: "succeeded" as const }) }),
+  });
+  let routineId = "";
+  try {
+    assert.equal(host.availability(), "ready");
+    const created = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: { name: "Daily", prompt: "Summarize", schedule: { kind: "hourly", minute: 5 } } });
+    if (!created.ok) assert.fail(JSON.stringify(created.error));
+    routineId = (created.value as { routine: { id: string } }).routine.id;
+    const ran = await h.call(`post ${ROUTINE_ROUTE_BASE}/:id/run`, { params: { id: routineId } });
+    if (!ran.ok) assert.fail(JSON.stringify(ran.error));
+  } finally { await h.close(); }
+  const runs = await readRuns(contentDbPath, routineId);
+  assert.equal(runs.length, 1);
+  assert.deepEqual([runs[0]!.agentId, runs[0]!.model, runs[0]!.status], ["agent-x", "model-x", "succeeded"], "the handler's patch reached the persisted run row");
+});
+
 test("a scheduled slot whose starter throws is reported through the composed log under the scheduler's code and the error type only", async (t) => {
   const contentDbPath = tempSite(t);
   await seedRoutine(contentDbPath);
