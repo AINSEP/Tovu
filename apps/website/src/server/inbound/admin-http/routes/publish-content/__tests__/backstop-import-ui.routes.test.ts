@@ -56,3 +56,45 @@ test("real import plan returns safe before/after values for raw rows without req
   allowValues = false;
   const denied = await request(); assert.equal(denied.status, 403); assert.equal((await denied.json()).backstopPreview, undefined);
 });
+
+test("a raw row whose live values cannot be read is previewed as unavailable and the cause is logged once", async (t) => {
+  const warnings = t.mock.method(console, "warn", () => undefined);
+  const db = new Database(":memory:"); t.after(() => db.close());
+  db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','Old footer');");
+  resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
+  const kernel = contentKernel({ store: db });
+  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel });
+  const live = await rows.read({ table: "p_banner", pk: { id: "one" } }); assert.ok(live);
+  const state = { ...live, values: { ...live.values, title: "New footer" } };
+  const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
+    contentHash: contentHash({ entityType: "raw-row", state }), requiredBlobs: [], state,
+    backstop: { mode: "backstop", reason: "Emergency footer fix", sourceActor: "owner", destinationHost: "live.example", gapLabels: ["table:p_banner"] } };
+  const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00Z") }; let serial = 0;
+  const idGen = { newId: () => `id-${++serial}` };
+  const bundleRepo = new InMemoryPublishContentBundleRepo();
+  const staged = await stageBundle({
+                                     input: { workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] },
+                                     deps: { repo: bundleRepo, clock, idGen }
+                                   });
+  const authorize = async () => ({ allowed: true, reason: "fixture permission" });
+  const deps = { workspaceId: "ws", contentKernel: kernel, clock, idGen, authorize,
+    publishContentBundleRepo: bundleRepo, publishContentBaselineRepo: new InMemoryPublishContentBaselineRepo(),
+    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize }) }, blobStore: { exists: async () => true },
+  } as unknown as PublishContentRouteDeps;
+  const app = express(); app.use(express.json());
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+  registerPublishContentImportRoutes({ errors: createRouteIncidentReporter().errors, app, deps });
+  // The staged row names a live table that is gone by plan time, so reading its live values throws.
+  const server = await startTestServer(app, t);
+  db.exec("DROP TABLE p_banner");
+  const response = await fetch(`${server}/api/admin/v1/workspaces/ws/publish-content/import/plan`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bundleId: staged.bundleId }) });
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.deepEqual(body.backstopPreview, [{ entityType: "raw-row", entityId: entity.id, before: null, after: null,
+    unavailableReason: "These values could not be inspected safely. Check again before sending." }]);
+  const logged = warnings.mock.calls.filter(({ arguments: args }) => String(args[0]).startsWith("[publish-content]"));
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0]!.arguments[0], "[publish-content] backstop values could not be inspected; preview remains unavailable");
+});
