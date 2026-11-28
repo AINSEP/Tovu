@@ -279,7 +279,7 @@ test("a child with no stdin that exits without a valid result still reports the 
   });
   child.stdout.write("not a JSON result\n");
   child.exit(0);
-  await assert.rejects(promise, { message: "The import finished but did not report where the new website is. Use Rescan if it exists already." });
+  await assert.rejects(promise, { message: "The import finished but did not report where the new website is. Use Rescan to find it." });
 });
 
 test("startup tidy finds a staged import on disk and sends a cleanup-only request", async (t) => {

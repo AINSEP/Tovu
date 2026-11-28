@@ -99,6 +99,8 @@ export function bindStorageSheetActions(deps: StorageSheetActionsRequired, _opti
       if (!entry || !spent || !target || target.kind !== "site" || target.dir !== entry.dir) return { state: "relist" };
       if (runningJobs.has(entry.dir)) return { state: "kept", reason: "in-use" };
       if (!await deps.confirm({ action: spent.action as DesktopStorageActionKind, label: target.label })) return { state: "declined" };
+      // Re-check after the await: two confirmations approved together must not both start a job.
+      if (runningJobs.has(entry.dir)) return { state: "kept", reason: "in-use" };
       runningJobs.add(entry.dir);
       try { return await run(deps, entry.pending, entry.dir); } finally { runningJobs.delete(entry.dir); }
     },

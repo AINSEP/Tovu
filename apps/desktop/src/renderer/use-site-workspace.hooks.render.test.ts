@@ -229,7 +229,8 @@ test('a parked route applies its saved scroll and reports an unexpected guest fa
   assert.match(scripts[0]!, /inner\.scrollTop = 59/);
   assert.equal(logs.length, 1);
   assert.equal(logs[0]![0], '[live-views] Could not restore scroll position');
-  assert.match(String(logs[0]![1]), /Scroll evaluation refused/);
+  // The log line names only the error class: guest error text is never copied into logs.
+  assert.deepEqual(logs[0], ['[live-views] Could not restore scroll position', 'Error']);
   act(() => { guest.dispatchEvent(new window.Event('did-finish-load')); });
   await settle();
   assert.equal(scripts.length, 1);
