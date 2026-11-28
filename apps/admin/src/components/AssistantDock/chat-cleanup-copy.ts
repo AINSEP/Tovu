@@ -48,7 +48,8 @@ export function chatCleanupCopy({ t, locale, untitled }: { t: DockTranslate; loc
     deleteSelected: ({ count }) => `${tr("Delete selected")} (${count})`,
     deleteSelectedBody: tr("Delete the selected chats? This cannot be undone."),
     untitled,
-    reason: ({ reason }) => tr(REASONS[reason] ?? "Not checked"),
+    // Own keys only: a server reason such as "constructor" must not resolve to an Object.prototype member.
+    reason: ({ reason }) => tr((Object.hasOwn(REASONS, reason) ? REASONS[reason] : undefined) ?? "Not checked"),
     errors: {
       notConfigured: tr("Chat cleanup is not available on this site."),
       invalid: tr("Choose between 1 and 365 days."),
