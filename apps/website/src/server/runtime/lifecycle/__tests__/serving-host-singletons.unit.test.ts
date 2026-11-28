@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { SiteBinding } from "@jini-ai/core/contracts/site/platform-site-dir";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { localSiteSupervisorForHost, shutdownLocalSiteHosts } from "../local-site-host.js";
 import { sitePreviewServiceForHost } from "../site-preview-host.js";
 import { themePreviewServiceForHost } from "../theme-preview-host.js";
@@ -18,7 +19,7 @@ import { themePreviewServiceForHost } from "../theme-preview-host.js";
  * run in a unit test at all.
  */
 
-const ENV_KEYS = ["NODE_ENV", "TOVU_ENABLE_SITE_SWITCHER", "PORT", "JINI_AGENT_DAEMON_PORT", "JINI_AGENT_DAEMON_URL", "TOVU_LOCAL_SITE_LIMIT"] as const;
+const ENV_KEYS = ["NODE_ENV", "TOVU_ENABLE_SITE_SWITCHER", "PORT", "JINI_AGENT_DAEMON_PORT", "JINI_AGENT_DAEMON_URL", "TOVU_LOCAL_SITE_LIMIT", "TOVU_DEV_WARM_CONTROL_URL"] as const;
 
 /** Sets `values` on `process.env` for one test and restores every touched key afterwards. */
 function withEnv(t: test.TestContext, values: Partial<Record<(typeof ENV_KEYS)[number], string>>): void {
@@ -153,4 +154,51 @@ test("local site supervisor: the synchronous process-exit listener kills its chi
   assert.equal(onExit.length, 1);
   onExit[0]!();
   return assert.rejects(supervisor.start({ name: "another-site" }), { code: "SITE_HOST_STOPPING" });
+});
+
+test("local site supervisor: a warm child (one with a control URL) never assembles its own pool", (t) => {
+  withEnv(t, { TOVU_ENABLE_SITE_SWITCHER: "1", TOVU_DEV_WARM_CONTROL_URL: "http://localhost:3000" });
+  assert.equal(localSiteSupervisorForHost({ binding: binding() }), undefined);
+});
+
+test("local site supervisor: a signal-driven shutdown that rejects is logged, not left unhandled", async (t) => {
+  withEnv(t, { TOVU_ENABLE_SITE_SWITCHER: "1" });
+  const before = new Map(["SIGTERM", "SIGINT", "SIGHUP", "exit"].map((signal) => [signal, process.listeners(signal as NodeJS.Signals)]));
+  const supervisor = localSiteSupervisorForHost({ binding: binding() });
+  const sigterm = takeAddedSignalListeners(before);
+  assert.ok(supervisor);
+  const realShutdown = supervisor.shutdown;
+  t.after(async () => { supervisor.shutdown = realShutdown; await shutdownLocalSiteHosts({}); takeAddedSignalListeners(before); });
+  const failure = Object.assign(new Error("tree stop failed"), { code: "SITE_STOP_FAILED" });
+  supervisor.shutdown = async () => { throw failure; };
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  assert.equal(sigterm.length, 1);
+  sigterm[0]!();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(logged, [["[local-sites] Could not shut down the supervisor", describeErrorForLog({ err: failure })]]);
+});
+
+test("shutdownLocalSiteHosts: a slower overlapping shutdown of the old host never evicts the binding's replacement", async (t) => {
+  withEnv(t, { TOVU_ENABLE_SITE_SWITCHER: "1" });
+  const before = new Map(["SIGTERM", "SIGINT", "SIGHUP", "exit"].map((signal) => [signal, process.listeners(signal as NodeJS.Signals)]));
+  t.after(async () => { await shutdownLocalSiteHosts({}); takeAddedSignalListeners(before); });
+  const site = binding();
+  const first = localSiteSupervisorForHost({ binding: site });
+  assert.ok(first);
+  const realShutdown = first.shutdown.bind(first);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let calls = 0;
+  first.shutdown = async () => { calls += 1; const call = calls; await realShutdown(); if (call === 2) await gate; };
+  const fast = shutdownLocalSiteHosts({});
+  const slow = shutdownLocalSiteHosts({});
+  await fast;
+  const replacement = localSiteSupervisorForHost({ binding: site });
+  assert.ok(replacement);
+  assert.notEqual(replacement, first);
+  release();
+  await slow;
+  assert.equal(calls, 2);
+  assert.equal(localSiteSupervisorForHost({ binding: site }), replacement);
 });

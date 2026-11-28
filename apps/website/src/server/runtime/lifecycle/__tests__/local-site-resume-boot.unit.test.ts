@@ -54,3 +54,19 @@ test("closing a listening host cancels its pending recovery", async t => {
   cancel(); t.mock.timers.tick(5000); await new Promise<void>(resolve => setImmediate(resolve));
   assert.equal(resumed, 0);
 });
+
+test("a failed delayed resume is logged with its error, never left as an unhandled rejection", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const supervisor = createLocalSiteSupervisor({ servingName: "owner", scheme: "http", processPort: {
+    isPortFree: async () => true, schedule: () => () => {}, launch: async () => { throw new Error("unexpected"); },
+  } });
+  const failure = new Error("intent unreadable");
+  supervisor.resume = async () => { throw failure; };
+  t.after(() => supervisor.shutdown());
+  const binding = { dir: "/unused", name: "owner", switcherCompatible: true, dirOverridden: false };
+  t.after(resumeLocalSitesForHost({ binding }, { env: { TOVU_DEV_SUPERVISOR_PID: "dev-42" }, forHost: () => supervisor }));
+  t.mock.timers.tick(2000); await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual(logged, [["Local site resume failed:", failure]]);
+});
