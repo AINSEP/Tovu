@@ -151,3 +151,51 @@ test("a slow telemetry drain cannot keep the daemon database client open", async
   await closing;
   assert.equal(closed, 1);
 });
+
+test("the callback origin wins over the listener origin, a trace sink exists only when tracing is enabled, and no origin at all refuses before any request", async () => {
+  for (const [env, expected, tracing] of [
+    [{ TOVU_DB: "memory", TOVU_SITE_CALLBACK_ORIGIN: "http://127.0.0.1:4321", TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:1234" }, "http://127.0.0.1:4321/", true],
+    [{ TOVU_DB: "memory", TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:1234" }, "http://127.0.0.1:1234/", false],
+  ] as const) {
+    const f = fixture(), urls: string[] = [];
+    f.snapshot.traceEnabled = tracing;
+    const deps = await createAgentDaemonCoreDeps({ env: { ...env }, token: "private" }, { fetch: async (url, init) => { urls.push(String(url)); return f.fetcher(url, init); } });
+    try {
+      assert.ok(urls.length > 0);
+      assert.ok(urls.every(url => url.startsWith(expected)), `${expected}: ${urls.join(", ")}`);
+      assert.equal(deps.aiTraceSink !== undefined, tracing);
+    } finally { await deps.close(); }
+  }
+  const unreached: string[] = [];
+  await assert.rejects(createAgentDaemonCoreDeps({ env: { TOVU_DB: "memory" }, token: "private" }, { fetch: async url => { unreached.push(String(url)); return Response.json({ value: null }); } }), /Invalid URL/);
+  assert.deepEqual(unreached, []);
+});
+
+test("a composition failure whose cleanup also fails logs the cleanup error and rethrows the composition error", async t => {
+  const f = fixture();
+  delete (f.env as NodeJS.ProcessEnv).TOVU_DB;
+  const kernel = { lockKey: () => "fixture", dialect: "sqlite", transport: "better-sqlite3" };
+  const client = { content: kernel, chat: kernel, close: async () => { throw new RangeError("client close refused"); } } as unknown as SiteDbClient;
+  const logged = t.mock.method(console, "error", () => {});
+  await assert.rejects(createAgentDaemonCoreDeps({ env: f.env, token: "private" }, { fetch: f.fetcher,
+    openClient: async () => client, onStoreOpened: () => { throw new Error("shutdown registration failed"); } }), /shutdown registration failed/);
+  assert.equal(logged.mock.callCount(), 1);
+  assert.equal(logged.mock.calls[0]!.arguments[0], "[agent-daemon] Could not close the failed composition");
+  assert.match(String(logged.mock.calls[0]!.arguments[1]), /^RangeError/, "the cleanup failure, not the composition error, is described");
+});
+
+test("without an injected resolver, the database client resolves a Postgres secret reference from the daemon's env", async () => {
+  const f = fixture();
+  let resolver: ((input: { storage: { kind: "postgres"; secretRef: { env: string } }; siteDir: string }) => Promise<string>) | undefined;
+  const env = { TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:1234", TEST_DAEMON_DATABASE_URL: "postgres://daemon.invalid/content" };
+  const deps = await createAgentDaemonCoreDeps({ env, token: "private" }, { fetch: f.fetcher, openClient: async (input) => {
+    resolver = input.resolvePostgresConnectionString;
+    const kernel = { lockKey: () => "fixture", dialect: "sqlite", transport: "better-sqlite3" };
+    return { content: kernel, chat: kernel, close: async () => {} } as unknown as SiteDbClient;
+  } });
+  try {
+    assert.ok(resolver);
+    assert.equal(await resolver({ storage: { kind: "postgres", secretRef: { env: "TEST_DAEMON_DATABASE_URL" } }, siteDir: tmpdir() }), "postgres://daemon.invalid/content");
+    await assert.rejects(resolver({ storage: { kind: "postgres", secretRef: { env: "UNSET_DAEMON_DATABASE_URL" } }, siteDir: tmpdir() }), /UNSET_DAEMON_DATABASE_URL, which is not set/);
+  } finally { await deps.close(); }
+});
