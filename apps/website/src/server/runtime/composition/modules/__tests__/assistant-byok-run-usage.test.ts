@@ -97,3 +97,12 @@ test("sparse BYOK snapshots do not erase previously reported counters or replace
     status: "succeeded", usage: { inputTokens: 11, outputTokens: 4, costUsd: 0.125 },
   });
 });
+
+test("a counter only an earlier request reported survives a later request that omits it", () => {
+  const usage = createByokRunUsage();
+  usage.observe({ type: "status", label: "requesting" });
+  usage.observe({ type: "usage", usage: { input_tokens: 7 }, costUsd: 0.5 } as never);
+  usage.observe({ type: "status", label: "requesting" });
+  usage.observe({ type: "usage", usage: { output_tokens: 3 } });
+  assert.deepEqual(usage.total(), { inputTokens: 7, outputTokens: 3, costUsd: 0.5 });
+});
