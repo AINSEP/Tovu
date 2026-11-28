@@ -16,7 +16,7 @@ import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites } from "./tracked-sites.ts";
 import { sitePartition } from "./desktop-auth.ts";
 import { desktopJsonFile } from "./durable-json-file.ts";
-import { bindDesktopRetirement, bindTrackedAgainRetirement, NO_RETIREMENT, type SiteRetirementPort } from "./site-retirement.ts";
+import { bindDesktopRetirement, bindTrackedAgainRetirement, createSiteRetirement, NO_RETIREMENT, type SiteRetirementPort } from "./site-retirement.ts";
 
 const tempDir = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-retirement-")));
 
@@ -159,8 +159,37 @@ test("capture fails closed to no candidate when the identity cannot be read", ()
   assert.equal(read.state === "ok" && read.records[0]?.state, "invalidated");
 });
 
-test("NO_RETIREMENT captures nothing and so records nothing", () => {
+test("NO_RETIREMENT captures nothing, never proves absence, and so records nothing", () => {
   assert.equal(NO_RETIREMENT.capture({ siteDir: "/x", siteId: "y" }), null);
+  const candidate = { basis: "erased", profile: "/p", sessionRoot: "/p/Partitions", partition: "tovu-site-x", subjectId: "y", subjectDir: "/x",
+    dirIdentity: { dev: 1, ino: 2, birthtimeMs: 3 }, parentDir: "/", parentDev: 1, eraseVersion: "1", erasedAt: "1970-01-01T00:00:00.000Z" } as const;
+  assert.equal(NO_RETIREMENT.absence({ candidate }), "unknown", "absence without a binding must never read as certain");
+  assert.equal(NO_RETIREMENT.append({ candidate }), undefined);
+  assert.equal(NO_RETIREMENT.invalidate({ partition: "tovu-site-x", reason: "tracked-again" }), undefined);
+  assert.equal(Object.isFrozen(NO_RETIREMENT), true);
+});
+
+test("capture refuses a path that is not a folder, and absence is unknown unless the parent volume is provably the captured one", () => {
+  const f = fixture();
+  const siteDir = f.site("absence-edges", "created");
+  const bound = bindDesktopRetirement({ userDataDir: f.userDataDir, sessionDataDir: f.userDataDir, eraseVersion: "1", partitionFor: sitePartition,
+    fs, clock: { now: () => 0 }, id: randomUUID, durableJsonFor: desktopJsonFile });
+  const file = path.join(f.root, "a-file");
+  fs.writeFileSync(file, "x");
+  assert.equal(bound.port.capture({ siteDir: file, siteId: "x" }), null, "a file is not a website folder");
+  const candidate = bound.port.capture({ siteDir, siteId: "x" });
+  assert.ok(candidate);
+  const errno = (code: string) => Object.assign(new Error(code), { code });
+  const portWith = (lstatSync: (p: string) => fs.Stats) => createSiteRetirement({ ledger: bound.ledger, sessionDataDir: f.userDataDir, eraseVersion: "1",
+    partitionFor: sitePartition, clock: { now: () => 0 }, fs: { lstatSync, realpathSync: fs.realpathSync } });
+  const parentIsFile = portWith(p => (p === candidate.parentDir ? fs.lstatSync(file) : fs.lstatSync(p)));
+  assert.equal(parentIsFile.absence({ candidate }), "unknown", "parent replaced by a non-folder");
+  const parentUnreadable = portWith(p => { if (p === candidate.parentDir) throw errno("EACCES"); return fs.lstatSync(p); });
+  assert.equal(parentUnreadable.absence({ candidate }), "unknown", "parent cannot be read");
+  const subjectUnreadable = portWith(p => { if (p === candidate.subjectDir) throw errno("EACCES"); return fs.lstatSync(p); });
+  assert.equal(subjectUnreadable.absence({ candidate }), "unknown", "a non-ENOENT read failure is not absence");
+  const subjectGone = portWith(p => { if (p === candidate.subjectDir) throw errno("ENOENT"); return fs.lstatSync(p); });
+  assert.equal(subjectGone.absence({ candidate }), "absent");
 });
 
 test("production binding is not NO_RETIREMENT", () => {
