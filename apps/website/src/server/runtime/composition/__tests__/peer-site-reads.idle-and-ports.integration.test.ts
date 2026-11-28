@@ -175,3 +175,11 @@ test("a peer site with no themes folder still resolves and lists no themes, on o
   assert.equal(peerThemes.themesDir, path.join(f.b.dir, 'themes'));
   assert.deepEqual(peerThemes.themes, []);
 });
+
+test("a registry entry whose folder is gone is never the current site, and the real current entry still is", async t => {
+  const f = await peerFixture(t);
+  f.workspace.registry({}).merge({ entries: [{ id: 'gone', path: path.join(f.home, 'gone'), name: 'Gone', createdBy: 'peer-test', lastOpened: null }] });
+  assert.equal(f.peer.isCurrentSite({ siteName: 'Gone' }), false);
+  assert.equal(f.peer.isCurrentSite({ siteName: 'A' }), true);
+  assert.equal(f.peer.isCurrentSite({ siteName: 'B' }), false);
+});
