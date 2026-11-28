@@ -51,7 +51,8 @@ function expiryField({ meta }: { meta: Record<string, unknown> }, _optional = {}
   return typeof expiresAtMs === "number" && Number.isFinite(expiresAtMs) ? { expiresAtMs } : {};
 }
 
-const ID_LINE = /(?:^|\n)id:[ ]?([^\n\r]*)\r?\n/g;
+// Lookahead, not a consumed `\n`: adjacent `id:` lines each need the preceding newline as their anchor.
+const ID_LINE = /(?:^|\n)id:[ ]?([^\n\r]*)(?=\r?\n)/g;
 
 /**
  * Passes the daemon stream through unchanged while remembering the last SSE `id:` it carried.
