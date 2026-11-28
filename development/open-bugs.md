@@ -2405,5 +2405,21 @@ Fixed unless marked OPEN.
 - **OWNER (unchanged):** BUG 6 (provider-credential vault/store) still open and untouched; its vault test is the only red in the cms-3 whole-job run.
 - **OWNER:** plugins `discovery.unit.test.ts:54` returns early (passes silently) on a case-insensitive filesystem (macOS) instead of asserting ID_DUPLICATE; a visible skip would break the no-skip rule — decide.
 - **OWNER (behaviour pinned by a test, low risk):** cms no-domain HTML export keeps url/@id inside an UNCLOSED `<script type="application/ld+json">` at document end (`html/site/export-html-policy.ts`). Confirm a no-domain export must never carry identity.
-- **OWNER (possible latent bug):** admin `security/host/hooks/access-token-actions.ts:87` `persistedRow?.name ?? ""` — calling the hook directly with an off-screen row id makes a replace send a rename to "" (no UI route reaches it; left untested on purpose).
+- **OPEN (new, low, not fixed — owner decision):** Jini admin `security/host/hooks/access-token-actions.ts:87` `persistedRow?.name ?? ""` IS reachable through the public export `./security/host/hooks/use-access-tokens.hooks`: `setExistingField({rowId, patch:{token}})` while the stores are still pending writes a draft with `name: ""`; after the list loads the row editor shows "" instead of the saved name (the blank-name bug the function's doc says was fixed). Fix options: merge row defaults when reading the draft in `existingTokenDraft`, or have `setExistingField` ignore ids not in `rows`. Failing test (kept out of the commit, extends `access-token-actions.unit.test.tsx`):
+```tsx
+});
+
+describe("access-token draft seeding before the catalogs settle", () => {
+  // A3 exception challenge: `setExistingField` is reachable through the exported
+  // `useAccessTokens` controller with a row id the merged list does not hold yet (all stores
+  // still pending). Its own contract says a row's first draft is seeded from the persisted row,
+  // name included, never a blank name (the 2026-08-19 HIGH finding).
+  it("keeps the saved name when a row's token is typed before the list settles", async () => {
+    const hook = setup();
+    act(() => hook.result.current.setExistingField({ rowId: "pub-1", patch: { token: "tok-a" } }));
+    await waitFor(() => expect(rowState(hook, "pub-1")?.row.name).toBe("Main host key"));
+    expect(rowState(hook, "pub-1")).toMatchObject({ token: "tok-a", name: "Main host key" });
+  });
+});
+```
 - **OWNER:** plugins `runtime-reload.ts:37` `expectedDigest ?? preview.digest` is unreachable today but would silently weaken the preview-digest match if a caller ever omitted it — recommend dropping the fallback.
