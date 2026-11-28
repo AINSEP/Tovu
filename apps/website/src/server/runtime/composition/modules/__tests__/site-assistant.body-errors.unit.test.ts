@@ -6,6 +6,8 @@ import express from "express";
 
 import { createRouteDeps } from "../../app.js";
 import { createSiteAssistantModule } from "../site-assistant.js";
+import { VISITOR_AG_UI_ACCEPT } from "../site-assistant-ag-ui.js";
+import { VISITOR_APPROVAL_EXPIRED } from "#src/assistant/site/visitor-ag-ui-resume";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -63,4 +65,17 @@ test("a turn that throws before its stream opened answers a JSON 500 with the in
   assert.match(answer.body.errorId, /^[0-9a-f-]{36}$/);
   assert.equal(answer.body.error.includes("settings store offline"), false);
   assert.deepEqual(logged.map(entry => [entry.errorId, entry.code]), [[answer.body.errorId, answer.body.code]], "one incident, the one the visitor was told about");
+});
+
+test("an AG-UI approval answer whose resume fails before streaming is logged once and answered as the expired-request 400", async (t) => {
+  const deps = createRouteDeps();
+  const failing: RouteDeps = { ...deps, getEffective: (() => { throw new Error("settings store offline"); }) as never };
+  const { baseUrl, logged } = await boot(t, failing);
+  const res = await fetch(`${baseUrl}${CHAT}`, { method: "POST", headers: { "content-type": "application/json", accept: VISITOR_AG_UI_ACCEPT },
+    body: JSON.stringify({ resume: [{ interruptId: "interrupt-1", status: "resolved", payload: { approved: true } }], messages: [] }) });
+  assert.equal(res.status, 400);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await res.json(), { error: VISITOR_APPROVAL_EXPIRED });
+  assert.deepEqual(logged.map(entry => entry.code), ["visitor_tools_confirm"]);
+  assert.match(String(logged[0]?.diagnostic), /settings store offline/);
 });
