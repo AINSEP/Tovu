@@ -155,3 +155,15 @@ test("a private operation label is replaced with the safe generic tracker operat
     { message: "storage failed", context: { operation: "application.error" } },
   ]);
 });
+
+test("an error name carrying a secret is sent as plain Error, and a stackless error is sent without a stack", () => {
+  const { tracker, calls } = recordingTracker();
+  const error = new Error("lookup failed");
+  error.name = `KeyError ${CANARY}`;
+  error.stack = undefined;
+  trackerReportPort({ tracker }).reportError({ error, context: { operation: "keys.lookup", exactSecrets: [CANARY] } });
+  assert.equal(calls.length, 1);
+  const sent = calls[0]!.error;
+  assert.deepEqual({ name: sent.name, message: sent.message, hasStack: Object.prototype.hasOwnProperty.call(sent, "stack"), stack: sent.stack },
+    { name: "Error", message: "lookup failed", hasStack: false, stack: undefined });
+});
