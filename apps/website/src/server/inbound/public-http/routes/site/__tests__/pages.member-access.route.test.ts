@@ -11,7 +11,7 @@ import type { PostRecord } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { MemberSessionRecord } from "@jini-ai/user-management/members/types";
 import { InMemoryMemberSessionRepo } from "@jini-ai/user-management/members/repo.memory";
-import { loadTheme } from "#src/features/theme/index";
+import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 
@@ -213,4 +213,31 @@ test("consuming a form flash appends its clearing cookie without replacing an ea
     "upstream=kept; Path=/",
     "tovu_form_flash=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax",
   ]);
+});
+
+/** A static-tier theme that ships its own `pages/404.html` (and no page at the gated post's slug). */
+function staticThemeWithThemed404(): DiscoveredTheme {
+  return {
+    manifest: { id: "static-404-gating-theme", name: "Static 404 Gating Theme", version: "1.0.0", tier: "static", engine: 1, templates: [] },
+    dir: "/nonexistent/static-404-gating-theme",
+    tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: { index: "<html><body><main>home</main></body></html>", "404": "<html><body><main>Themed gating not found</main></body></html>" },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /:slug -- on a static theme with its own 404 page, a denied members-only post gets that themed 404, same as a missing slug", async (t) => {
+  const post = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
+  const { server, baseUrl } = await startServer({ themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }) });
+  t.after(() => closeServer(server));
+
+  const gated = await fetch(`${baseUrl}/${post.slug}`);
+  const gatedHtml = await gated.text();
+  assert.equal(gated.status, 404);
+  assert.match(gatedHtml, /Themed gating not found/, "the theme's own 404 page renders, not the bare fallback");
+  assert.doesNotMatch(gatedHtml, /Members Only Post/, "the gated post's title must not leak into the 404");
+
+  const missing = await fetch(`${baseUrl}/no-post-at-this-slug`);
+  assert.equal(missing.status, 404);
+  assert.match(await missing.text(), /Themed gating not found/, "a missing slug answers with the same themed page");
 });
