@@ -236,6 +236,16 @@ test("buildServeEnv points the child at a live admin dev server only when one wa
   } finally { fs.rmSync(repoRoot, { recursive: true, force: true }); }
 });
 
+test("buildServeEnv states the packaged-desktop fact only when main supplied it, never an inherited copy", () => {
+  const repoRoot = makeTempRepo();
+  try {
+    const inherited = { TOVU_PACKAGED_DESKTOP: "1" };
+    assert.equal(buildServeEnv({ repoRoot, baseEnv: inherited, isPackaged: true }).TOVU_PACKAGED_DESKTOP, "1");
+    assert.equal(buildServeEnv({ repoRoot, baseEnv: inherited, isPackaged: false }).TOVU_PACKAGED_DESKTOP, "0");
+    assert.equal("TOVU_PACKAGED_DESKTOP" in buildServeEnv({ repoRoot, baseEnv: inherited }), false);
+  } finally { fs.rmSync(repoRoot, { recursive: true, force: true }); }
+});
+
 test("buildServeEnv mints a daemon token, because `tovu serve` never does and the gate is fail-closed", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
   assert.match(env.TOVU_AGENT_DAEMON_TOKEN!, /^[0-9a-f]{64}$/);
@@ -1405,6 +1415,18 @@ test("owned idle stop resolves false when the agent binding rejects", async t =>
   child.stdout.write(REAL_BOOT_LINE);
   const handle = await starting;
   assert.equal(await handle.stopIfIdle!(), false);
+  child.exitCode = 0; child.emit('exit', 0, null);
+});
+
+test("owned idle stop without a bound agent service declines and leaves the server running", async t => {
+  const repoRoot = makeTempRepo();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const child = fakeChild();
+  const starting = startTovuServer({ repoRoot, siteDir: '/fake/site', port: 4321, mirror: silentMirror(), spawnFn: () => child });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await starting;
+  assert.equal(await handle.stopIfIdle!(), false);
+  assert.deepEqual(child.killed, [], "no agent binding means nothing can vouch the site is idle");
   child.exitCode = 0; child.emit('exit', 0, null);
 });
 

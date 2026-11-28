@@ -195,3 +195,31 @@ test("the default Windows stop invokes taskkill for the whole tree and waits for
   await handle.stop();
   assert.equal(taskkills.length, 1, "an already exited tree is not killed again");
 });
+
+test("the default Windows stop falls back to the direct child when taskkill is not on PATH", { timeout: 2000 }, async (t) => {
+  const f = fixture({ t });
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-no-taskkill-"));
+  const previousPath = process.env.PATH;
+  t.after(() => {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    fs.rmSync(emptyBin, { recursive: true, force: true });
+  });
+  process.env.PATH = emptyBin;
+  const taskkills: unknown[] = [];
+  const patched = t.mock.method(childProcess, "execFileSync", (...args: unknown[]) => { taskkills.push(args); return Buffer.alloc(0); });
+  syncBuiltinESMExports();
+  t.after(() => { patched.mock.restore(); syncBuiltinESMExports(); });
+  const directKills: unknown[] = [];
+  f.child.kill = (signal) => {
+    directKills.push(signal);
+    queueMicrotask(() => { f.child.signalCode = "SIGTERM"; f.child.emit("exit", null, "SIGTERM"); });
+    return true;
+  };
+  const started = startTovuServer({ ...f.input, platform: "win32" });
+  f.child.stdout.write("tovu serve: dir=/fixture port=4321 schemaVersion=58 workspaceId=fixture\n");
+  const handle = await started;
+  await handle.stop();
+  assert.deepEqual(taskkills, [], "no taskkill to run");
+  assert.deepEqual(directKills, ["SIGTERM"], "the direct child is terminated instead, and Stop still waits for its exit");
+});
