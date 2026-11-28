@@ -67,3 +67,42 @@ test("publish compatibility reads the deploy-target loader and verification cach
   await publishCompatibility.prepareInvalidation({ workspaceId: "site-a" });
   assert.deepEqual(loads, [{ workspaceId: "site-a" }]);
 });
+
+test("source-control writes load the providers and the HTTP client from the bag current when a build runs", async () => {
+  const loads: Array<{ who: string; input: unknown }> = [];
+  let kitClient: unknown;
+  // One provider whose module hands back the HTTP client its kit was built with.
+  const loaded = { pluginId: "example-git", descriptor: { id: "example-git", label: "Example Git", apiOrigin: "https://git.example.test" },
+    module: { create: ({ kit }: { kit: { httpClient: unknown } }) => { kitClient = kit.httpClient; return {}; } } };
+  const registries = {
+    empty: { list: () => [], get: () => undefined, refusals: [] },
+    one: { list: () => [loaded], get: ({ providerId }: { providerId: string }) => (providerId === "example-git" ? loaded : undefined), refusals: [] },
+  };
+  const bag = (who: string, registry: keyof typeof registries) => {
+    const client = { send: async () => { throw new Error(`no network for ${who}`); } };
+    return { client, deps: portFake<CredentialsHostPortDeps>({
+      loadSourceControlProviders: (async (input: unknown) => { loads.push({ who, input }); return registries[registry]; }) as unknown as CredentialsHostPortDeps["loadSourceControlProviders"],
+      customCredentialsHttpClient: client as unknown as CredentialsHostPortDeps["customCredentialsHttpClient"],
+    }) };
+  };
+  let reads = 0;
+  let current: CredentialsHostPortDeps | undefined;
+  const { sourceControlWrite } = bindCredentialsHostPorts({ readDeps: () => {
+    reads += 1;
+    assert.ok(current, "binding must never read before its deps are assembled");
+    return current;
+  } });
+  assert.equal(reads, 0, "binding reads nothing until a write runs");
+
+  current = bag("first", "empty").deps;
+  const first = await sourceControlWrite.build({ workspaceId: "site-a", baseUrl: "https://git.example.test" });
+  assert.ok(!first.ok, "an empty provider registry builds no provider");
+  assert.match(first.message, /^No enabled Agent Plugin provides source control/);
+
+  const second = bag("second", "one");
+  current = second.deps;
+  const built = await sourceControlWrite.build({ workspaceId: "site-b", baseUrl: "https://git.example.test" });
+  assert.ok(built.ok, "the second bag's provider is built");
+  assert.equal(kitClient, second.client, "the provider kit carries the guarded client read at build time");
+  assert.deepEqual(loads, [{ who: "first", input: { workspaceId: "site-a" } }, { who: "second", input: { workspaceId: "site-b" } }]);
+});
