@@ -165,7 +165,32 @@ function compositionReferences(...files: string[]): { identifiers: Set<string>; 
   return { identifiers, strings, imports };
 }
 
-const COMPOSITION = compositionReferences(path.join(COMPOSITION_DIR, "deps.ts"), path.join(COMPOSITION_DIR, "app.ts"));
+/**
+ * The two composition roots plus every composition module they delegate to: `deps.ts` builds its
+ * route deps through `site-deps/*` phases and `app.ts` through `memory-deps/*`, so the durable
+ * adapters (`new SqliteWorkspaceRepo(...)` in `site-deps/route-deps-content-chat.ts`) are wired
+ * there, not in the roots' own text. Followed through relative imports only, never leaving
+ * `runtime/composition/`, never into tests: a module counts only when a root actually reaches it.
+ */
+function compositionModuleClosure(...roots: string[]): string[] {
+  const seen = new Set<string>();
+  const pending = [...roots];
+  while (pending.length > 0) {
+    const file = pending.pop()!;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const { specifier } of compositionReferences(file).imports) {
+      if (!specifier.startsWith(".")) continue;
+      const base = path.resolve(path.dirname(file), specifier).replace(/\.js$/, "");
+      const target = [`${base}.ts`, path.join(base, "index.ts")].find((candidate) => fs.existsSync(candidate));
+      if (target && target.startsWith(COMPOSITION_DIR + path.sep) && !target.includes(`${path.sep}__tests__${path.sep}`)) pending.push(target);
+    }
+  }
+  return [...seen];
+}
+
+const COMPOSITION_MODULES = compositionModuleClosure(path.join(COMPOSITION_DIR, "deps.ts"), path.join(COMPOSITION_DIR, "app.ts"));
+const COMPOSITION = compositionReferences(...COMPOSITION_MODULES);
 
 /** A hint is wired when code uses it: an identifier, text inside a code string (SQL, dynamic
  * import), or an import path whose imported bindings the code then uses. */
@@ -175,14 +200,23 @@ function hintIsWired(hint: string): boolean {
   return COMPOSITION.imports.some(({ specifier, bindings }) => specifier.includes(hint) && bindings.some((name) => COMPOSITION.identifiers.has(name)));
 }
 
-test("AC-23/24/REQ-12: every capability in the inventory is referenced by real code (not a comment) in deps.ts or app.ts", () => {
+test("AC-23/24/REQ-12: every capability in the inventory is referenced by real code (not a comment) in deps.ts, app.ts or a composition module they reach", () => {
   for (const cap of CAPABILITY_INVENTORY) {
     // The capability's bare name ("seo", "store", "forms") is a common word that matched comments
     // and unrelated identifiers; the sourceHints name the actual wiring, so they are what counts.
     assert.ok((cap.sourceHints ?? []).length > 0, `inventory entry "${cap.name}" names no sourceHints, so nothing can prove it is wired`);
     const wired = (cap.sourceHints ?? []).filter(hintIsWired);
-    assert.ok(wired.length > 0, `inventory entry "${cap.name}": none of its sourceHints (${(cap.sourceHints ?? []).join(", ")}) is used by code in deps.ts/app.ts — likely stale (REQ-12)`);
+    assert.ok(wired.length > 0, `inventory entry "${cap.name}": none of its sourceHints (${(cap.sourceHints ?? []).join(", ")}) is used by code in deps.ts/app.ts or a composition module they reach — likely stale (REQ-12)`);
   }
+});
+
+test("AC-23/24/REQ-12: the wiring scan follows the roots into the composition modules they import, and no further", () => {
+  const relative = COMPOSITION_MODULES.map((file) => path.relative(COMPOSITION_DIR, file).split(path.sep).join("/"));
+  for (const root of ["deps.ts", "app.ts", "site-deps/route-deps-content-chat.ts", "memory-deps/route-deps/assemble.ts"]) {
+    assert.ok(relative.includes(root), `${root} is reached from the composition roots`);
+  }
+  assert.deepEqual(relative.filter((file) => file.startsWith("..") || path.isAbsolute(file)), [], "nothing outside runtime/composition is scanned");
+  assert.deepEqual(relative.filter((file) => file.includes("__tests__/")), [], "no test file is scanned");
 });
 
 test("F3431: the wiring scan ignores comments and partial identifiers", () => {

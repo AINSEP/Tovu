@@ -166,6 +166,9 @@ test("a receiver trickling bytes forever is cut off by the total deadline throug
   assert.equal(seen[0]?.totalDeadlineMs, 60);
   const row = await site.deps.webhookDeliveryRepo.findById({ workspaceId: "workspace-1", id: "d1" });
   assert.equal(row?.status, "pending");
-  assert.equal(row?.lastError, "fetch timed out after 60ms: https://example.com/hooks");
+  // The timeout error names only the receiver's origin: error text reaches logs and the stored
+  // lastError, and a receiver path can carry a secret token.
+  assert.equal(row?.lastError, "fetch timed out after 60ms: https://example.com");
+  assert.doesNotMatch(row?.lastError ?? "", /\/hooks/);
   site.close();
 }));

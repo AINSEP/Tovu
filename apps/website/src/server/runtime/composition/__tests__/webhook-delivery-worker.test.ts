@@ -143,11 +143,13 @@ test("a failed tick is logged with name, scrubbed message and code only, and the
   assert.equal(lines.length, 1);
 });
 
-test("the default log writes the failure line to console.error", async (t) => {
+test("the default log writes the failure line and the error's class (never its message) to console.error", async (t) => {
+  // Without an injected `log`, the Jini worker reports through its structured console logger:
+  // the fixed line, then `describeErrorForLog`'s class text as a second argument.
   const errors = t.mock.method(console, "error", () => {});
   const worker = startWebhookDeliveryWorker({ processDue: async () => { throw new Error("db closed"); } }, { scheduler: fakeScheduler().scheduler });
   await worker.tick();
-  assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [[`${WEBHOOK_DELIVERY_FAILED_LINE}: Error`]]);
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [[WEBHOOK_DELIVERY_FAILED_LINE, "Error"]]);
 });
 
 test("describeWebhookTickError names only a class, never a thrown message, a non-Error value or an unapproved code", () => {
