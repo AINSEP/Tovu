@@ -162,3 +162,29 @@ test("the canonical binding describes by the declared label, refuses an unavaila
     error => error instanceof SourceControlCredentialDuplicateLabelError);
   assert.equal((await keys.resolve({ workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("first"));
 });
+
+// Mutations: create ignores `options.signal`; a blank token or omitted connection rotates the key anyway;
+// the connection-shape or token-type guards are dropped.
+test("the canonical binding honours a cancelled save, keeps a key on a blank edit and refuses malformed connections", async () => {
+  const clock = createFakeClock({ startIso: "2026-11-25T00:00:00.000Z" });
+  const keys = sourceControlKeyBinding({ credentials: { ...customDeps({ opens: { count: 0 } }), clock }, loadProviders: providers });
+  const create = keys.create;
+  assert.ok(create, "the canonical binding saves keys");
+  const cancelled = new AbortController();
+  const stop = new Error("save cancelled");
+  cancelled.abort(stop);
+  await assert.rejects(create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("cancel") } }, { signal: cancelled.signal }), error => error === stop);
+  assert.equal(await keys.describe({ workspaceId: SITE_A, providerId: "github" }), null, "a cancelled save stores nothing");
+
+  const created = await create({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("kept") } });
+  clock.advanceMs(60_000); // a rewrite would carry the later time
+  for (const patch of [{ label: created.label }, { connection: { token: "" } }, { connection: { providerId: "github" } }]) {
+    const kept = await keys.update({ workspaceId: SITE_A, id: created.id, patch });
+    assert.deepEqual(kept.owned && [kept.summary.id, kept.summary.providerId, kept.summary.updatedAt], [created.id, "github", created.updatedAt]);
+  }
+  for (const [connection, message] of [["token-text", "connection must be an object"], [null, "connection must be an object"], [[secret("array")], "connection must be an object"], [{ token: 42 }, "token must be a string"]] as const) {
+    await assert.rejects(keys.update({ workspaceId: SITE_A, id: created.id, patch: { connection } }),
+      error => error instanceof SourceControlCredentialValidationError && error.message === message);
+  }
+  assert.equal((await keys.resolve({ workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("kept"));
+});
