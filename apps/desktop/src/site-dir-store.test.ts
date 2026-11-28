@@ -339,11 +339,16 @@ test("resolveSiteDir remembers what the user picked, so the next launch does not
   assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf8")), { recentSiteDirs: [picked] });
 });
 
-test("resolveSiteDir reports a cancelled picker as a cancellation, not a failure", async () => {
-  await assert.rejects(
-    resolveSiteDir({ statePath: tempStatePath(), repoRoot: fakeRepoRoot(), pickDir: () => null }),
-    SiteDirSelectionCancelled,
-  );
+test("resolveSiteDir reports a cancelled picker (null or no value) as a cancellation, not a failure, and remembers nothing", async () => {
+  for (const cancelled of [null, undefined]) {
+    const statePath = tempStatePath();
+    await assert.rejects(
+      resolveSiteDir({ statePath, repoRoot: fakeRepoRoot(), pickDir: async () => cancelled }),
+      SiteDirSelectionCancelled,
+      String(cancelled),
+    );
+    assert.equal(fs.existsSync(statePath), false, String(cancelled));
+  }
 });
 
 test('resolveOrInitSiteDir returns an already-valid site unchanged under either policy', async () => {
