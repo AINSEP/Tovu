@@ -1,6 +1,9 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 /**
  * @file Characterization pins (design 02 step 5, gap D-R2-4b + the late-bound closures of the root's
@@ -114,6 +117,31 @@ test("memory root: the trash sweep purges a post whose retention ran out, and on
     { claimed: 1, purged: 1, outcomes: ["purged"] });
   assert.deepEqual(await trashed(), []);
   assert.equal(await deps.postRepo.findById({ workspaceId, id: "post-expired" }), null);
+});
+
+test("memory root: removing a plugin parks its folder; purging it deletes the folder and forgets its activation rows", async t => {
+  const root = mkdtempSync(join(tmpdir(), "memory-plugin-trash-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const installDir = join(root, "plugins");
+  mkdirSync(join(installDir, "acme-gallery"), { recursive: true });
+  writeFileSync(join(installDir, "acme-gallery", "plugin.json"), "{}");
+  const deps: any = createRouteDeps({ installDir });
+  const workspaceId = deps.workspaceId as string;
+  const activation = { pluginId: "acme-gallery", workspaceId, version: "1.2.0", enabled: false, updatedAt: AT };
+  await deps.pluginActivationRepo.save(activation);
+  await deps.pluginActivationRepo.save({ ...activation, pluginId: "other-plugin" });
+  const removed = await deps.removePlugin({ workspaceId, id: "acme-gallery", display: { title: "Acme Gallery" }, at: AT, expectedVersion: null,
+    actor: { principalId: "owner" } });
+  assert.equal(removed.ok, true);
+  const activeIds = async () => (await deps.pluginActivationRepo.listAll()).map((row: { pluginId: string }) => row.pluginId).sort();
+  assert.equal((await activeIds()).includes("acme-gallery"), true, "remove alone keeps the activation row so a restore can bring it back");
+  const parked = join(root, "plugins-trash", "acme-gallery");
+  assert.equal(existsSync(join(installDir, "acme-gallery")), false, "the live folder is moved out on remove");
+  assert.equal(existsSync(parked), true, "the folder is parked beside the install dir");
+  const report = await deps.sweepTrash({ now: "2099-01-01T00:00:00.000Z", leaseOwner: "sweeper", leaseUntil: "2099-01-01T00:00:00.000Z", limit: 5 });
+  assert.deepEqual({ claimed: report.claimed, purged: report.purged }, { claimed: 1, purged: 1 });
+  assert.equal(existsSync(parked), false, "purge deletes the parked folder");
+  assert.deepEqual(await activeIds(), ["charts-recharts", "other-plugin"], "only the purged plugin's row is forgotten; the bundled and other rows stay");
 });
 
 test("memory root: resolveStorefrontProducts reads the commerce catalog that is on routeDeps when it is called", async () => {
