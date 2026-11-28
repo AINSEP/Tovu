@@ -41,7 +41,9 @@ function toolResults(request: Record<string, unknown>): unknown[] {
 }
 
 /** Boots the module with a scripted provider; `override` swaps route deps before the module sees them. */
-async function boot({ t, call, override = (deps) => deps }: { t: TestContext; call: StubProviderReply; override?: (deps: RouteDeps) => RouteDeps }) {
+async function boot({ t, call, override = (deps) => deps, provider = { model: "gemini-flash-latest" }, done = text("Done.") }: {
+  t: TestContext; call: StubProviderReply; override?: (deps: RouteDeps) => RouteDeps; provider?: { provider?: string; model: string }; done?: StubProviderReply;
+}) {
   const created = createRouteDeps();
   await created.siteTitleReady;
   await setPublicAssistantSettings({ settingsRepo: created.settingsRepo, getEffective: created.getEffective, set: setLegacySetting,
@@ -50,11 +52,11 @@ async function boot({ t, call, override = (deps) => deps }: { t: TestContext; ca
   const requests: Record<string, unknown>[] = [];
   const providerUrl = await startStubProviderServer(t, (count, body) => {
     requests.push(body);
-    return count === 1 ? call : text("Done.");
+    return count === 1 ? call : done;
   });
   await setSiteAssistantCredential({ repo: created.siteAssistantCredentialRepo, sealer: created.siteAssistantSecretSealer,
     keyring: created.siteAssistantSecretKeyring, clock: created.clock },
-  { workspaceId: created.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
+  { workspaceId: created.workspaceId, apiKey: "test-fake-key-not-real", ...provider, baseUrl: providerUrl });
   const logs: SiteAssistantErrorLogEntry[] = [];
   const deps = { ...override(created), siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => { logs.push(entry); } };
   const app = express();
@@ -197,4 +199,27 @@ test("an append-only audit sink, a refused delivery, or a site with no delivery 
     assert.equal(turn.requests.length, 2, `${delivery}/${committed}: the tool still answered`);
     assert.deepEqual(toolUses(captured), [], `${delivery}/${committed}`);
   }
+});
+
+/** Real OpenAI `chat/completions` streaming framing for one tool call whose arguments are `argsJson`. */
+function openAiToolCall(name: string, argsJson: string, id: string): StubProviderReply {
+  return { status: 200, body: chunk({ id: "c1", object: "chat.completion.chunk", choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id, type: "function", function: { name, arguments: argsJson } }] }, finish_reason: null }] })
+    + chunk({ id: "c1", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] }) + "data: [DONE]\n\n" };
+}
+function openAiText(reply: string): StubProviderReply {
+  return { status: 200, body: chunk({ id: "c2", object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: reply }, finish_reason: null }] })
+    + chunk({ id: "c2", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }) + "data: [DONE]\n\n" };
+}
+
+test("a tool call whose arguments are JSON null is checked as a call with no arguments", async (t) => {
+  const turn = await boot({ t, call: openAiToolCall("site_guide", "null", "guide-call"), provider: { provider: "openai", model: "gpt-x" }, done: openAiText("Done.") });
+  assert.equal(turn.status, 200);
+  assert.equal(turn.requests.length, 2, "the model is asked to continue with the tool's answer");
+  const answers = ((turn.requests[1]!.messages ?? []) as { role?: string; content?: unknown }[]).filter((message) => message.role === "tool");
+  assert.equal(answers.length, 1);
+  const unavailable = turn.logs.filter((entry) => entry.code === "unavailable");
+  assert.deepEqual(unavailable.map((entry) => entry.diagnostic), ["site_guide: operation must be overview, explain or search."],
+    "checked as an empty argument object, not refused as a non-object");
+  assert.match(String(answers[0]!.content), new RegExp(`error ${unavailable[0]!.errorId}`), "the model sees the logged error id");
+  assert.match(turn.body, /Done\./);
 });
