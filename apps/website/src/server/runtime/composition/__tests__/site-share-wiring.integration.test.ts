@@ -2,16 +2,23 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync, realpathSync } from "node:fs";
-import { mkdtemp, mkdir, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
+import * as yauzl from "yauzl";
 import { configureSiteSharing } from "../site-deps/site-sharing.js";
 import type { ArtifactStoreCapable } from "@jini-ai/platform/object-store/site/artifact-provider";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "../deps.js";
 import { defaultContentDbPath } from "../site-paths.js";
+import { seedBundledAgentPlugins } from "#src/features/agent-plugins/lifecycle";
+import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
+import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
+import { verifySiteImport } from "#src/features/site-backup/import-verifier";
+import { rebuildImportDatabase } from "#src/server/runtime/composition/site-portability";
+import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 
 // RED: mkdir/containment errors escaped composition and prevented the whole site booting.
 test("bad private share storage logs and disables only sharing", async t => {
@@ -243,4 +250,37 @@ test("the provider can verify and revoke the exact old share object without acce
     await assert.rejects(store.verify({ key: adjacent, url: `${origin}/${adjacent}?download=1`, present: false, bytes: 1 }), { message: "Invalid share artifact key." });
   }
   assert.deepEqual(calls, ["delete", "verify"]);
+});
+
+// The composed backend's backup path: `prepare` snapshots the booted site's own content (a theme file, an installed
+// plugin package) and every archive gets the composition's bundled-file policy, so a seeded bundled package's
+// credential-shaped files (vercel's `mcp.json`, its deploy-target labels) ride along without warnings.
+// Mutations: l.81 `createBundledFilePolicy: () => async () => "scan"` (a bundled-file warning appears); l.82 prepare reads
+// `sources: { ...sources, themesDir: resolvedUploadsDir }` (the theme file is missing from the archive).
+test("a backup share packs the booted site's theme and bundled plugin package without bundled-file credential warnings", async t => {
+  const root = await mkdtemp(path.join(tmpdir(), "share-boot-backup-"));
+  t.after(() => forceRemove(root));
+  const siteDir = path.join(root, "site"), themesDir = path.join(siteDir, "themes"), uploadsDir = path.join(siteDir, "uploads");
+  await mkdir(path.join(themesDir, "mine"), { recursive: true });
+  await mkdir(uploadsDir, { recursive: true });
+  await writeFile(path.join(themesDir, "mine", "notes.txt"), "theme-note-7");
+  const bundled = path.join(root, "bundled"), vercelSource = agentPluginSourceDir({ pluginId: "vercel" });
+  await cp(vercelSource, path.join(bundled, "vercel"), { recursive: true });
+  let close: (() => Promise<void>) | undefined;
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "data.nosync", "content.db"), overrides: {
+    themesDir, uploadsDir, siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
+  } });
+  t.after(() => close?.());
+  await deps.identityReady;
+  const seeded = await seedBundledAgentPlugins({ layout: deps.agentPluginLayout, workspaceId: deps.workspaceId, sourceRoot: bundled });
+  assert.deepEqual(seeded.outcomes.map(outcome => [outcome.pluginId, outcome.status === "failed"]), [["vercel", false]]);
+  const backend = deps.siteShareBackend!;
+  const created = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 120_000 }) as { shareId: string; credentialWarnings: { path: string }[]; needsAcknowledgement: boolean };
+  assert.deepEqual(created.credentialWarnings, []);
+  assert.equal(created.needsAcknowledgement, false);
+  const imported = await verifySiteImport({ archive: await readFile(backend.registry.artifactPath(created)), reader: createShareArchiveReader({ yauzl }), sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
+  assert.equal(imported.files.get("themes/untrusted/mine/notes.txt")?.toString(), "theme-note-7");
+  assert.deepEqual(imported.files.get("agent-plugins/vercel/package/mcp.json"), await readFile(path.join(vercelSource, "mcp.json")));
+  assert.deepEqual(imported.plugins.map(plugin => [plugin.kind, plugin.id]), [["agent", "vercel"]]);
 });

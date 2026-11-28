@@ -24,12 +24,13 @@ function restoreShareEnv(t: TestContext) {
   t.after(() => { for (const [name, value] of previous) { if (value === undefined) delete process.env[name]; else process.env[name] = value; } });
 }
 
-type RigOptions = { peers?: readonly object[]; sources?: boolean; onPeerList?: () => void; sealedPeer?: object; guardedSend?: (input: unknown) => Promise<unknown> };
+type RigOptions = { peers?: readonly object[]; sources?: boolean; onPeerList?: () => void; sealedPeer?: object; guardedSend?: (input: unknown) => Promise<unknown>;
+  objectStores?: readonly object[]; loadDeployTargets?: () => Promise<unknown> };
 
 /** The peer repo's vault half: a saved key opens to `key-peer-1` for the peer's own credential kind only. */
 const PEER_VAULT_BINDING = { kind: "publish-peer", ownerKey: "tovu", createService: () => ({ get: async () => ({ payload: { apiKey: "key-peer-1" } }) }) };
 
-async function rig(t: TestContext, { peers = [], sources = true, onPeerList, sealedPeer, guardedSend }: RigOptions = {}) {
+async function rig(t: TestContext, { peers = [], sources = true, onPeerList, sealedPeer, guardedSend, objectStores = [], loadDeployTargets }: RigOptions = {}) {
   restoreShareEnv(t);
   const root = await mkdtemp(path.join(tmpdir(), "site-sharing-unit-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -44,7 +45,7 @@ async function rig(t: TestContext, { peers = [], sources = true, onPeerList, sea
     clock: { nowMs: () => Date.parse("2026-11-20T10:00:00.000Z") },
     publishExecutionMode: "local",
     vendorCredentialSetRepo: {},
-    loadDeployTargets: async () => { throw new Error("no deploy targets in this rig"); },
+    loadDeployTargets: loadDeployTargets ?? (async () => { throw new Error("no deploy targets in this rig"); }),
     themes: [
       { status: "valid", manifest: { id: "alpha", name: "Alpha" } },
       { status: "invalid", manifest: { id: "broken", name: "Broken" } },
@@ -64,7 +65,7 @@ async function rig(t: TestContext, { peers = [], sources = true, onPeerList, sea
     dbPath, resolvedSiteBinding: { dir: siteDir },
     agentPluginLayout: { root: path.join(siteDir, "agent-plugins") }, skillLayout: { root: path.join(siteDir, "skills") },
     resolvedThemesDir: themesDir, resolvedUploadsDir: uploadsDir,
-    mediaStorePorts: () => ({ loadSiteRegistry: async () => { calls.push(["objectStore", null]); return { registry: { list: () => [] }, refusals: [] }; } }),
+    mediaStorePorts: () => ({ loadSiteRegistry: async () => { calls.push(["objectStore", null]); return { registry: { list: () => objectStores }, refusals: [] }; } }),
     blobStore: {}, workspaceId: WORKSPACE, identity: { ownerPrincipalId: "owner" },
     settingsRepo: { findActiveDefinition: async () => null },
     siteAssistantSecretKeyring: {}, siteAssistantSecretSealer: {},
@@ -159,4 +160,24 @@ test("revoking a share on the connected peer deletes it there with the peer's sa
   assert.deepEqual(sends.map(send => [send.method, send.url, send.headers.authorization]), [
     ["DELETE", `https://peer.example/api/admin/v1/workspaces/ws-remote/site-shares/artifacts/${token}/site.tovu.zip`, "Bearer key-peer-1"],
   ]);
+});
+
+// Mutation: l.107 `return resolved;` (an unresolved credential still opens that provider's store and deletes with no token).
+test("a saved object store whose credential does not resolve is skipped: revoke stays local until its token is set", async t => {
+  const tokenVar = "TOVU_UNIT_SHARE_STORE_TOKEN", previous = process.env[tokenVar];
+  delete process.env[tokenVar];
+  t.after(() => { if (previous === undefined) delete process.env[tokenVar]; else process.env[tokenVar] = previous; });
+  const opened: unknown[] = [], deleted: unknown[] = [];
+  const store = { binding: "bucket-7", delete: async (input: unknown) => { deleted.push(input); }, verify: async () => true };
+  const objectStores = [{ id: "unit_store", provider: { createArtifactStore: ({ credential }: { credential: unknown }) => { opened.push(credential); return store; } } }];
+  const loadDeployTargets = async () => ({ get: (id: string) => id === "unit-store" ? { descriptor: { env: { tokenVars: [tokenVar] } } } : undefined });
+  const { backend } = await rig(t, { objectStores, loadDeployTargets });
+  const shareId = "4b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e", token = "F".repeat(16), key = `_share/${token}/site.tovu.zip`;
+  await backend.registry.put({ record: { shareId, token, site: WORKSPACE, file: "site.tovu.zip", bytes: 1, sha256: "0".repeat(64), url: `https://bucket-7.example/${key}`, status: "active",
+    createdAt: "2026-11-20T00:00:00.000Z", revokedAt: null, storage: { provider: "unit-store", binding: "bucket-7", key } } });
+  await assert.rejects(backend.revoke({ shareId }), { code: "DELETE_FAILED", message: "Share is disabled locally; configure its original storage to delete the remote artifact." });
+  assert.deepEqual([opened, deleted], [[], []], "the unresolved provider's store is never opened");
+  process.env[tokenVar] = "tok-a";
+  assert.equal((await backend.revoke({ shareId }) as { status: string }).status, "revoked");
+  assert.deepEqual([opened, deleted], [[{ token: "tok-a" }], [{ key }]], "once resolved, the same provider deletes with its token");
 });
