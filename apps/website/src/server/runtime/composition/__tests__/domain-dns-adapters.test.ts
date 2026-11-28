@@ -252,3 +252,16 @@ test("portable resolver metadata takes precedence and malformed portable data ca
     assert.throws(() => readBundledPublicDnsResolverUrl({ sourceRoot: root }), { name: "ToolInputError" });
   }
 });
+
+test("a resolver reply that is not JSON refuses instead of claiming no records", async () => {
+  const client = { send: async () => ({ status: 200, headers: {}, bodyText: "<html>busy</html>", bodyTruncated: false }) };
+  await assert.rejects(createPublicDnsResolver(client).query({ domain: "example.com", type: "A" }), { name: "ToolInputError", message: "domain_lookup_dns: the public DNS resolver could not answer. Try again later; no DNS conclusion was reached." });
+});
+
+test("known hosting addresses drop saved HTTPS URLs that carry a port or only a password", async () => {
+  const deps = {
+    workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async () => [savedPeer("https://ported.example-host.dev:8443"), savedPeer("https://:pw@pass.example-host.dev"), savedPeer("https://kept.example-host.dev")] },
+    publishHistoryStore: { list: async () => [] },
+  };
+  assert.deepEqual(await listSavedHostingHosts(deps), ["kept.example-host.dev"]);
+});

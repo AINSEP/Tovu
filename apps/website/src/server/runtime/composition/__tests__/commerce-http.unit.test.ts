@@ -6,7 +6,7 @@ import type { RouteDeps } from '#src/server/routes/types';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import { UNAVAILABLE_ERROR_ID } from '@jini-ai/core/errors/reporter';
-import { registerCommerceHttp } from '../commerce-http.js';
+import { registerCommerceHttp, registerCommerceWebhooks } from '../commerce-http.js';
 
 function storefrontGuard({ storefrontStatus }: { storefrontStatus: () => Promise<unknown> }) {
   let handler: ((req: unknown, res: unknown, next: () => void) => Promise<void>) | undefined;
@@ -214,4 +214,36 @@ test('case variants reach commerce handlers instead of a published CMS fallback'
       assert.equal(variant.status, plain.status, path);
     }
   }
+});
+
+const WEBHOOK_URL = '/api/payments/webhooks/site-1/acme-pay/endpoint-9';
+
+test('payment webhooks: without commerce no webhook route is mounted', async () => {
+  const app = express();
+  registerCommerceWebhooks({ app, deps: portFake<RouteDeps>({}) });
+  app.use((_req, res) => { res.status(418).send('not mounted'); });
+  const response = await dispatchHttpRequest({ app, method: 'POST', url: WEBHOOK_URL });
+  assert.deepEqual([response.status, response.body], [418, 'not mounted']);
+});
+
+test('payment webhooks: the commerce receiver is read per request and gets the webhook path segments', async () => {
+  const app = express();
+  const paths: unknown[] = [];
+  const receiver = { resolveEndpoint: async ({ path }: { path: unknown }) => { paths.push(path); return { ok: false, response: { status: 404, body: { code: 'ENDPOINT_UNKNOWN' } } }; } };
+  let current: typeof receiver | undefined = receiver;
+  const deps = { commerce: { resolveReceiver: () => current } } as unknown as RouteDeps;
+  registerCommerceWebhooks({ app, deps });
+
+  const known = await dispatchHttpRequest({ app, method: 'POST', url: WEBHOOK_URL });
+  assert.deepEqual([known.status, JSON.parse(known.body)], [404, { code: 'ENDPOINT_UNKNOWN' }]);
+  assert.deepEqual(paths, [{ siteId: 'site-1', providerId: 'acme-pay', endpointId: 'endpoint-9' }]);
+
+  // A receiver that went away (undefined) reads as "not configured", and so does commerce itself going away.
+  current = undefined;
+  const gone = await dispatchHttpRequest({ app, method: 'POST', url: WEBHOOK_URL });
+  assert.deepEqual([gone.status, JSON.parse(gone.body).code], [503, 'PAYMENTS_UNAVAILABLE']);
+  (deps as { commerce?: unknown }).commerce = undefined;
+  const off = await dispatchHttpRequest({ app, method: 'POST', url: WEBHOOK_URL });
+  assert.deepEqual([off.status, JSON.parse(off.body).code], [503, 'PAYMENTS_UNAVAILABLE']);
+  assert.equal(paths.length, 1);
 });
