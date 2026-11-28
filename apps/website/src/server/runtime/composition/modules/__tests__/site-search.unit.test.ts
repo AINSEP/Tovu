@@ -625,7 +625,7 @@ test("bound sources load one published post's text and one stored image by id; a
   t.after(() => kernel.close());
   const at = new Date(NOW - 60_000).toISOString();
   const postRepo = new SqlitePostRepo({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() });
-  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: { nowMs: () => NOW - 60_000, nowIso: () => at } },
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: { nowMs: () => NOW - 60_000 } },
     input: { workspaceId: WS, id: "harbor", title: "Harbor walk at dawn", status: "published", actorId: "owner-1" } });
   const media = new SqliteMediaRepo({ store: kernel });
   for (const [id, contentType] of [["photo", "image/png"], ["brochure", "application/pdf"]] as const) {
