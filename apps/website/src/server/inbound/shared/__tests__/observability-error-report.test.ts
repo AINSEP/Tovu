@@ -376,3 +376,26 @@ test("two site compositions do not share incident ownership", async t => {
   assert.ok(idB && JSON.stringify(siteB.hostRecords[0]).includes(idB));
   assert.equal(siteA.hostRecords.length, 1);
 });
+
+test("a non-Error value passed to next() on an admin route still gets the redacted 500 envelope", async t => {
+  const { port, reports } = recording();
+  const tracker = createTracker({ observability: port });
+  const reporter = createTovuErrorReporter({ logger: { warn: () => {}, error: () => {} }, tracker, clock: { nowMs: () => 0 }, versions: { app: "1", jini: "1" } });
+  const app = express();
+  app.locals.failureReporter = reporter;
+  applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
+  // A thrown string carries no status, so it can never pass as an expected 4xx.
+  app.get("/api/admin/v1/pages", (_req, _res, next) => { next("PRIVATE_STRING_FAILURE"); });
+  app.use(captureRouteError);
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}/api/admin/v1/pages`);
+
+  assert.equal(response.status, 500);
+  const body = await response.json() as { code: string; errorId: string; error: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.match(body.error, new RegExp(body.errorId));
+  assert.equal(JSON.stringify(body).includes("PRIVATE_STRING_FAILURE"), false);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reports.map(report => report.context.attributes?.incidentId), [body.errorId]);
+});

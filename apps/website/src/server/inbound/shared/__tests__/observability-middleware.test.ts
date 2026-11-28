@@ -398,3 +398,23 @@ test('a client disconnect before finish settles the request as aborted rather th
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(calls, [{ input: { method: 'GET', path: '/waiting/private' }, outcome: { statusCode: 499, routePattern: '/waiting/:id' } }]);
 });
+
+test('a client disconnect inside middleware that no route matched settles as aborted with the fixed "unmatched" label', async t => {
+  const { get } = await import('node:http');
+  const { port, calls } = createSpyObservabilityPort();
+  const app = express();
+  let reached!: () => void;
+  const handling = new Promise<void>(resolve => { reached = resolve; });
+  let closed!: () => void;
+  const disconnected = new Promise<void>(resolve => { closed = resolve; });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: loggingDisabled } });
+  app.use((_req, res) => { res.on('close', closed); reached(); });
+  const baseUrl = await startTestServer(app, t);
+  const request = get(`${baseUrl}/private-slug/never-routed`);
+  request.on('error', () => {});
+  await handling;
+  request.destroy();
+  await disconnected;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls, [{ input: { method: 'GET', path: '/private-slug/never-routed' }, outcome: { statusCode: 499, routePattern: 'unmatched' } }]);
+});
