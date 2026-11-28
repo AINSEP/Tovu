@@ -108,12 +108,43 @@ test("runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw
   );
 });
 
+/**
+ * The bind itself moved out of `serve.ts` into `serve-listen.ts`'s `listenOnce` (reached via
+ * `serveListening`), so the host now crosses two files: `runServeCommand` hands the resolved host to
+ * `serveListening({ ..., listen: { host, port } })`, and `listenOnce` passes it to
+ * `serving.app.listen(port, host)`. Both hops are pinned to their own function body so no edit elsewhere
+ * in either file can satisfy the scan. The behavioural net for the same contract is the
+ * "SIGTERM and SIGINT stop routines once before storage closes" scenarios below, which assert the exact
+ * `app.listen` arguments for each TOVU_HOST/--host combination against an in-process app double.
+ */
+const SERVE_LISTEN_TS_PATH = path.resolve(import.meta.dirname, "../../commands/serve-listen.ts");
+const LISTEN_ONCE_SIGNATURE = "function listenOnce(";
+
+/** `listenOnce`'s body: from its signature to the first top-level closing brace after it. */
+function readListenOnceBody(source: string): string {
+  const start = source.indexOf(LISTEN_ONCE_SIGNATURE);
+  assert.notEqual(
+    start,
+    -1,
+    `could not find "${LISTEN_ONCE_SIGNATURE}" in serve-listen.ts -- has listenOnce been renamed or moved? ` +
+      "Update LISTEN_ONCE_SIGNATURE above if so."
+  );
+  const end = source.indexOf("\n}\n", start);
+  assert.notEqual(end, -1, "listenOnce's body has no top-level closing brace in serve-listen.ts");
+  return source.slice(start, end);
+}
+
 test("runServeCommand's body passes the resolved host into app.listen(port, host)", () => {
-  const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
-  const body = readRunServeCommandBody(source);
+  const body = readRunServeCommandBody(fs.readFileSync(SERVE_TS_PATH, "utf8"));
   assert.ok(
-    body.includes("app.listen(port, host)"),
-    "runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts " +
+    body.includes("serveListening({ input, target, owned, optional, deps, listen: { host, port } })"),
+    "runServeCommand no longer hands the resolved host to serveListening's listen context -- the listener " +
+      "would bind without it and silently revert to Node's own all-interfaces default, undoing the loopback default."
+  );
+  const listenOnce = readListenOnceBody(fs.readFileSync(SERVE_LISTEN_TS_PATH, "utf8"));
+  assert.ok(
+    listenOnce.includes("serving.app.listen(port, host)"),
+    "serve-listen.ts's listenOnce no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts " +
       "to Node's own all-interfaces default, undoing the loopback default."
   );
 });
