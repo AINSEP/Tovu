@@ -26,6 +26,12 @@ const { composeAgentPluginBootstrap } = await import("../agent-plugin-bootstrap.
 
 type Required = Parameters<typeof composeAgentPluginBootstrap>[0];
 
+/** Clears the recorders so a composition that never builds the lifecycle cannot pass on an earlier test's recording. */
+function clearRecordings() {
+  delete handed.lifecycle;
+  delete handed.resolveDeps;
+}
+
 /** A counted getter, so a test can tell a lazy read from an eager one. */
 function counted<T>(value: () => T) {
   const getter = Object.assign(() => { getter.reads += 1; return value(); }, { reads: 0 });
@@ -41,9 +47,7 @@ function compose(t: TestContext, routeDeps: () => unknown) {
   const tracker = { capture: () => undefined };
   const lifecycleTracker = counted(() => tracker);
   const routeDepsGetter = counted(routeDeps);
-  // Cleared so a composition that never builds the lifecycle cannot pass on an earlier test's recording.
-  delete handed.lifecycle;
-  delete handed.resolveDeps;
+  clearRecordings();
   const result = composeAgentPluginBootstrap({
     dbPath: join(dir, "content.db"),
     onStoreClose: ({ registration }: { registration: () => unknown }) => { closers.push(registration); },
