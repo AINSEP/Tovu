@@ -150,3 +150,51 @@ test("beginStream keeps keep-alive on HTTP/1.1 and flushes the headers at once",
   assert.deepEqual(seen.headers, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
   assert.equal(seen.flushed, 1);
 });
+
+type Captured = { tracker: string; name: string; userId?: string; properties?: Record<string, unknown> };
+/** Consented-visitor analytics around one list_categories call; every tracker records what it was handed. */
+function analytics({ captured, visitorTracker, delivery, committed }: { captured: Captured[]; visitorTracker: boolean;
+  delivery: "allowed" | "refused" | "absent"; committed: "yes" | "append-only" }) {
+  // The composed tracker is frozen: a recording copy, not a patched one.
+  const recorder = (base: RouteDeps["tracker"], tracker: string): RouteDeps["tracker"] => ({ ...base,
+    capture: (event: { name: string; userId?: string }, options: { properties?: Record<string, unknown> } = {}) => {
+      captured.push({ tracker, name: event.name, userId: event.userId, properties: options.properties });
+    } });
+  return (deps: RouteDeps): RouteDeps => ({ ...deps, tracker: recorder(deps.tracker, "site"),
+    ...(visitorTracker ? { visitorTracker: recorder(deps.tracker, "visitor") } : {}),
+    visitorAnalyticsProof: async () => ({ kind: "fake-consent-proof" }) as never,
+    visitorAnalyticsDeliveryAllowed: delivery === "absent" ? undefined : async () => delivery === "allowed",
+    toolAttemptAuditSink: (committed === "yes"
+      ? { append: async () => assert.fail("a committing sink is written through appendCommitted"), appendCommitted: async () => true }
+      : { append: async () => {} }) as unknown as RouteDeps["toolAttemptAuditSink"] });
+}
+const toolUses = (captured: Captured[]) => captured.filter((entry) => entry.name === "assistant_tool_used");
+
+test("a consented visitor's committed tool attempt is captured on the visitor tracker, without its 'requested' phase", async (t) => {
+  const captured: Captured[] = [];
+  const turn = await boot({ t, call: functionCall("list_categories", {}, "cat-call"),
+    override: analytics({ captured, visitorTracker: true, delivery: "allowed", committed: "yes" }) });
+  assert.equal(turn.requests.length, 2);
+  const uses = toolUses(captured);
+  assert.deepEqual(uses.map((entry) => [entry.tracker, entry.properties?.toolId, entry.properties?.outcome, entry.properties?.chatSurface]),
+    [["visitor", "list_categories", "completed", "public"]]);
+  assert.match(String(uses[0]?.userId), /^visitor:/);
+  assert.equal(uses[0]?.properties?.eventId, `assistant-tool:${String(uses[0]?.properties?.attemptId)}`);
+});
+
+test("without a visitor tracker a committed tool attempt is captured on the site tracker", async (t) => {
+  const captured: Captured[] = [];
+  await boot({ t, call: functionCall("list_categories", {}, "cat-call"),
+    override: analytics({ captured, visitorTracker: false, delivery: "allowed", committed: "yes" }) });
+  assert.deepEqual(toolUses(captured).map((entry) => [entry.tracker, entry.properties?.outcome]), [["site", "completed"]]);
+});
+
+test("an append-only audit sink, a refused delivery, or a site with no delivery check captures no tool use", async (t) => {
+  for (const [delivery, committed] of [["allowed", "append-only"], ["refused", "yes"], ["absent", "yes"]] as const) {
+    const captured: Captured[] = [];
+    const turn = await boot({ t, call: functionCall("list_categories", {}, "cat-call"),
+      override: analytics({ captured, visitorTracker: true, delivery, committed }) });
+    assert.equal(turn.requests.length, 2, `${delivery}/${committed}: the tool still answered`);
+    assert.deepEqual(toolUses(captured), [], `${delivery}/${committed}`);
+  }
+});
