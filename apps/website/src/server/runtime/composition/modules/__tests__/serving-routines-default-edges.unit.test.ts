@@ -67,3 +67,27 @@ test("without a parent IPC slot and no injected channel, no receiver is installe
   assert.equal(process.listenerCount("message"), before);
   await serving.stop();
 });
+
+test("a stop that lands before the routines finish composing installs no wake receiver afterwards", async (t) => {
+  const hadSend = Object.hasOwn(process, "send");
+  const originalSend = process.send;
+  process.send = (() => true) as typeof process.send;
+  t.after(() => { if (hadSend) process.send = originalSend; else delete (process as { send?: unknown }).send; });
+  const before = process.listenerCount("message");
+  const serving = start(t, { log: () => {}, openSqlite: (file) => openNativeSqlite(file) });
+  await serving.stop();
+  await serving.ready;
+  assert.equal(process.listenerCount("message"), before, "a stopped boot never starts listening");
+});
+
+test("a serving boot with no owning store never opens the routine database, even on an eligible desktop", async () => {
+  const opened: string[] = [];
+  const serving = startServingRoutines({ errors: createRouteIncidentReporter().errors, routeDeps, router: Router(), desktopEligible: true, releaseEnabled: true,
+    reporter: { record: () => assert.fail("no incident is expected") } }, { composeOverrides: {
+    timers: { schedule: () => () => {} }, writeBeacon: async () => {}, log: () => {},
+    policy: { releaseEnabled: true, access: async () => false },
+    openSqlite: (file) => { opened.push(file); return openNativeSqlite(file); } } });
+  await serving.ready;
+  assert.deepEqual(opened, []);
+  await serving.stop();
+});
