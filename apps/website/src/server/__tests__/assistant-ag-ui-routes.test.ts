@@ -51,7 +51,7 @@ let recorded: RecordedRequest[] = [];
  *  to point a later test at a differently-configured daemon instance. These two flags are how tests
  *  steer that one daemon's behavior instead: each test sets what it needs right after `bootAgUi`
  *  (which resets both to their defaults), the daemon handler below reads them per-request. */
-type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary" | "refusal-plain-text" | "refusal-prose-code" | "refusal-body-cut";
+type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary" | "refusal-plain-text" | "refusal-prose-code" | "refusal-body-cut" | "ok-then-daemon-fails";
 type EventsBehavior =
   | "normal"
   | "http-failure"
@@ -254,6 +254,11 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
           res.write('{"code":"CHAT_RUN_BUSY","detail":"');
           setImmediate(() => res.socket?.destroy());
           return;
+        }
+        if (startRunBehavior === "ok-then-daemon-fails") {
+          // The run is accepted, then the daemon is latched failed before the route subscribes.
+          recordAssistantDaemonFailure({ reasonCode: "agent daemon exited after accepting a run" });
+          resetAssistantDaemonSingletonForTests();
         }
         if (startRunBehavior === "refusal-prose-code") {
           res.writeHead(409, { "content-type": "application/json" });
@@ -635,6 +640,24 @@ test("a non-ok daemon response to the events subscribe request surfaces as a 502
   assert.equal(res.status, 502);
   const payload = (await res.json()) as { code: string };
   assert.equal(payload.code, "BAD_GATEWAY");
+});
+
+test("a daemon that fails between accepting the run and the events subscribe answers the subscribe's own 503, never an AG-UI stream", async (t) => {
+  const { baseUrl, cookie } = await bootAgUi(t);
+  startRunBehavior = "ok-then-daemon-fails";
+  t.after(() => clearAssistantDaemonFailure());
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
+  });
+
+  assert.equal(res.status, 503);
+  assert.match(res.headers.get("content-type") ?? "", /application\/json/);
+  const payload = (await res.json()) as { code: string };
+  assert.equal(payload.code, "AGENT_DAEMON_KNOWN_FAILED");
+  assert.deepEqual(recorded.map((r) => `${r.method} ${r.url}`), ["POST /api/runs"], "the run started, and the events endpoint was never reached");
 });
 
 test("a stdout frame renders as RAW, and an unrecognized frame kind (e.g. a heartbeat) is silently skipped", async (t) => {
