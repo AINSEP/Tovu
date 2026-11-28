@@ -95,7 +95,7 @@ test("restore() consults the entity policy for the item's type and unhides throu
   await deps.trash.trash(trashInput("w-3"));
   const row = await trashRepo.findByEntity({ workspaceId: "site-7", entityType: "widget", entityId: "w-3" });
   assert.ok(row, "trashed row is indexed");
-  const outcome = await deps.trash.restore({ workspaceId: "site-7", entityType: "widget", entityId: "w-3", actor: { principalId: "owner-1" }, at: "2031-02-04T00:00:00.000Z" });
+  const outcome = await deps.trash.restore({ workspaceId: "site-7", entityType: "widget", entityId: "w-3", at: "2031-02-04T00:00:00.000Z" });
   assert.equal(outcome, "restored");
   assert.equal(await trashRepo.findByEntity({ workspaceId: "site-7", entityType: "widget", entityId: "w-3" }), null);
 });

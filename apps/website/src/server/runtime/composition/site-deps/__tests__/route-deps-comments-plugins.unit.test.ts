@@ -44,7 +44,7 @@ test("onPluginEnabled enables in the plugin runtime, then re-applies provider pl
 
 test("chartProviderSnapshot falls back to the Recharts provider with the runtime's generation", async () => {
   const { deps } = rig();
-  assert.deepEqual(await deps.chartProviderSnapshot?.(), {
+  assert.deepEqual(await deps.chartProviderSnapshot?.({}), {
     generation: JSON.stringify([3, "plugin.recharts", []]),
     siteProvider: "plugin.recharts",
     providers: [],
