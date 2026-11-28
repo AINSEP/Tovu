@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { EventEmitter } from "node:events";
 import { Router } from "express";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { startServingRoutines } from "../serving-routines.js";
@@ -89,5 +90,64 @@ test("a serving boot with no owning store never opens the routine database, even
     openSqlite: (file) => { opened.push(file); return openNativeSqlite(file); } } });
   await serving.ready;
   assert.deepEqual(opened, []);
+  await serving.stop();
+});
+
+test("a wake whose reconcile fails is logged as a [routines] console warning, never thrown into the IPC listener", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const channel = new EventEmitter();
+  const opened: Array<ReturnType<typeof openNativeSqlite>> = [];
+  const serving = startServingRoutines({ errors: createRouteIncidentReporter().errors, routeDeps, router: Router(), desktopEligible: true, releaseEnabled: true,
+    reporter: { record: () => assert.fail("no incident is expected") } }, { channel, storeHooks: site(t), composeOverrides: {
+    timers: { schedule: () => () => {} }, writeBeacon: async () => {}, log: () => {},
+    policy: { releaseEnabled: true, access: async () => false },
+    openSqlite: (file) => { const db = openNativeSqlite(file); opened.push(db); return db; } } });
+  await serving.ready;
+  assert.equal(channel.listenerCount("message"), 1);
+  for (const db of opened) db.close();
+  channel.emit("message", { type: "routines.reconcile", reason: "wake" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const wakeFailures = warn.mock.calls.map((call) => call.arguments).filter(([message]) => message === "[routines] routine-wake-reconcile-failed");
+  assert.equal(wakeFailures.length, 1);
+  assert.equal(wakeFailures[0]?.[1], "The database connection is not open", "the receiver logs the failure as its message text");
+  await serving.stop();
+  assert.equal(channel.listenerCount("message"), 0);
+});
+
+test("routines that fail to compose reject ready and are logged once as routine-compose-failed", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const broken = new Error("admin route slot unavailable");
+  const router = Router();
+  const serving = startServingRoutines({ errors: createRouteIncidentReporter().errors, routeDeps, router, desktopEligible: true, releaseEnabled: true,
+    reporter: { record: () => assert.fail("no incident is expected") } }, { storeHooks: site(t), composeOverrides: {
+    timers: { schedule: () => () => {} }, writeBeacon: async () => {}, log: () => {},
+    policy: { releaseEnabled: true, access: async () => false },
+    openSqlite: (file) => openNativeSqlite(file), mountAdminRoute: () => { throw broken; } } });
+  await assert.rejects(serving.ready, broken);
+  await new Promise((resolve) => setImmediate(resolve));
+  const failures = warn.mock.calls.map((call) => call.arguments).filter(([message]) => message === "[routines] routine-compose-failed");
+  assert.deepEqual(failures, [["[routines] routine-compose-failed", broken]]);
+  await serving.stop();
+});
+
+test("with no injected timers the routine scheduler runs on real Node timers that never hold the process open", async (t) => {
+  const realSetTimeout = globalThis.setTimeout;
+  const handles: NodeJS.Timeout[] = [];
+  t.mock.method(globalThis, "setTimeout", ((callback: () => void, delayMs?: number) => {
+    const handle = realSetTimeout(callback, delayMs);
+    handles.push(handle);
+    return handle;
+  }) as typeof setTimeout);
+  const opened: Array<ReturnType<typeof openNativeSqlite>> = [];
+  const hooks = site(t);
+  const serving = startServingRoutines({ errors: createRouteIncidentReporter().errors, routeDeps, router: Router(), desktopEligible: true, releaseEnabled: true,
+    reporter: { record: () => assert.fail("no incident is expected") } }, { channel: new EventEmitter(), storeHooks: hooks, composeOverrides: {
+    writeBeacon: async () => {}, log: () => {}, policy: { releaseEnabled: true, access: async () => false },
+    openSqlite: (file) => { const db = openNativeSqlite(file); opened.push(db); return db; } } });
+  await serving.ready;
+  t.mock.restoreAll();
+  assert.equal(opened.length > 0, true, "the routine store opened");
+  assert.equal(handles.length > 0, true, "the scheduler armed at least one real timer");
+  assert.deepEqual(handles.map((handle) => handle.hasRef()), handles.map(() => false), "every routine timer is unref'd");
   await serving.stop();
 });
