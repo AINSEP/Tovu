@@ -52,6 +52,12 @@ const controls = {
   delegatedDeps: undefined as Parameters<typeof http.delegatedToolRoutes>[0]["deps"] | undefined,
   /** The site's `/internal/component-catalog` answer; unset, the harness host has no such route (404). */
   componentCatalog: undefined as unknown,
+  /** Startup-unwind seams: the agent inventory's dispose and the retained store's close may fail. */
+  inventoryDisposals: 0,
+  inventoryDisposeError: undefined as Error | undefined,
+  storeCloseError: undefined as Error | undefined,
+  /** The site's settings read may fail at run start (custom instructions fail open). */
+  getEffectiveError: undefined as Error | undefined,
 };
 
 async function until(predicate: () => boolean) {
@@ -86,7 +92,12 @@ mock.module("@jini-ai/agent-runtime", { namedExports: { ...runtime,
 mock.module("#src/assistant/agents", { namedExports: { ...agents,
   createAssistantAgentInventory: (...args: Parameters<typeof agents.createAssistantAgentInventory>) => {
     const actual = agents.createAssistantAgentInventory(...args);
-    return { ...actual, listAssistantAgents: async () => [{ id: "claude", name: "Claude", available: true, authStatus: "unknown" as const }] };
+    return { ...actual, listAssistantAgents: async () => [{ id: "claude", name: "Claude", available: true, authStatus: "unknown" as const }],
+      dispose: async (...input: Parameters<typeof actual.dispose>) => {
+        controls.inventoryDisposals += 1;
+        if (controls.inventoryDisposeError) throw controls.inventoryDisposeError;
+        return actual.dispose(...input);
+      } };
   },
 } });
 mock.module("#src/assistant/daemon-access", { namedExports: { ...access,
@@ -122,10 +133,16 @@ mock.module("@jini-ai/agent-runtime/custom-instructions", { namedExports: { ...i
   },
 } });
 mock.module("../../../runtime/composition/agent-daemon-core-deps.js", { namedExports: { ...core,
-  createAgentDaemonCoreDeps: async (...args: Parameters<typeof core.createAgentDaemonCoreDeps>) => {
-    const actual = await core.createAgentDaemonCoreDeps(...args);
+  createAgentDaemonCoreDeps: async (required: Parameters<typeof core.createAgentDaemonCoreDeps>[0], optional: core.AgentDaemonCoreOptions = {}) => {
+    const actual = await core.createAgentDaemonCoreDeps(required, { ...optional, onStoreOpened: ({ resource }) => optional.onStoreOpened?.({ resource: {
+      close: async () => { await resource.close(); if (controls.storeCloseError) throw controls.storeCloseError; },
+    } }) });
     const store = actual.agentSessions;
-    controls.deps = { ...actual, agentSessions: { ...store,
+    const getEffective: typeof actual.getEffective = async (...input) => {
+      if (controls.getEffectiveError) throw controls.getEffectiveError;
+      return actual.getEffective(...input);
+    };
+    controls.deps = { ...actual, getEffective, agentSessions: { ...store,
       getSessionId: async input => { controls.note("read"); return store.getSessionId(input); },
       setSessionId: async input => { controls.note("write"); await controls.write?.promise; return store.setSessionId(input); },
       clearSessionId: async input => { controls.note(`clear:${input.conversationId}:${input.agentId}`); return store.clearSessionId(input); },
@@ -180,6 +197,7 @@ async function harness({ rehydrateError }: { rehydrateError?: Error } = {}) {
   controls.events = []; controls.handlers = []; controls.launches = []; controls.failures = []; controls.overlays.clear();
   controls.refresh = undefined; controls.write = undefined; controls.execution = undefined; controls.overlay = undefined;
   controls.dispatchError = undefined; controls.credential = undefined; controls.memory = true; controls.deps = undefined; controls.delegatedDeps = undefined; controls.componentCatalog = undefined;
+  controls.inventoryDisposals = 0; controls.inventoryDisposeError = undefined; controls.storeCloseError = undefined; controls.getEffectiveError = undefined;
   controls.rehydrateError = rehydrateError;
   const dir = await mkdtemp(join(tmpdir(), "scope-behavior-"));
   const host = express();
@@ -513,5 +531,104 @@ test("discovery for a credential whose run is not live fails without reaching th
     const text = await response.text();
     assert.equal(response.status, 500);
     assert.match(text, /a live run is required for site discovery/);
+  } finally { await h.close(); }
+});
+
+/** A scope configuration that passes every startup check; each case below removes one piece. */
+function scopeEnv(dir: string): NodeJS.ProcessEnv {
+  return { PATH: "", HOME: dir, TOVU_SITE_DIR: dir, TOVU_DB: "memory", TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:9",
+    TOVU_AGENT_DAEMON_TOKEN: "tok-a", JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9", TOVU_AGENT_DAEMON_IDLE_MINUTES: "0" };
+}
+
+/** The site server's bootstrap answer for `dir`, bound to `workspaceId`; every call is counted. */
+function bootstrapFor(dir: string, workspaceId = "unwind") {
+  const calls: string[] = [];
+  const fetch: NonNullable<core.AgentDaemonCoreOptions["fetch"]> = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { operation: string };
+    calls.push(request.operation);
+    return Response.json({ value: request.operation === "bootstrap" ? {
+      workspaceId, ownerPrincipalId: "owner", siteBinding: { dir, name: "unwind" },
+      siteStoragePaths: { contentDbPath: join(dir, "content.db"), mediaUploadsDir: join(dir, "uploads"), chatAttachmentsDir: join(dir, "attachments") },
+      traceCapture: "off", traceEnabled: false,
+    } : null });
+  };
+  return { fetch, calls };
+}
+
+// Mutations: drop either operand of the directory/credential check, or of the endpoint/credential
+// check (each case below breaks exactly one of the four).
+for (const [missing, edit, message] of [
+  ["the site directory", (env: NodeJS.ProcessEnv) => { delete env.TOVU_SITE_DIR; return "rpc-a"; }, "site daemon requires an explicit directory and RPC credential"],
+  ["the site RPC credential", () => "", "site daemon requires an explicit directory and RPC credential"],
+  ["the daemon endpoint", (env: NodeJS.ProcessEnv) => { delete env.JINI_AGENT_DAEMON_URL; return "rpc-a"; }, "site daemon endpoint and credential are required"],
+  ["the proxy credential", (env: NodeJS.ProcessEnv) => { delete env.TOVU_AGENT_DAEMON_TOKEN; return "rpc-a"; }, "site daemon endpoint and credential are required"],
+] as const) {
+  test(`a scope without ${missing} is refused before it contacts its site server`, async () => {
+    controls.inventoryDisposals = 0;
+    const dir = await mkdtemp(join(tmpdir(), "scope-config-"));
+    try {
+      const env = scopeEnv(dir);
+      const token = edit(env);
+      const site = bootstrapFor(dir);
+      // A scope that wrongly starts is disposed at once, so the failed case cannot leak its resources.
+      const outcome = await createSiteScope({ siteId: "unwind", env, token }, { probeBridge: async () => {}, coreOptions: { fetch: site.fetch } })
+        .then(async scope => { await scope.dispose({}, {}); return "started"; }, (error: unknown) => error instanceof Error ? error.message : String(error));
+      assert.equal(outcome, message);
+      assert.deepEqual(site.calls, []);
+      assert.equal(controls.inventoryDisposals, 0);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
+}
+
+// Mutation: drop the inventory dispose from the startup unwind.
+test("a scope whose site server answers for another workspace releases the agent inventory and rethrows the refusal", async t => {
+  const errors = t.mock.method(console, "error", () => {});
+  controls.inventoryDisposals = 0; controls.inventoryDisposeError = undefined; controls.storeCloseError = undefined;
+  const dir = await mkdtemp(join(tmpdir(), "scope-unwind-"));
+  try {
+    const site = bootstrapFor(dir, "someone-else");
+    await assert.rejects(createSiteScope({ siteId: "unwind", env: scopeEnv(dir), token: "rpc-a" }, { probeBridge: async () => {}, coreOptions: { fetch: site.fetch } }),
+      (error: unknown) => error instanceof Error && error.message.includes("the daemon workspace does not match its site server"));
+    assert.deepEqual(site.calls, ["bootstrap"]);
+    assert.equal(controls.inventoryDisposals, 1);
+    assert.deepEqual(errors.mock.calls.filter(call => String(call.arguments[0]).includes("after startup failed")), []);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// Mutations: let either cleanup failure replace the startup error; drop either cleanup log.
+test("a scope that fails its last startup step reports both failed cleanups and rethrows the startup error itself", async t => {
+  const errors = t.mock.method(console, "error", () => {});
+  const fault = new Error("bridge probe refused");
+  controls.inventoryDisposals = 0;
+  controls.inventoryDisposeError = Object.assign(new Error("inventory busy"), { code: "EBUSY" });
+  controls.storeCloseError = Object.assign(new Error("store busy"), { code: "SQLITE_BUSY" });
+  const dir = await mkdtemp(join(tmpdir(), "scope-unwind-"));
+  try {
+    const site = bootstrapFor(dir);
+    await assert.rejects(createSiteScope({ siteId: "unwind", env: scopeEnv(dir), token: "rpc-a" }, { probeBridge: async () => { throw fault; }, coreOptions: { fetch: site.fetch } }),
+      (error: unknown) => error === fault);
+    assert.equal(controls.inventoryDisposals, 1);
+    assert.deepEqual(errors.mock.calls.filter(call => String(call.arguments[0]).includes("after startup failed")).map(call => call.arguments), [
+      ["[agent-daemon] Could not dispose the agent inventory after startup failed:", "Error(EBUSY)"],
+      ["[agent-daemon] Could not close the daemon store after startup failed:", "Error(SQLITE_BUSY)"],
+    ]);
+  } finally {
+    controls.inventoryDisposeError = undefined; controls.storeCloseError = undefined;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Mutation: make the custom-instructions warn port a no-op.
+test("a site settings read that fails at run start is reported and the run still launches", async t => {
+  const errors = t.mock.method(console, "error", () => {});
+  const h = await harness();
+  try {
+    const fault = new Error("settings store offline");
+    controls.getEffectiveError = fault;
+    const runId = await h.start("instructions-offline");
+    await until(() => controls.overlays.has(runId));
+    assert.deepEqual(errors.mock.calls.filter(call => String(call.arguments[0]).startsWith("[assistant]")).map(call => call.arguments),
+      [["[assistant] resolveCustomInstructions failed; treating as unset", fault]]);
+    assert.deepEqual(controls.launches.map(run => run.runId), [runId]);
   } finally { await h.close(); }
 });
