@@ -1,6 +1,7 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { createPublicKey, generateKeyPairSync, sign } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -8,7 +9,8 @@ import test from "node:test";
 import express, { type NextFunction, type Request, type Response as ExpressResponse } from "express";
 
 import { createFixedKeyring } from "#src/features/publish-trust/__tests__/support/fixed-keyring";
-import type { PublishChallengeRecord, PublishChallengeStorePort } from "@jini-ai/cms/publish/trust/challenge";
+import { buildChallengeMessage, type PublishChallengeRecord, type PublishChallengeStorePort } from "@jini-ai/cms/publish/trust/challenge";
+import { PUBLISH_TRUST_WIRE } from "#src/contracts/core/publish-trust-wire";
 import { PUBLISH_TRUST_GRANT_VERSION, type PublishTrustGrant } from "@jini-ai/cms/publish/trust/grant";
 import type { PublishTrustResolution } from "@jini-ai/cms/publish/trust/provisioning";
 import { mintPublishSession } from "@jini-ai/cms/publish/trust/session";
@@ -220,4 +222,30 @@ test("T-H12: a source no grant names is refused by the session route before any 
 
   assert.equal(response.status, 401);
   assert.deepEqual(taken, []);
+});
+
+test("a correctly signed session response is minted a session token the publish gate admits as its source", async (t) => {
+  const { privateKey } = generateKeyPairSync("ed25519");
+  const spki = createPublicKey(privateKey).export({ format: "der", type: "spki" });
+  const activeGrant = grant({ publicKeys: [{ publicKeyB64u: spki.subarray(spki.length - 32).toString("base64url"), generation: 1 }] });
+  const { baseUrl, taken, close } = await handshakeServer({ grants: [activeGrant] });
+  t.after(close);
+  await fetch(`${baseUrl}/api/publish-trust/v1/challenge`, { method: "POST" });
+  const claims = { nonce: "nonce-1", sourceInstallationId: SOURCE_INSTALL, generation: 1, capabilities: ["publish_content.read"] };
+  const message = buildChallengeMessage({ ...claims, messageVersion: PUBLISH_TRUST_WIRE.messageVersion, targetInstallationId: DESTINATION_INSTALL });
+  const response = await fetch(`${baseUrl}/api/publish-trust/v1/session`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...claims, signatureB64u: sign(null, Buffer.from(message), privateKey).toString("base64url") }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(taken, ["nonce-1"]);
+  const { token } = await response.json() as { token: string };
+  assert.equal(typeof token, "string");
+
+  const { deps } = await gateFixture({ grants: [activeGrant], generation: 1 });
+  const { statuses, nextCalls, locals } = await runGate({ deps, token });
+  assert.deepEqual(statuses, []);
+  assert.deepEqual(nextCalls, [[]]);
+  assert.equal((locals.principal as { id: string }).id, `pub:${SOURCE_INSTALL}`);
 });
