@@ -131,8 +131,9 @@ function commandPortsFor(commands: RoutineCommands, actor: RoutineActor, service
       unlessMissing(await commands.update({ actor, id, patch }, { expectedRevision }))?.routine ?? null,
     delete: async ({ id }: { id: string }, { expectedRevision }: Revision = {}) =>
       unlessMissing(await commands.delete({ actor, id }, { expectedRevision })) !== null,
-    listRuns: async ({ routineId }: { routineId: string }, page: { cursor?: string | null; limit?: number } = {}) => {
-      const { runs, nextCursor } = unwrap(await commands.listRuns({ actor, id: routineId }, page));
+    // The engine route passes the client limit in the required argument (legacy position) and only the cursor in `page`.
+    listRuns: async ({ routineId, limit }: { routineId: string; limit?: number }, page: { cursor?: string | null; limit?: number } = {}) => {
+      const { runs, nextCursor } = unwrap(await commands.listRuns({ actor, id: routineId }, { ...page, limit: page.limit ?? limit }));
       return { items: runs, nextCursor };
     },
     // Projected: the raw run row carries the lease holder and the approval exchange ref.
