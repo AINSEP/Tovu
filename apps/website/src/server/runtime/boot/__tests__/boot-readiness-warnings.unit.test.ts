@@ -124,3 +124,14 @@ test("warnOnBootReadinessGaps: with no injected ports it reads process.env, prob
   warnOnBootReadinessGaps();
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments), [[SALT_UNSET]]);
 });
+
+test("detectDeploymentSignals: with no injected host signals the bundled host manifests label the env they own", () => {
+  assert.deepEqual(detectDeploymentSignals({ env: { FLY_APP_NAME: "site", NODE_ENV: "production" } }, { pathExists: noFiles }), ["NODE_ENV=production", "Fly.io (FLY_APP_NAME)"]);
+  assert.deepEqual(detectDeploymentSignals({ env: {} }, { pathExists: noFiles }), []);
+});
+
+test("collectBootReadinessWarnings: with no injected host signals the deployed warning carries the bundled deployment advice", () => {
+  assert.deepEqual(collectBootReadinessWarnings({ env: { FLY_APP_NAME: "site" }, mode: "local", deploymentSignals: ["Fly.io (FLY_APP_NAME)"], agentPermissionMode: "restricted" }), [
+    '[boot-readiness] WARNING: this server looks deployed (Fly.io (FLY_APP_NAME)) but TOVU_RUNTIME_MODE is not "production": production boot checks are off. Set TOVU_RUNTIME_MODE=production (fly.toml and docker-compose.yml already do).',
+  ]);
+});
