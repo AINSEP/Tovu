@@ -251,3 +251,19 @@ test("a handler that throws reports the error in main and answers with the refus
   assert.equal(await h.call(STORAGE_SHEET_CHANNELS.list), null);
   assert.deepEqual(reported, [{ where: "list", error: failure }]);
 });
+
+test("a listed item that expires while its confirmation is still live is relisted without a dialog or removal", async () => {
+  let clock = 0;
+  let sequence = 0;
+  const errors: string[] = [];
+  const itemIds = createStorageItemIds<StorageTarget>({ randomId: () => `opaque-${++sequence}`, now: () => clock }, { itemTtlMs: 1_000 });
+  const h = harness({ itemIds, reportError: ({ where }) => { errors.push(where); } });
+  const id = (await list(h)).signIns.items[0]!.id; // item lives until t=1000
+  clock = 600;
+  const preview = await h.call(STORAGE_SHEET_CHANNELS.preview, { id, action: "remove-sign-in" }) as { state: string; confirmationId: string };
+  assert.equal(preview.state, "ready"); // confirmation lives until t=1600
+  clock = 1_200; // the item is gone, the confirmation is not
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, { confirmationId: preview.confirmationId }), { state: "relist" });
+  assert.deepEqual(h.calls, { removed: [], trashed: [], dialogs: 0 });
+  assert.deepEqual(errors, [], "the missing target is an answered relist, not a caught exception");
+});

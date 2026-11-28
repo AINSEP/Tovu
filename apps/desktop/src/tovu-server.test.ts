@@ -224,6 +224,18 @@ test("buildServeEnv sets ELECTRON_RUN_AS_NODE so the Electron binary runs the CL
   assert.equal(env.ELECTRON_RUN_AS_NODE, "1");
 });
 
+test("buildServeEnv points the child at a live admin dev server only when one was resolved", () => {
+  const repoRoot = makeTempRepo();
+  try {
+    const live = buildServeEnv({ repoRoot, baseEnv: { TOVU_ADMIN_DEV_PROXY_URL: "http://127.0.0.1:1111" }, adminDevProxyUrl: "http://127.0.0.1:5173" });
+    assert.equal(live.TOVU_ADMIN_DEV_PROXY_URL, "http://127.0.0.1:5173", "the resolved dev server overrides an inherited value");
+    for (const adminDevProxyUrl of ["", null, undefined]) {
+      const env = buildServeEnv({ repoRoot, baseEnv: {}, adminDevProxyUrl });
+      assert.equal("TOVU_ADMIN_DEV_PROXY_URL" in env, false, String(adminDevProxyUrl));
+    }
+  } finally { fs.rmSync(repoRoot, { recursive: true, force: true }); }
+});
+
 test("buildServeEnv mints a daemon token, because `tovu serve` never does and the gate is fail-closed", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), baseEnv: {} });
   assert.match(env.TOVU_AGENT_DAEMON_TOKEN!, /^[0-9a-f]{64}$/);

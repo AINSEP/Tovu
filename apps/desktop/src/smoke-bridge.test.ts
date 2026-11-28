@@ -96,6 +96,15 @@ test("resolver output requires both bridge entries, preserving their command/arg
   assert.throws(() => parseJiniEntries({ stdout: "not json" }), { name: "Error", message: "invalid packaged Jini entries: not json" });
 });
 
+test("each resolver entry must be an object with a non-empty command and string argv", () => {
+  const site = { command: "/Tovu", args: ["/site/serve.js"], env: { ELECTRON_RUN_AS_NODE: "1", JINI_RUN_ID: "release-smoke" } };
+  const malformed = [null, ["/Tovu"], "/Tovu", { ...site, command: "" }, { ...site, command: 7 }, { ...site, args: "/site/serve.js" }];
+  for (const desktop of malformed) {
+    assert.throws(() => parseJiniEntries({ stdout: JSON.stringify({ desktopHttp: true, entries: [site, desktop] }) }),
+      { name: "Error", message: "malformed packaged Jini entry" }, JSON.stringify(desktop));
+  }
+});
+
 test("packaged desktop smoke exercises authenticated HTTP without a launcher or keyring", () => {
   const script = buildJiniEntryScript({ resourcesDir: '/bundle/Resources', executablePath: '/bundle/Tovu' });
   assert.ok(script.includes('startDesktopMcpHttp'));
