@@ -63,3 +63,44 @@ test("T30: Retry-After and its JSON detail report the longest applicable wait", 
       code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 90 } });
   }
 });
+
+test("the email budget key is trimmed and lowercased, so case or whitespace variants cannot multiply it", async () => {
+  const clock = createFakeClock({ startIso: "2026-10-26T12:00:00.000Z" });
+  const profile = { windowSeconds: 60, max: 1, burst: 0 };
+  const ipLimiter = createRateLimiter({ profile: { windowSeconds: 60, max: 5, burst: 0 }, clock });
+  const emailLimiter = createRateLimiter({ profile, clock });
+
+  const first = await checkLimits({ ip: "203.0.113.30", ipLimiter, emailLimiter, email: "  Victim@Example.TEST " });
+  assert.equal(first.allowed, true);
+  const variant = await checkLimits({ ip: "203.0.113.31", ipLimiter, emailLimiter, email: "victim@example.test" });
+  assert.equal(variant.allowed, false, "the normalized address already spent its one request");
+  assert.equal(variant.capture.statusCode, 429);
+  assert.deepEqual(variant.capture.jsonBody, { error: "too many member authentication requests",
+    code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
+});
+
+test("a missing or blank email is charged to the shared <empty> bucket", async () => {
+  const clock = createFakeClock({ startIso: "2026-10-26T12:00:00.000Z" });
+  const ipLimiter = createRateLimiter({ profile: { windowSeconds: 60, max: 5, burst: 0 }, clock });
+  const emailLimiter = createRateLimiter({ profile: { windowSeconds: 30, max: 2, burst: 0 }, clock });
+
+  assert.equal((await checkLimits({ ip: "203.0.113.40", ipLimiter, emailLimiter })).allowed, true);
+  assert.equal((await checkLimits({ ip: "203.0.113.41", ipLimiter, emailLimiter, email: "   " })).allowed, true);
+  // Both requests spent the "<empty>" key: an independent read of that key is now refused.
+  assert.deepEqual(await emailLimiter.check({ key: "<empty>" }), { allowed: false, retryAfterSeconds: 30 });
+});
+
+test("without an email limiter only the identity budget gates the request", async () => {
+  const clock = createFakeClock({ startIso: "2026-10-26T12:00:00.000Z" });
+  const ipLimiter = createRateLimiter({ profile: { windowSeconds: 60, max: 5, burst: 0 }, clock });
+  const identityLimiter = createRateLimiter({ profile: { windowSeconds: 45, max: 1, burst: 0 }, clock });
+  const identity = { key: "member-7", limiter: identityLimiter };
+
+  const first = await checkLimits({ ip: "203.0.113.50", ipLimiter, email: "member@example.test", identity });
+  assert.equal(first.allowed, true);
+  const second = await checkLimits({ ip: "203.0.113.51", ipLimiter, email: "member@example.test", identity });
+  assert.equal(second.allowed, false);
+  assert.equal(second.headers.get("retry-after"), "45");
+  assert.deepEqual(second.capture.jsonBody, { error: "too many member authentication requests",
+    code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 45 } });
+});
