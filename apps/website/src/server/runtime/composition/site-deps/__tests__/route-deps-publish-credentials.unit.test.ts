@@ -14,6 +14,12 @@ import { routeDepsPublishCredentials } from "../route-deps-publish-credentials.j
  */
 
 type Required = Parameters<typeof routeDepsPublishCredentials>[0];
+
+/** The route-deps type marks these loaders optional; the assembly always supplies them. */
+function need<T>(value: T | undefined, name: string): T {
+  assert.ok(value, `${name} is assembled`);
+  return value;
+}
 type Load = { workspaceId: string; contribution: string };
 type Verdict = "active" | "inactive" | "undetermined";
 
@@ -81,9 +87,9 @@ test("listPublishedPosts reads routeDeps() at call time and keeps only live publ
 test("each contribution loader forwards the caller's workspace to the lifecycle's loader", async () => {
   const { deps, loads } = rig();
   await deps.loadDeployTargets({ workspaceId: "ws-a" });
-  await deps.loadInstalledDeployTargets({ workspaceId: "ws-b" });
-  await deps.loadDeployWorkflowFiles({ workspaceId: "ws-c" } as Parameters<typeof deps.loadDeployWorkflowFiles>[0]);
-  await deps.loadDeployOps({ workspaceId: "ws-d" });
+  await need(deps.loadInstalledDeployTargets, "loadInstalledDeployTargets")({ workspaceId: "ws-b" });
+  await need(deps.loadDeployWorkflowFiles, "loadDeployWorkflowFiles")({ workspaceId: "ws-c" });
+  await need(deps.loadDeployOps, "loadDeployOps")({ workspaceId: "ws-d" });
   await deps.loadSourceControlProviders({ workspaceId: "ws-e" });
   await deps.loadPluginCredentialCards("ws-f");
   assert.deepEqual(await deps.loadAuthSchemes({ workspaceId: "ws-g" }), [], "no installed scheme plugin yields no rules");
@@ -102,7 +108,7 @@ test("each contribution loader forwards the caller's workspace to the lifecycle'
 
 test("installed deploy targets read each plugin's activation in its workspace: active -> true, inactive -> false, undetermined -> null", async () => {
   const { deps, activations, enabled } = rig({ verdicts: ["active", "inactive", "undetermined"] });
-  await deps.loadInstalledDeployTargets({ workspaceId: "ws-b" });
+  await need(deps.loadInstalledDeployTargets, "loadInstalledDeployTargets")({ workspaceId: "ws-b" });
   assert.deepEqual(enabled, [true, false, null]);
   assert.deepEqual(activations, [
     { workspaceRoot: "/roots/ws-b", pluginId: "deploy-0" },
