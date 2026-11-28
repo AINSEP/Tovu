@@ -191,3 +191,19 @@ test('peer transport refusal retains the typed code and leaves unknown errors to
   assert.deepEqual(knownPeerActionRefusal({ err }), { status: 502, body: { error: 'peer answered 401', code: 'PEER_REJECTED' } });
   assert.equal(knownPeerActionRefusal({ err: new Error('private network detail') }), undefined);
 });
+
+// Mutation: `discloseDetails: !res.req || !!res.locals?.principal` to `true` in the push routes' failureWriter.
+for (const route of ["push/plan", "push/confirm", "push/execute"]) {
+  test(`${route} reached without a signed-in person answers the anonymous 500: no details, only the error ID to report`, async (t) => {
+    const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new Error("must not open the peer")) }));
+    const server = await startTestServer(app, t);
+    const response = await fetch(`${server}${PEER}/${route}`, {
+      method: "POST", headers: { "content-type": "application/json", "x-principal": "none" }, body: JSON.stringify(SEND_BODIES[route]),
+    });
+    const body = await response.json() as Record<string, unknown>;
+    const copy = FAILURE_COPY[route]!;
+    assert.equal(response.status, 500);
+    assert.equal("details" in body, false);
+    assert.equal(body.error, `${copy.message} ${copy.action.replace("Copy details and report this problem.", "Report this error ID.")} (error ${String(body.errorId)})`);
+  });
+}
