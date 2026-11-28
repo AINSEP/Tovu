@@ -162,7 +162,9 @@ test('a reveal aborted while queued never reaches the shell and does not block l
   const next = reveal.handler({ args: { siteDir: sites[2] }, ctx });
   controller.abort();
   release();
-  const [firstResult, skipped, nextResult] = await Promise.all([first, cancelled, next]);
+  // `McpToolDef.handler` returns `unknown`; these handlers answer with the MCP tool-result shape.
+  type ToolResult = { structuredContent: unknown; isError?: boolean };
+  const [firstResult, skipped, nextResult] = await Promise.all([first, cancelled, next]) as [ToolResult, ToolResult, ToolResult];
   assert.deepEqual(firstResult.structuredContent, { siteDir: sites[0], revealed: true });
   assert.equal(skipped.isError, true);
   assert.deepEqual(skipped.structuredContent, { error: 'Desktop call cancelled before dispatch.' });

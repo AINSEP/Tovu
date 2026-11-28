@@ -65,7 +65,7 @@ test('the import handler shows a toast only for a failed start and applies the r
   let pending!: Promise<void>;
   act(() => { pending = hook.current()(imported); });
   assert.deepEqual(applied, [{ ...imported, status: 'starting' }]);
-  assert.deepEqual(toasts, []);
+  assert.equal(toasts.length, 0);
 
   await act(async () => {
     first.reject(new Error('Port 4317 is occupied.'));
