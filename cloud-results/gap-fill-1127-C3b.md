@@ -11,3 +11,6 @@ Wave 1 (00:27 UTC): 4 subagents — 13a (non-site-deps composition), 13b (compos
 - 01:30 UTC 13b returned (site-update-binding, store-close-hooks, redirects -> 100/100/100; site-sharing up); cherry-picked + pushed (0dfda4a6). 13b2 dispatched on the remaining site-deps rows.
 - 01:40 UTC 13a returned (tool-catalog-manifest commerce confirm + Playwright render paths covered); 13a2 dispatched on the remaining composition rows.
 - 01:55 UTC 14d returned: the 3 reds were stale tests after deliberate Jini changes; fixed to assert the new contracts exactly (8865f4df pushed). 14e dispatched on local-site-host / readiness-state / agent-daemon-port / assistant-daemon-connection; 14a narrowed to daemon-supervisor + local-site-process.
+- 14a returned (local-site-process 100/~89/90, daemon-supervisor B 97.7 F ~100; real `node -e` children); all 4 commits cherry-picked + pushed (5ada9b37). 14a2 dispatched on local-site-process remaining branches.
+- 13a2 first commit (provider-settings-save) pushed (d0c613ba).
+- 14e returned: local-site-host 100/94.83/100 (real warm child); readiness-state, agent-daemon-port, assistant-daemon-connection already covered. Pushed 7f48becc. 14a2 first commit pushed 16a5d492. 14f dispatched on two stale/flaky serve reds.
