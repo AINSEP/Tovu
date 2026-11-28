@@ -5,6 +5,8 @@
  */
 import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from '@jini-ai/core';
 import { REDIRECT_ENTITY_TYPE } from '@jini-ai/cms/trash/site/adapters/redirect';
@@ -159,4 +161,17 @@ test('an idle timer that fires while a read is running leaves the bag open until
   callbacks.at(-1)!();
   await settle();
   assert.equal(f.chatHandles[0]!.open, false, 'the timer re-armed after the read closes the idle bag');
+});
+
+test("a peer site with no themes folder still resolves and lists no themes, on open and on every later read", async t => {
+  const f = await peerFixture(t);
+  fs.rmSync(path.join(f.b.dir, 'themes'), { recursive: true });
+  let deps: AssistantToolRegistryDeps | undefined;
+  const resolved = await f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
+    buildRegistrations: ({ deps: peerDeps }, _optional = {}) => { deps = peerDeps; return inspection(async () => null); } });
+  assert.notEqual(resolved, 'current');
+  assert.ok(deps);
+  const peerThemes = deps as unknown as { themesDir: string; themes: unknown[] };
+  assert.equal(peerThemes.themesDir, path.join(f.b.dir, 'themes'));
+  assert.deepEqual(peerThemes.themes, []);
 });
