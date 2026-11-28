@@ -4,6 +4,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
+import type { DomainDnsChecks } from "@jini-ai/diagnostics/domain-dns";
 import { EgressRefusedError, type HttpRequest } from "#src/platform/http/index";
 import type { PublishHistoryEntry } from "@jini-ai/devops/deploy/site/static-publish/publish-history";
 import type { PublishContentPeerRecord } from "@jini-ai/cms/publish/content/peer-registry";
@@ -279,12 +280,13 @@ test("the bound domain checks authorize each operation, then run this host's TLS
   const resolver = { query: async () => { throw new Error("no DNS query expected without saved hosts"); } };
   const createChecks = bindDomainDnsChecks({
     resolver: resolver as unknown as Parameters<typeof bindDomainDnsChecks>[0]["resolver"],
-    probeTls: async (input) => { probed.push(input); return { status: "valid", httpStatus: 200 }; },
+    probeTls: async (input) => { probed.push(input); return { status: "verified" as const, httpStatus: 200 }; },
     listExpectedHosts: async (required) => { listed.push(required); return []; },
   });
-  const checks = createChecks({ authorize: (async (input: unknown) => { authorized.push(input); }) as never });
+  // The tool deps type the checks loosely; the binding returns the diagnostics package's own checks.
+  const checks = createChecks({ authorize: (async (input: unknown) => { authorized.push(input); }) as never }) as DomainDnsChecks;
   const tls = await checks.tlsStatus({ domain: "Example.com" });
-  assert.deepEqual([tls.domain, tls.status, tls.httpStatus], ["example.com", "valid", 200]);
+  assert.deepEqual([tls.domain, tls.status, tls.httpStatus], ["example.com", "verified", 200]);
   assert.deepEqual(probed, [{ domain: "example.com" }]);
   const dns = await checks.checkDns({ domain: "example.com" });
   assert.deepEqual([dns.status, dns.expectedHost], ["unknown", null]);
