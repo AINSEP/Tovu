@@ -56,6 +56,8 @@ function postTrashAdapterOn(store: ContentKernel) {
 
 const WS_MISMATCH = "some-other-workspace";
 const AT = "2026-09-20T12:00:00.000Z";
+/** The trash routes' "now" in the SQLite harness: inside AT's retention window, whatever today is. */
+const LIST_NOW = "2026-09-21T12:00:00.000Z";
 
 // ---------------------------------------------------------------------------
 // 1. The sink audit — the real app
@@ -213,7 +215,9 @@ function buildTrashHarness(): TrashHarness {
   const trashDeps: TrashRouteDeps = {
     workspaceId: base.workspaceId,
     authorize: base.authorize,
-    clock: base.clock,
+    // Pinned one day after the seeded deletions (AT): the list hides rows past their purge date
+    // (`purge_after > now`), so a wall clock would silently empty these lists once AT + retention passed.
+    clock: { nowIso: () => LIST_NOW },
     trash,
     registry,
     db: sqliteTrashDb,
@@ -404,7 +408,7 @@ test("list: rows are filtered by the permission each row's own kind needs", asyn
     "content.read alone must not leak the titles of four domains' deleted rows"
   );
   assert.equal(body.items[0]?.title, "redirect-1");
-  assert.equal(typeof body.items[0]?.daysRemaining, "number");
+  assert.equal(body.items[0]?.daysRemaining, 29, "one day into the 30-day window");
 });
 
 test("list: resolves the deleting principal to a username, and falls back to a readable label when there is none", async (t) => {
