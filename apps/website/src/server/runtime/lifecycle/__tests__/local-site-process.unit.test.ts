@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
@@ -143,4 +143,21 @@ test("native fatal evidence redacts home paths and runtime-built vendor tokens b
   assert.ok(!saved.includes(homePath));
   const entries = saved.trim().split("\n").map(line => JSON.parse(line) as { message: string });
   assert.ok(entries.every(entry => entry.message.length <= 8_100));
+});
+
+test("an unwritable site log still leaves each diagnostic in the serving host's console", (t) => {
+  const siteDir = mkdtempSync(path.join(os.tmpdir(), "tovu-child-unwritable-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  // A directory where the log file belongs makes every append fail, as a full or read-only disk would.
+  mkdirSync(path.join(siteDir, "ops/logs/local-site.log"), { recursive: true });
+  const printed = t.mock.method(console, "error", () => {});
+  const events = new EventEmitter();
+  const child: SpawnedDaemonProcess = { pid: 77, on(input) { events.on(input.event, input.listener); }, kill() { return true; } };
+  const diagnostics = localSiteProcessLog({ name: "gamma", siteDir });
+  diagnostics.observe({ child });
+  diagnostics.record({ message: "supervisor note" });
+  assert.deepEqual(printed.mock.calls.map(call => call.arguments), [
+    ["[local-site gamma] spawned pid=77"],
+    ["[local-site gamma] supervisor note"],
+  ]);
 });

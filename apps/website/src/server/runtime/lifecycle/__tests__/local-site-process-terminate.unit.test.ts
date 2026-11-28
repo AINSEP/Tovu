@@ -12,7 +12,8 @@ import test, { mock, type TestContext } from "node:test";
  * @file `terminate()`, `killNow()` and readiness discovery of a launched local site against REAL
  * short-lived `node -e` processes: the site child, and a stand-in daemon whose command line carries
  * the `agent-daemon-server` marker and the `--local-site-api-pid` owner flag the discovery reads.
- * Only `listProcessSnapshots` is wrapped, so one test can make discovery itself fail.
+ * Only `listProcessSnapshots` is wrapped, so one test can make discovery itself fail. The launch
+ * refusals, readiness probe order and child-error handling of the same port run over stand-in children.
  */
 const processModule = await import("@jini-ai/platform/process");
 let snapshotFailure: Error | undefined;
@@ -154,4 +155,118 @@ test("readiness rethrows a failed daemon discovery after recording it in the sit
 
   assert.equal(probes, 0, "no HTTP probe runs after discovery failed");
   assert.match(log(), /"level":"error"[^\n]*pid=4343 readiness discovery failed: Error: ps unavailable/);
+});
+
+test("terminate still stops a daemon readiness discovered after its registry record was removed", { timeout: 30_000 }, async (t) => {
+  const { switcherBase, siteDir } = siteFixture(t, "slow-remembered");
+  let api: ChildProcess | undefined;
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1", TOVU_ADMIN_DIST: "/prebuilt/dist" },
+    processOptions: { spawn: ({ options }) => (api = idleProcess(t, [], options)) },
+    probeHttp: async () => true,
+  });
+  t.after(() => local.dispose?.());
+  const launched = await local.launch({ name: "slow", port: 4741, daemonPort: DAEMON_PORT });
+  const daemon = idleProcess(t, ["agent-daemon-server", "--local-site-api-pid", String(api!.pid)]);
+  writeDaemonRecord(siteDir, daemon.pid!);
+  assert.equal(await launched.ready(), true);
+  // The daemon unpublishes (or crashed mid-write); the identity readiness saw must still be reaped.
+  fs.rmSync(path.join(siteDir, "ops/assistant-daemon.json"));
+
+  await launched.terminate();
+
+  assert.equal(await exitOf(api!), "SIGTERM");
+  assert.equal(await exitOf(daemon), "SIGTERM");
+});
+
+test("launch refuses a child the OS gave no pid, after recording the spawn attempt", async (t) => {
+  const { switcherBase, log } = siteFixture(t, "slow-no-pid");
+  const child = Object.assign(new EventEmitter(), { pid: undefined, stdout: new PassThrough(), stderr: new PassThrough() });
+  t.after(() => { child.stdout.end(); child.stderr.end(); });
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1" },
+    processOptions: { spawn: () => child as unknown as ChildProcess },
+  });
+  t.after(() => local.dispose?.());
+
+  await assert.rejects(local.launch({ name: "slow", port: 4751, daemonPort: DAEMON_PORT }), { name: "LocalSiteError", code: "SITE_START_FAILED" });
+  assert.match(log(), /\[local-site slow\] spawned pid=none/);
+});
+
+test("readiness probes /readyz first and only then /admin/, logging which one failed", async (t) => {
+  const { switcherBase, log } = siteFixture(t, "slow-probes");
+  const child = Object.assign(new EventEmitter(), { pid: 4545, stdout: new PassThrough(), stderr: new PassThrough() });
+  t.after(() => { child.stdout.end(); child.stderr.end(); });
+  const answers = new Map<string, boolean>();
+  const probed: string[] = [];
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1", TOVU_ADMIN_DIST: "/prebuilt/dist" },
+    processOptions: { spawn: () => child as unknown as ChildProcess },
+    probeHttp: async ({ url }) => { probed.push(url); return answers.get(new URL(url).pathname) ?? false; },
+  });
+  t.after(() => local.dispose?.());
+  const launched = await local.launch({ name: "slow", port: 4761, daemonPort: DAEMON_PORT });
+
+  answers.set("/readyz", false);
+  assert.equal(await launched.ready(), false);
+  assert.deepEqual(probed, ["http://127.0.0.1:4761/readyz"], "the admin is never probed while the API is not ready");
+  assert.match(log(), /pid=4545 readiness failed: readyz=false, admin=not probed/);
+
+  probed.length = 0;
+  answers.set("/readyz", true);
+  answers.set("/admin/", false);
+  assert.equal(await launched.ready(), false);
+  assert.deepEqual(probed, ["http://127.0.0.1:4761/readyz", "http://127.0.0.1:4761/admin/"]);
+  assert.match(log(), /pid=4545 readiness failed: readyz=true, admin=false/);
+});
+
+test("a child process error counts as an exit: readiness refuses without probing and every exit listener hears it", async (t) => {
+  const { switcherBase } = siteFixture(t, "slow-error");
+  const child = Object.assign(new EventEmitter(), { pid: 4646, stdout: new PassThrough(), stderr: new PassThrough() });
+  t.after(() => { child.stdout.end(); child.stderr.end(); });
+  let probes = 0;
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1", TOVU_ADMIN_DIST: "/prebuilt/dist" },
+    processOptions: { spawn: () => child as unknown as ChildProcess },
+    probeHttp: async () => { probes++; return true; },
+  });
+  t.after(() => local.dispose?.());
+  const launched = await local.launch({ name: "slow", port: 4771, daemonPort: DAEMON_PORT });
+  const heard: string[] = [];
+  launched.onExit({ listener: () => heard.push("early") });
+  assert.deepEqual(heard, [], "a running child has not exited");
+
+  child.emit("error", new Error("spawn EACCES"));
+  launched.onExit({ listener: () => heard.push("late") });
+
+  assert.deepEqual(heard, ["early", "late"], "a listener added after the error is told at once");
+  assert.equal(await launched.ready(), false);
+  assert.equal(probes, 0);
+});
+
+test("a remembered daemon that has since exited is re-checked and never signalled again, since its pid may be reused", { timeout: 30_000 }, async (t) => {
+  const { switcherBase, siteDir } = siteFixture(t, "slow-stale");
+  let api: ChildProcess | undefined;
+  const signalled: number[] = [];
+  const local = createLocalSiteProcessPort({ switcherBase }, {
+    env: { TOVU_SITES_HOME: path.join(switcherBase, "sites"), TOVU_DISABLE_DEV_TLS: "1", TOVU_ADMIN_DIST: "/prebuilt/dist" },
+    processOptions: {
+      spawn: ({ options }) => (api = idleProcess(t, [], options)),
+      signalProcess: (pid: number, signal?: string | number) => { signalled.push(pid); return process.kill(pid, signal); },
+    },
+    probeHttp: async () => true,
+  });
+  t.after(() => local.dispose?.());
+  const launched = await local.launch({ name: "slow", port: 4781, daemonPort: DAEMON_PORT });
+  const daemon = idleProcess(t, ["agent-daemon-server", "--local-site-api-pid", String(api!.pid)]);
+  writeDaemonRecord(siteDir, daemon.pid!);
+  assert.equal(await launched.ready(), true);
+  fs.rmSync(path.join(siteDir, "ops/assistant-daemon.json"));
+  daemon.kill("SIGKILL");
+  assert.equal(await exitOf(daemon), "SIGKILL");
+
+  await launched.terminate();
+
+  assert.equal(await exitOf(api!), "SIGTERM");
+  assert.deepEqual(signalled, [-api!.pid!], "only the site child's group is signalled; the dead daemon's pid is left alone");
 });
