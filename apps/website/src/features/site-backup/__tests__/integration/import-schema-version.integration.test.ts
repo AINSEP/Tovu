@@ -160,3 +160,14 @@ for (const kind of ["view", "table"] as const) {
     });
   }
 }
+
+// A schema-identical database can still be unusable: the worker refuses it by data, not by version.
+// Each case reaches a distinct guard in the isolated helper and must keep the generic corruption refusal.
+const unusableData = { code: "INVALID_DATABASE", message: "Import database has unsupported schema, invalid references or unsafe data." };
+for (const [label, dml] of [
+  ["a second workspace", "INSERT INTO workspaces(id,slug,name,created_at) VALUES ('ws2','other','Other','2026-10-31T00:00:00Z')"],
+  ["no workspace", "DELETE FROM workspaces"],
+  ["a menu location bound to a missing menu", "INSERT INTO nav_location_bindings(workspace_id,location_key,menu_id,bound_at) VALUES ('ws','primary','menu-gone','2026-10-31T00:00:00Z')"],
+] as const) test(`a schema-identical database with ${label} is refused as invalid data, not version drift`, async t => {
+  await assert.rejects(rebuildImportDatabase({ snapshot: await snapshot(t, dml) }), unusableData);
+});
