@@ -36,8 +36,11 @@ interface Fixture {
   binding: ReturnType<typeof bindDesktopPartitions<{ name: string }>>;
 }
 
-function fixture({ catalog, retirement, sessionData }: {
+type MaintenanceInput = { partition: string; subjectDir: string; session: { name: string } };
+
+function fixture({ catalog, retirement, sessionData, openMaintenance, fromPartition }: {
   catalog?: { listSiteDirs(): readonly string[] } | undefined; retirement?: DesktopRetirementPort; sessionData?: string;
+  openMaintenance?: (input: MaintenanceInput) => Promise<void>; fromPartition?: (partition: string) => { name: string };
 } = {}): Fixture {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "st2a-"));
   const userData = path.join(root, "profile");
@@ -47,14 +50,14 @@ function fixture({ catalog, retirement, sessionData }: {
   let tokens = 0;
   const binding = bindDesktopPartitions<{ name: string }>({
     app: { getPath: (name) => name === "sessionData" && sessionData ? sessionData : userData },
-    session: { fromPartition: (partition) => ({ name: partition }) },
+    session: { fromPartition: fromPartition ?? ((partition) => ({ name: partition })) },
     fs: nodePartitionFs({ fs }), fileLock: { withFileLock },
     clock: { mono: () => performance.now(), now: () => Date.now() },
     scheduler: { sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)), every: () => ({ cancel: () => {} }) },
     process: { pid: process.pid, bootId: "boot", hostname: os.hostname(), isAlive: ({ pid }) => pid === process.pid, newToken: () => `a${(tokens += 1).toString(16)}` },
     projectsPath, catalog, instances: [],
     retirement: retirement ?? { invalidate: async ({ partition }) => { invalidated.push(partition); }, invalidateSync: ({ partition }) => { invalidated.push(`sync:${partition}`); } },
-    openMaintenance: async () => {},
+    openMaintenance: openMaintenance ?? (async () => {}),
     log: ({ event, partition }) => logs.push(`${event}:${partition ?? ""}`),
   });
   assert.deepEqual(binding.registerHolder(), { state: "registered" });
@@ -202,4 +205,61 @@ test("writer identity never treats corrupt data or a foreign hostname as a dead 
   await check('{"token":"c1","pid":401,"hostname":"local"}', { state: "held", token: "c1", owner: "live" });
   await check('{"token":"c2","pid":402,"hostname":"local"}', { state: "held", token: "c2", owner: "dead" });
   assert.deepEqual(pids, [401, 402]);
+});
+
+test("open-time maintenance runs on the held session only when this profile owns the sessionData root", async () => {
+  const opened: MaintenanceInput[] = [];
+  const record = async (input: MaintenanceInput) => { opened.push(input); };
+  const owned = fixture({ openMaintenance: record });
+  writeProjects(owned, []);
+  const siteDir = path.join(owned.root, "site-maint");
+  const partition = sitePartition({ siteDir });
+  await owned.binding.acquireSite({ siteDir });
+  assert.deepEqual(opened, [{ partition: partition.replace(/^persist:/, ""), subjectDir: siteDir, session: { name: partition } }]);
+
+  opened.length = 0;
+  const shared = fixture({ sessionData: path.join(os.tmpdir(), "shared-session-root-maint"), openMaintenance: record });
+  writeProjects(shared, []);
+  const sharedDir = path.join(shared.root, "site-shared");
+  await shared.binding.acquireSite({ siteDir: sharedDir });
+  assert.deepEqual(opened, [], "a foreign sessionData root never gets automatic maintenance");
+  assert.deepEqual(shared.binding.heldSiteSession({ partition: sitePartition({ siteDir: sharedDir }) }), { name: sitePartition({ siteDir: sharedDir }) }, "the open itself still succeeds");
+});
+
+test("heldSiteSession rethrows a session failure instead of reporting the partition as unheld", async () => {
+  const refusal = new Error("Session can only be received when app is ready");
+  let refuse = false;
+  const f = fixture({ fromPartition: (partition) => { if (refuse) throw refusal; return { name: partition }; } });
+  writeProjects(f, []);
+  const siteDir = path.join(f.root, "site-refused");
+  await f.binding.acquireSite({ siteDir });
+  refuse = true;
+  assert.throws(() => f.binding.heldSiteSession({ partition: sitePartition({ siteDir }) }), (error) => error === refusal);
+});
+
+test("a lock file that cannot be read reports the errno code, else the message, else the raw value", async () => {
+  const failures: unknown[] = [Object.assign(new Error("permission denied"), { code: "EACCES" }), new Error("volume unmounted"), "disk detached"];
+  const lock = partitionWriterLock({
+    fs: { ...nodePartitionFs({ fs }), readFile: async () => { throw failures.shift(); } }, fileLock: { withFileLock },
+    process: { pid: 40, bootId: "boot", hostname: "local", newToken: () => "e0", isAlive: () => true },
+  });
+  const lockPath = path.join(os.tmpdir(), "unread.lock");
+  assert.deepEqual(await lock.readToken({ lockPath }), { state: "unknown", reason: "EACCES" });
+  assert.deepEqual(await lock.readToken({ lockPath }), { state: "unknown", reason: "volume unmounted" });
+  assert.deepEqual(await lock.readToken({ lockPath }), { state: "unknown", reason: "disk detached" });
+});
+
+test("the node fs port's lstat does not follow symlinks", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-lstat-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const target = path.join(root, "Partitions-real");
+  const link = path.join(root, "Partitions-link");
+  fs.mkdirSync(target);
+  fs.symlinkSync(target, link, "dir");
+  const port = nodePartitionFs({ fs });
+  const linkStat = await port.lstat({ path: link });
+  assert.deepEqual([linkStat.isSymbolicLink(), linkStat.isDirectory()], [true, false]);
+  const dirStat = await port.lstat({ path: target });
+  assert.deepEqual([dirStat.isSymbolicLink(), dirStat.isDirectory()], [false, true]);
+  await assert.rejects(port.lstat({ path: path.join(root, "missing") }), { code: "ENOENT" });
 });
