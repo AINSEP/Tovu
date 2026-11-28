@@ -276,3 +276,22 @@ test('signed-out payment return with no theme installed still answers in the bar
   assert.match(response.body, /Sign in/);
   assert.doesNotMatch(response.body, /data-theme=/);
 });
+
+test('signed-out payment return on a site that chose "No theme" skips the installed themes and answers in the bare shell', async () => {
+  const { createRouteDeps } = await import('#src/server/runtime/composition/app');
+  const deps = createRouteDeps();
+  const theme = deps.themes.find(item => item.manifest.id === 'fashion-modern');
+  assert.ok(theme, 'an installed valid theme the resolver would otherwise fall back to');
+  const app = express();
+  registerCommerceHttp({ app, deps: { ...deps, themes: [theme],
+    presentationRepo: { findByWorkspaceId: async () => ({ workspaceId: deps.workspaceId, activeThemeId: 'none' }) },
+    commerce: {
+      storefrontStatus: async () => ({ active: true, ready: true, reason: null }),
+      status: async () => ({ active: true, ready: true, reason: null }),
+    } } as unknown as RouteDeps });
+  const response = await dispatchHttpRequest({ app, method: 'GET', url: '/commerce/return?orderId=order' });
+  assert.equal(response.status, 401);
+  assert.match(response.body, /Sign in/);
+  assert.doesNotMatch(response.body, /data-theme=/);
+  assert.ok(!response.body.includes(theme.css), 'the installed theme stylesheet is not applied');
+});
