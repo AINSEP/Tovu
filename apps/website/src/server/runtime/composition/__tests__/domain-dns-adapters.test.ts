@@ -265,3 +265,11 @@ test("known hosting addresses drop saved HTTPS URLs that carry a port or only a 
   };
   assert.deepEqual(await listSavedHostingHosts(deps), ["kept.example-host.dev"]);
 });
+
+test("known hosting addresses skip saved values that are not URLs or name no public domain, keeping the rest", async () => {
+  const deps = {
+    workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async () => [savedPeer("not a url"), savedPeer("https://intranet"), savedPeer("https://127.0.0.1"), savedPeer("https://kept.example-host.dev")] },
+    publishHistoryStore: { list: async () => [] },
+  };
+  assert.deepEqual(await listSavedHostingHosts(deps), ["kept.example-host.dev"]);
+});
