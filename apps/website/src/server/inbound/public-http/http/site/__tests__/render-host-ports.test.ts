@@ -6,6 +6,7 @@ import { TOVU_DOC_RENDER_CLASSES } from "#src/server/runtime/composition/doc-ren
 import { renderBlock, renderBlockSeam } from "../render/blocks.js";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
 import { entryContent } from "../render/post-body.js";
+import { renderDocNode } from "../render/content-html.js";
 
 function context(post: ReturnType<typeof buildPostRecord>): SiteRenderContext {
   return { siteTitle: "Site", route: "post", posts: [], post: post as NonNullable<SiteRenderContext["post"]>, products: [], themeName: null, widgetRegions: {}, widgetInlineResolved: new Map(), mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [] };
@@ -25,4 +26,14 @@ test("declarative and both logic-tier bindings see the same resolved body and us
   assert.ok(hero.includes(`class="${TOVU_DOC_RENDER_CLASSES.mediaPlaceholder.label}"`));
   const html = buildPostRecord({ bodyFormat: "html", bodyHtml: "<b>raw</b>", bodyJson: {} });
   assert.equal((buildTemplateRenderData(context(html)).post as { content: string }).content, "<b>raw</b>");
+});
+
+test("a legacy src-only image renders a public image URL, while a private media original degrades to the media placeholder", () => {
+  const image = (src: string) => renderDocNode({ node: { type: "image", attrs: { src, alt: "Logo" } } });
+  assert.equal(image("https://cdn.example.test/logo.png"), '<img src="https://cdn.example.test/logo.png" alt="Logo" loading="lazy" />');
+  for (const privateSrc of ["/api/admin/v1/workspaces/ws-1/media/asset-1/original", "https://site.example.test/api/admin/v1/Workspaces/ws-1/media/asset-1/ORIGINAL"]) {
+    const html = image(privateSrc);
+    assert.ok(!html.includes("asset-1"), `the private original never reaches the page: ${html}`);
+    assert.match(html, /class="media-ph"/);
+  }
 });
