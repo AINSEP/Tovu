@@ -27,7 +27,7 @@ function site(t: TestContext): SiteStoreHooks {
     onStoreClose: ({ registration }) => { registrations.push(registration); } };
 }
 
-function start(t: TestContext, composeOverrides: Parameters<typeof startServingRoutines>[1]["composeOverrides"]) {
+function start(t: TestContext, composeOverrides: NonNullable<Parameters<typeof startServingRoutines>[1]>["composeOverrides"]) {
   return startServingRoutines({ errors: createRouteIncidentReporter().errors, routeDeps, router: Router(), desktopEligible: true, releaseEnabled: true,
     reporter: { record: () => assert.fail("no incident is expected") } }, { storeHooks: site(t), composeOverrides: {
     timers: { schedule: () => () => {} }, writeBeacon: async () => {},
