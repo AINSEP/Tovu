@@ -163,7 +163,7 @@ function failureMessage({ stderr, code }: { stderr: string; code: number | null 
 
 /** The result is the child's last line: a library logging to stdout first must not break the import. */
 function parseResult({ stdout }: { stdout: string }): ImportedSiteArchive {
-  const line = stdout.trim().split("\n").at(-1) ?? "";
+  const line = stdout.trim().split("\n").at(-1)!;
   try {
     const parsed = JSON.parse(line) as ImportedSiteArchive;
     if (typeof parsed.dir === "string" && typeof parsed.siteId === "string") return { ...parsed, warnings: parsed.warnings ?? [] };

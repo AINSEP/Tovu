@@ -930,7 +930,7 @@ function createBootRedactor(
 ): (required: { text: string }) => string {
   const exactSecrets = [...Object.values(startup.secrets), ...Object.entries(serveEnv)
     .filter(([key]) => /secret|token|password|credential|authorization|api.?key|owner.?signin/i.test(key))
-    .map(([, value]) => value ?? "")];
+    .map(([, value]) => value)];
   return ({ text }) => redactBootToken({ text: redactSecrets({ input: text }, {
     exactSecrets: state.bootToken ? [...exactSecrets, state.bootToken] : exactSecrets, redactPii: false,
   }) });

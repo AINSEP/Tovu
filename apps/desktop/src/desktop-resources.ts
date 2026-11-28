@@ -57,8 +57,7 @@ function processRows({ usages, rootPid, rootRole, readings }: {
   return usages.map((row) => {
     let role: ResourceProcess['role'] = row.pid === daemonPid ? 'daemon' : 'process';
     if (row.pid === rootPid) role = rootRole;
-    const reading = readings.get(row.pid);
-    if (!reading) throw new Error(`resource sample has no CPU reading for process ${row.pid}`);
+    const reading = readings.get(row.pid)!;
     return { pid: row.pid, ppid: row.ppid, name: row.name, rssBytes: row.rssBytes, rawRssBytes: row.rawRssBytes, memoryMetric: row.memoryMetric, role,
       cpuPercent: reading.cpuPercent, cpuWarning: reading.cpuWarning };
   });
@@ -131,8 +130,7 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
       sites: groups,
     },
     history: { at, processes: new Map(rows.map((row) => {
-      const reading = readings.get(row.pid);
-      if (!reading) throw new Error(`resource history has no CPU reading for process ${row.pid}`);
+      const reading = readings.get(row.pid)!;
       return [row.pid, { cpuSeconds: row.cpuSeconds, high: reading.high }];
     })) },
   };

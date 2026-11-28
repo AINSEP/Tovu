@@ -281,7 +281,7 @@ export async function smokeBridge(
         return;
       }
       const lines = buffer.split("\n");
-      buffer = lines.pop() ?? ""; // the piece after the last newline is an unfinished line
+      buffer = lines.pop()!; // the piece after the last newline is an unfinished line
       try {
         if (lines.some((line) => steps.acceptLine({ line }))) resolve();
       } catch (error) { reject(error); }

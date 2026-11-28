@@ -153,7 +153,7 @@ export function findPackageDir({ fromDir, depName }: { fromDir: string; depName:
 export function stageTransitiveDependencies({ roots, outDir }: { roots: string[]; outDir: string }, _options = {}): number {
   const fs = createNodePackagingFilesystem({});
   return stageClosure({ roots, outDir, excluded: EXCLUDED_PACKAGES,
-    fs: { ...fs, copy: ({ from, to }, options) => stageDir({ src: from, dest: to, dropNestedModules: options?.dropNestedModules ?? false }) },
+    fs: { ...fs, copy: ({ from, to }) => stageDir({ src: from, dest: to, dropNestedModules: true }) },
     resolver: { resolve: ({ fromDirectory, packageName }) => findPackageDir({ fromDir: fromDirectory, depName: packageName }) },
   }, { dependencies: ({ packageDir }) => declaredDependencies({ packageDir }) });
 }
