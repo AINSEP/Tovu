@@ -18,8 +18,6 @@ import { createScopeToolRegistry } from "../agent-daemon-scope-tools.js";
  * that is not JSON is not a second error (onStarted already fails that run for being malformed).
  */
 
-type Executable = { execute(request: { principal: { id: string }; run: { id: string }; toolId: string; input: unknown }): Promise<unknown> };
-
 function scope() {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const assembled = createScopeToolRegistry({
@@ -30,7 +28,7 @@ function scope() {
     contextFor: () => { throw new Error("site context is not read by a bind"); },
     execute: async () => { throw new Error("page approval is not executed by a bind"); },
   });
-  return { ...assembled, executor: createToolExecutor({ registry: assembled.registry }) as unknown as Executable };
+  return { ...assembled, executor: createToolExecutor({ registry: assembled.registry }) };
 }
 
 async function startedRun() {
@@ -53,8 +51,8 @@ test("a bind token the daemon does not know is reported for that run and its pag
   assert.equal(errors.length, 1);
   assert.match(errors[0] ?? "", new RegExp(`^\\[agent-daemon\\] run ${run.id}: could not bind to a frontend surface Error: .*unknown or expired bind token`));
   const result = await executor.execute({ principal: { id: "owner" }, run: { id: run.id }, toolId: "page.scroll_to", input: { handle: "top" } });
-  assert.equal((result as { status?: string }).status, "failed");
-  assert.equal((result as { error?: string }).error, LOST_FRONTEND_BINDING_MESSAGE);
+  assert.equal(result.status, "failed");
+  assert.equal(result.status === "failed" ? result.error : undefined, LOST_FRONTEND_BINDING_MESSAGE);
 });
 
 test("a contextRef that is not JSON binds no tab and reports no bind error", async t => {
@@ -65,6 +63,6 @@ test("a contextRef that is not JSON binds no tab and reports no bind error", asy
   assert.deepEqual(errors, []);
   const result = await executor.execute({ principal: { id: "owner" }, run: { id: run.id }, toolId: "page.scroll_to", input: { handle: "top" } });
   // An unbound run gets the recoverable "no tab connected" error, never the restart reload message.
-  assert.equal((result as { status?: string }).status, "failed");
-  assert.match((result as { error?: string }).error ?? "", /^frontend_disconnected \(retryable\): no admin tab is connected to this run/);
+  assert.equal(result.status, "failed");
+  assert.match(result.status === "failed" ? result.error : "", /^frontend_disconnected \(retryable\): no admin tab is connected to this run/);
 });

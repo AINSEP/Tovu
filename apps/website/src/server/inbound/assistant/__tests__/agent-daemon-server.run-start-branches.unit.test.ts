@@ -357,3 +357,152 @@ describe("terminal waits — a lost completion signal still releases and cleans 
     ]);
   });
 });
+
+describe("onStarted — trace input, decode failures and run telemetry", () => {
+  for (const [capture, expected] of [["full", [{ runId: "daemon-test-run", input: "traced words" }]], ["metadata", []]] as const) {
+    test(`a ${capture} AI trace sink ${expected.length ? "records" : "does not record"} the decoded prompt as the run input`, async () => {
+      const noted: unknown[] = [];
+      await captureDaemonRun({ prompt: "traced words" }, { bindings: {
+        tracing: { noteRunInput: (input: unknown) => { noted.push(input); } },
+        routeDeps: { aiTraceSink: { capture } },
+      } });
+      assert.deepEqual(noted, expected);
+    });
+  }
+
+  test("a context decoder that throws a non-Error value is logged verbatim and fails the run with safe copy", async () => {
+    const run = conversationRun();
+    await assert.rejects(captureDaemonRun({ prompt: "go" }, { bindings: { ...run.bindings, parseRunStartContextRef: () => { throw "envelope-not-json"; } } }),
+      { message: "The assistant could not start: the request was malformed." });
+    assert.deepEqual(run.calls.errors, ["[agent-daemon] run daemon-test-run: malformed contextRef envelope-not-json"]);
+  });
+
+  test("a standalone run reports its start and each end event, with the outcome only when the end carries a status", async () => {
+    const captures: Array<{ name: string; userId: string; properties: unknown }> = [];
+    const listeners: Array<(event: unknown) => void> = [];
+    const lifecycle = { waitForTerminal: () => new Promise(() => {}), onCancelRequested: () => () => {},
+      stream: async ({ onEvent }: { onEvent: (event: unknown) => void }) => { listeners.push(onEvent); } };
+    await captureDaemonRun({ prompt: "go" }, { lifecycle, bindings: { routeDeps: { tracker: {
+      capture: async ({ name, userId }: { name: string; userId: string }, { properties }: { properties: unknown }) => { captures.push({ name, userId, properties }); },
+    } } } });
+    for (const deliver of listeners) {
+      deliver({ kind: "stdout", payload: { chunk: "working" } });
+      deliver({ kind: "end", payload: { status: "failed" } });
+      deliver({ kind: "end", payload: {} });
+    }
+    const runEvents = captures.filter(entry => entry.name.startsWith("assistant_run_"));
+    assert.deepEqual(runEvents, [
+      { name: "assistant_run_started", userId: "daemon-test-principal", properties: { chatSurface: "daemon", logicalRunId: "daemon-test-run", eventId: "assistant-start:daemon-test-run" } },
+      { name: "assistant_run_finished", userId: "daemon-test-principal", properties: { chatSurface: "daemon", logicalRunId: "daemon-test-run", outcome: "failed", eventId: "assistant-finish:daemon-test-run" } },
+      { name: "assistant_run_finished", userId: "daemon-test-principal", properties: { chatSurface: "daemon", logicalRunId: "daemon-test-run", eventId: "assistant-finish:daemon-test-run" } },
+    ]);
+  });
+});
+
+describe("onStarted — argv-bound adapters receive offered plugin guidance as prompt variants", () => {
+  const POINTER = "Agent Plugins may have guidance for this request. Find them with search_agent_plugin_local starting at offset: 0, follow the returned nextOffset to see more, and load one with load_agent_plugin({ pluginId }) before acting in its domain.";
+  const offer = { offerId: "offer-1", fullSections: [{ pluginId: "auto-b", text: "AUTO" }], fullPrefix: "AUTO FULL", catalogPrefix: "AUTO ROW" };
+  const argvLastClaude = async () => {
+    const { getAgentDef } = await import("@jini-ai/agent-runtime");
+    return ({ id }: { id: string }) => {
+      const def = getAgentDef({ id });
+      return def ? { ...def, argvPromptPosition: "last" as const, mcpIsolation: { perRun: "fixture@2026-11-05" } } : def;
+    };
+  };
+
+  test("the pinned prefix leads the prompt, every variant keeps it, and only the full variant commits the offered ids", async () => {
+    const offers: unknown[] = [];
+    const commits: unknown[] = [];
+    const preflights: unknown[] = [];
+    const input = await captureDaemonRun({ prompt: "go", pluginRefIds: ["pinned-a", "picked-c"] }, { bindings: {
+      getAgentDef: await argvLastClaude(),
+      siteTools: { start: async () => {}, withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {},
+        preflight: async (input: unknown) => { preflights.push(input); return { prefix: "", refusalPrefix: "", pluginIds: [] }; },
+        offerPluginGuidance: async (required: unknown, optional: { signal?: AbortSignal }) => {
+          offers.push([required, optional.signal instanceof AbortSignal]);
+          return { prefix: "PINNED", refusalPrefix: "", pluginIds: ["pinned-a"], offer };
+        },
+        commitPluginGuidance: async (required: unknown) => { commits.push(required); } },
+    } });
+    assert.deepEqual(preflights, [], "an argv-last adapter is offered guidance instead of one-shot preflight");
+    assert.deepEqual(offers, [[{ runId: "daemon-test-run" }, true]]);
+    assert.equal(input.prompt, "PINNED\n\ngo");
+    const selection = (input as { argvPromptVariants?: { candidates: Array<{ id: string; prompt: string }>; onSelected: (required: { runId: string; id: string }) => Promise<void> } }).argvPromptVariants;
+    assert.deepEqual(selection?.candidates, [
+      { id: "full", prompt: "PINNED\n\nAUTO FULL\n\ngo" },
+      { id: "catalog", prompt: "PINNED\n\nAUTO ROW\n\ngo" },
+      { id: "pointer", prompt: `PINNED\n\n${POINTER}\n\ngo` },
+      { id: "base", prompt: "PINNED\n\ngo" },
+    ]);
+    assert.deepEqual((input as { subagentStartContext?: { ids: readonly string[] } }).subagentStartContext?.ids, ["pinned-a", "picked-c"]);
+    await selection?.onSelected({ runId: "daemon-test-run", id: "full" });
+    assert.deepEqual(commits, [{ runId: "daemon-test-run", offerId: "offer-1", deliveredIds: ["auto-b"] }]);
+  });
+
+  test("an offer whose pinned prefix could not be loaded refuses the run", async () => {
+    const offers: unknown[] = [];
+    await assert.rejects(captureDaemonRun({ prompt: "go", pluginRefIds: ["pinned-a"] }, { bindings: {
+      getAgentDef: await argvLastClaude(),
+      siteTools: { start: async () => {}, withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {},
+        offerPluginGuidance: async (required: unknown) => { offers.push(required); return { prefix: null, refusalPrefix: "", pluginIds: ["pinned-a"], offer: null }; } },
+    } }), { message: "The assistant could not start: a selected Agent Plugin could not be loaded." });
+    assert.deepEqual(offers, [{ runId: "daemon-test-run" }], "the refusal comes from the offer itself, not from a failed one-shot preflight");
+  });
+});
+
+describe("onStarted — a run that ends while it is still being prepared", () => {
+  async function settle(done: () => boolean) {
+    const deadline = Date.now() + 2000;
+    while (!done()) {
+      if (Date.now() > deadline) throw new Error("condition never settled");
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  }
+
+  test("a run cancelled during the agent inventory read fails at the tool-access stage instead of launching without its record", async () => {
+    let endRun!: () => void;
+    const terminal = new Promise(resolve => { endRun = () => resolve({ state: "cancelled" }); });
+    const failures: Array<{ runId: string; message: string; startup?: { stage: string; error: unknown } }> = [];
+    const errors: string[] = [];
+    let launched = false;
+    await assert.rejects(captureDaemonRun({ prompt: "go" }, { lifecycle: { waitForTerminal: () => terminal }, bindings: {
+      assistantInventory: { listAssistantAgents: async () => {
+        endRun();
+        await new Promise(resolve => setImmediate(resolve));
+        return [{ id: "claude", available: true, authStatus: "unknown" }];
+      } },
+      agentExecutor: { run: async () => { launched = true; } },
+      console: { error: (...args: unknown[]) => { errors.push(args.map(String).join(" ")); }, log() {}, warn() {} },
+      failRunBeforeStart: async (input: { runId: string; message: string; startup?: { stage: string; error: unknown } }) => { failures.push(input); },
+    } }), { message: "onStarted did not call the executor" });
+    assert.equal(launched, false);
+    assert.equal(failures.length, 1);
+    assert.equal(failures[0]?.runId, "daemon-test-run");
+    assert.equal(failures[0]?.message, "The assistant could not start this execution attempt.");
+    assert.equal(failures[0]?.startup?.stage, "tool access consent");
+    assert.equal((failures[0]?.startup?.error as Error).message, "agent run has no tool access record after preparation");
+    assert.deepEqual(errors, ["[agent-daemon] run daemon-test-run failed to start Error: agent run has no tool access record after preparation"]);
+  });
+
+  test("a staged attachment cleanup that rejects at terminal is logged and removed from the staging map", async () => {
+    let endRun!: () => void;
+    const terminal = new Promise(resolve => { endRun = () => resolve({ state: "succeeded" }); });
+    const staged = new Map<string, () => Promise<void>>();
+    const errors: string[] = [];
+    let cleanups = 0;
+    await captureDaemonRun({ prompt: "go" }, { lifecycle: { waitForTerminal: () => terminal }, bindings: {
+      stagedAttachmentCleanupByRunId: staged,
+      resolveAttachmentRunFields: async ({ run }: { run: { id: string } }) => {
+        staged.set(run.id, async () => { cleanups += 1; throw new Error("rm failed"); });
+        return {};
+      },
+      console: { error: (...args: unknown[]) => { errors.push(args.map(String).join(" ")); }, log() {}, warn() {} },
+    } });
+    assert.equal(staged.size, 1, "the staged cleanup waits for the run's terminal state");
+    endRun();
+    await settle(() => errors.length > 0);
+    assert.equal(cleanups, 1);
+    assert.equal(staged.size, 0);
+    assert.deepEqual(errors, ["[agent-daemon] staged attachment cleanup failed"]);
+  });
+});
