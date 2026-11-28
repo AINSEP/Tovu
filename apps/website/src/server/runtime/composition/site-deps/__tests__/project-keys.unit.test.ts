@@ -9,13 +9,16 @@ import { compositionProjectKeys } from "../project-keys.js";
  * @file The two late-bound closures `compositionProjectKeys` hands the shared-key service: the project
  * inventory reader (re-checked at call time) and the OAuth binder (read from `bindSharedApiOAuth` only
  * when a shared OAuth key is chosen, because the shared-connection service is built after this one).
+ * Also the provider pair: a provider-settings key's use reapplies its plugin and reads its effective
+ * usage from the provider config source.
  * Driven through the returned service's own `list` / `use`, with the real `createProjectKeys` behind it.
  */
 
 type Required = Parameters<typeof compositionProjectKeys>[0];
 type Row = { id: string; kind: string; label: string; meta: Record<string, unknown> };
 
-function rig(options: { siteId?: string; inventory?: Row[]; vaultRows?: Row[]; bind?: () => ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined } = {}) {
+function rig(options: { siteId?: string; inventory?: Row[]; vaultRows?: Row[]; bind?: () => ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
+  providerUsage?: (input: { pluginId: string }) => Promise<unknown>; reapply?: (input: { pluginId: string }) => Promise<unknown> } = {}) {
   const calls: string[] = [];
   const vaultRows = options.vaultRows ?? [];
   const projectStore: Record<string, unknown> = {
@@ -42,8 +45,8 @@ function rig(options: { siteId?: string; inventory?: Row[]; vaultRows?: Row[]; b
     projectKeyReferences: { set: async ({ credentialId }: { credentialId: string }) => { calls.push(`ref:${credentialId}`); } },
     projectSiteId: options.siteId ?? "site-7",
     projectStore,
-    providerConfigSource: { usage: async () => { throw new Error("no provider key in these fixtures"); } },
-    providerPlugins: { reapply: async () => "now" },
+    providerConfigSource: { usage: options.providerUsage ?? (async () => { throw new Error("no provider key in these fixtures"); }) },
+    providerPlugins: { reapply: options.reapply ?? (async () => "now") },
     bindSharedApiOAuth: options.bind ?? (() => undefined),
   } as unknown as Required;
   const keys = compositionProjectKeys(required);
@@ -93,4 +96,18 @@ test("with no site id there is no other-site key source: a saved-on-site id is l
   const { keys, calls } = rig({ siteId: "" });
   await assert.rejects(keys.permissionFor({ keyId: "saved-on-site:bakery-old-1" }), (error: Error) => error.name === "ToolInputError");
   assert.deepEqual(calls, ["find:project:saved-on-site:bakery-old-1"], "the project vault, not a site registry, answered");
+});
+
+const PROVIDER: Row = { id: "plugin-state:mail-x:provider.config", kind: "api-connection", label: "Mail settings", meta: {} };
+
+test("using a provider-settings key reapplies its plugin and reports this site's use from the provider's effective settings, not the attachment", async () => {
+  const asked: string[] = [];
+  const { keys, calls } = rig({ vaultRows: [PROVIDER],
+    providerUsage: async (input) => { asked.push(`usage:${input.pluginId}`); return { store: "site", usedByThisSite: true }; },
+    reapply: async (input) => { asked.push(`reapply:${input.pluginId}`); return "restart"; } });
+  const result = await keys.use({ keyId: PROVIDER.id, use: true });
+  // The attachment alone would say "used by this site"; the provider still runs on its site-saved settings.
+  assert.deepEqual(result, { keyId: PROVIDER.id, usedByThisSite: false, usedBy: ["Bakery"], appliesAt: "restart" });
+  assert.deepEqual(asked, ["reapply:mail-x", "usage:mail-x"]);
+  assert.deepEqual(calls.filter(call => call.startsWith("attach")), [`attach:site-7:${PROVIDER.id}:Bakery`]);
 });
