@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry } from "@jini-ai/core";
@@ -9,7 +10,10 @@ import { createSystemClock } from "@jini-ai/platform/system";
 import { createCleanupPreviewStore, type RetentionPassResult } from "@jini-ai/platform/retention";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
-import type { SiteStoragePort } from "../modules/storage-routes.js";
+import { STORAGE_ROUTE_PATHS, type SiteStoragePort } from "../modules/storage-routes.js";
+import type { SiteStorageReport } from "#src/features/storage/measure";
+import { createApp, createRouteDeps } from "../app.js";
+import { loginAsBarePrincipal, loginAsOwner, startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 
 /**
  * @file ST-15c.T binding: the storage tools reach the live first-party catalog, the cleanup entry is
@@ -64,4 +68,25 @@ test("without a serving storage port both tools refuse in plain words", async ()
   await assert.rejects(wired.call("site_storage_report", {}), /runs only in the app that is serving this site/);
   await assert.rejects(wired.call("site_storage_cleanup", {}), /runs only in the app that is serving this site/);
   assert.deepEqual(wired.log, [], "no card without a port");
+});
+
+test("createApp answers the storage report for the installation owner's session and refuses any other principal", async (t) => {
+  let measured = 0;
+  const report = { siteDir: "/site", totalBytes: 7, knownBytes: 7, categories: {}, classes: {}, databases: [], skippedSymlinks: [], unknownPaths: [] } as unknown as SiteStorageReport;
+  const siteStorage: SiteStoragePort = {
+    cleanupPreviews: createCleanupPreviewStore({ randomToken: () => "grant-a", mono: () => 0 }),
+    measure: async () => { measured++; return report; },
+    runOnce: async ({ dryRun }) => pass(dryRun),
+    lastPass: () => undefined,
+  };
+  const deps = createRouteDeps();
+  const baseUrl = await startTestServer(createApp(deps, { siteStorage }), t);
+  const ownerCookie = await loginAsOwner(baseUrl);
+  const owner = await fetch(`${baseUrl}${STORAGE_ROUTE_PATHS.report}`, { headers: { cookie: ownerCookie } });
+  assert.equal(owner.status, 200);
+  assert.equal(measured, 1);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+  const bare = await fetch(`${baseUrl}${STORAGE_ROUTE_PATHS.report}`, { headers: { cookie: bareCookie } });
+  assert.deepEqual({ status: bare.status, body: await bare.json() }, { status: 403, body: { code: "OWNER_ONLY", error: "Only the site owner can see or clean up this site's storage." } });
+  assert.equal(measured, 1, "a refused principal never starts a measurement walk");
 });
