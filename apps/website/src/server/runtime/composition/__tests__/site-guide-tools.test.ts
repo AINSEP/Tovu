@@ -9,7 +9,7 @@ import type { SiteGuideEngine } from "#src/features/site-guide/index";
 import { buildBaseSystemOverlay } from "#src/server/inbound/assistant/assistant-system-overlay";
 import { SYSTEM_PREAMBLE } from "../modules/assistant-byok-preflight.js";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
-import { buildSiteGuideRegistrations, readSiteGuideInput, siteGuideDerivedRisk } from "../site-guide-tools.js";
+import { buildSiteGuideRegistrations, contributeSiteGuideTools, readSiteGuideInput, siteGuideDerivedRisk } from "../site-guide-tools.js";
 import { nativeToolMetadata, siteGuideToolMetadata as toolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
@@ -200,4 +200,14 @@ test("the site_guide input hook renames the query alias, refuses a query+topic p
   assert.deepEqual(await normalize({ input: { operation: "overview" } }), { input: { operation: "overview" }, notes: [] });
   await assert.rejects(async () => normalize({ input: { operation: "search", query: "forms", topic: "seo" } }),
     (error: unknown) => error instanceof ToolInputError && error.message === "Conflicting inputs 'query' and 'topic'. Send only 'topic'.");
+});
+
+test("the manifest contributor builds the same site_guide tool on the engine it was given", async () => {
+  const engine: SiteGuideEngine = { parseGuideTopics: () => ({ ok: true, descriptors: [] }), createSiteGuide: () => ({ run: async input => ({ via: "contributed", topic: input.topic }) }) };
+  const contributor = contributeSiteGuideTools({}, { engine });
+  assert.equal(contributor.domain, "site-guide");
+  assert.equal(contributor.risk, siteGuideDerivedRisk);
+  const registrations = contributor.build(deps(), {});
+  assert.deepEqual(registrations.map(registration => registration.descriptor.id), ["site_guide"]);
+  assert.deepEqual(await registrations[0]!.handler(context({ operation: "explain", topic: "forms" })), { via: "contributed", topic: "forms" });
 });
