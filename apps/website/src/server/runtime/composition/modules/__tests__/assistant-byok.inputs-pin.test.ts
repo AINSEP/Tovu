@@ -330,3 +330,26 @@ test("a throwing BYOK per-run tool binding ends the already-open stream with one
   assert.equal(await response.text(), 'event: error\ndata: {"message":"assistant failed"}\n\n');
   assert.equal(calls, 0);
 });
+
+test("a saved credential's maxTokens reaches the provider request", async t => {
+  const reply = 'event: message_start\ndata: {"type":"message_start","message":{"id":"reply","role":"assistant","content":[],"model":"fixture","usage":{"input_tokens":1,"output_tokens":0}}}\n\nevent: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":0}}\n\nevent: message_stop\ndata: {"type":"message_stop"}\n\n';
+  const sent: Array<Record<string, unknown>> = [];
+  const providerUrl = await startStubProviderServer(t, (_count, body) => { sent.push(body); return { status: 200, body: reply }; });
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const app = express(); app.use(express.json());
+  registerAuthRoutes({ app, deps, errors: createRouteIncidentReporter().errors });
+  createAssistantByokModule({ reporter: testToolReporter(), routeDeps: deps }, { toolSurface: createByokToolSurface({ ...deps, reporter: testToolReporter() }, { installExtensions: false }) }).registerRoutes?.({ app });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
+  const ports = { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock };
+  const turn = async () => {
+    const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: "Hello" }] }) });
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /event: end\ndata: \{"reason":"stop"\}/);
+  };
+  await setExecutionCredential(ports, { workspaceId: deps.workspaceId, principalId: me.user.id, apiKey: "fake-one", protocol: "anthropic", model: "fixture", baseUrl: providerUrl, maxTokens: 777 });
+  await turn();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0]!.max_tokens, 777);
+});
