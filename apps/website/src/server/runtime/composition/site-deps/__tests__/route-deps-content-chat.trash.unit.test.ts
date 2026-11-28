@@ -88,7 +88,7 @@ test("forgetRemovedMedia and forgetRemovedPost drop the trash row of their own e
 // Mutations: `transaction: ({ work }) => work()` (l.119, bypasses the trash transaction); `entityPolicy: () => false` (l.120).
 test("sweepTrash purges an installed kind inside the trash transaction and leaves an uninstalled kind's item listed", async () => {
   const { deps, purged, deletedRows, transactions } = trashRig();
-  const report = await deps.sweepTrash({ workspaceId: "site-7", now: "2031-04-05T00:00:00.000Z", limit: 10 });
+  const report = await deps.sweepTrash({ now: "2031-04-05T00:00:00.000Z", leaseOwner: "sweeper-1", leaseUntil: "2031-04-05T00:05:00.000Z", limit: 10 });
   assert.deepEqual(report, { claimed: 2, purged: 1, results: [{ id: "t-1", outcome: "purged" }, { id: "t-2", outcome: "adapter-unavailable" }] });
   assert.deepEqual(purged, [{ workspaceId: "site-7", entityId: "entity-t-1", expectedVersion: 5 }]);
   assert.deepEqual(deletedRows, [{ workspaceId: "site-7", id: "t-1" }]);
@@ -146,7 +146,9 @@ test("chatBulkDeletionFor reads the clock on every preview: a chat kept as recov
   const kernel = contentKernel({ store: openContentDb(":memory:") });
   const assembled = routeDepsChatAgents({ kernel, chat, clock: { nowMs: () => nowMs, nowIso: () => "2031-02-03T04:05:06.000Z" }, outbox: {}, entryRefsRepo: {}, entryRepo: {},
     tracker: {}, postRepo: {}, pluginExports: { validateHtml: async () => [] } } as unknown as ChatRequired);
-  const deletion = assembled.chatBulkDeletionFor({ scope: { scopeId: "site-7", ownerKind: "user", ownerId: "owner-1" }, openConversations: async () => new Set<string>() });
+  const { chatBulkDeletionFor } = assembled;
+  assert.ok(chatBulkDeletionFor, "the chat stores supply a bulk deletion factory");
+  const deletion = chatBulkDeletionFor({ scope: { scopeId: "site-7", ownerKind: "user", ownerId: "owner-1" }, openConversations: async () => new Set<string>() });
   const early = await deletion.preview({ before: 200 });
   assert.deepEqual([early.ids, early.kept], [[], [{ id: "chat-1", title: "Plan", reason: "recoverable" }]]);
   nowMs = 6_000;
