@@ -21,6 +21,9 @@ import type { SiteStore } from "../../runtime/composition/open-site-store.js";
 import { drainBootReadiness, type BootReadiness } from "../helpers/unrun-site-boot.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { workspaces } from "#src/platform/db/schema.sqlite";
+import { PGLITE_DATA_DIR_NAME } from "../../runtime/composition/open-site-store.js";
+import { initSite } from "../../runtime/composition/site-dir.js";
+import { defaultPgliteSocketDir } from "#src/platform/db/kernel/drivers/pglite-owner";
 
 /**
  * @file D10 fix — `createSiteRouteDepsForWorkspace`, the helper `assistant/agent-daemon-server.ts`
@@ -255,4 +258,36 @@ test("chat-orphan boot warning: a failing SQLite orphan count is logged once and
 
   await warn({ dbPath: "/site/content.db", store: { storage: { kind: "pglite" } }, kernel, chatDbPath: "/site/chat.db" });
   assert.equal(counted.length, 2, "a PGlite/Postgres site never had chat rows in its content tables");
+});
+
+test("workspaceIdOverride on a real PGlite site folder: the override reaches the composition, which refuses an unknown id and composes a known one through the caller's store hook", async (t) => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-deps-for-workspace-pglite-"));
+  const siteDir = path.join(parent, "site");
+  const socketDir = defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) });
+  t.after(() => {
+    fs.rmSync(parent, { recursive: true, force: true });
+    fs.rmSync(socketDir, { recursive: true, force: true });
+  });
+  await initSite({ dir: siteDir, name: "Deps for workspace pglite", storage: { kind: "pglite" } });
+  const dbPath = path.join(siteDir, "content.db");
+  const opened: SiteStore[] = [];
+  const onStoreOpened = ({ store }: { store: SiteStore }, _optional?: Record<string, never>): void => { opened.push(store); };
+
+  try {
+    // Dropping the override would resolve the default workspace and succeed instead.
+    await assert.rejects(
+      () => createSiteRouteDepsForWorkspace({ workspaceIdOverride: "ws-pg-missing" }, { dbPath, onStoreOpened }),
+      /no workspace with id "ws-pg-missing" exists/,
+    );
+    for (const store of opened.splice(0)) await store.close();
+
+    const deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: "workspace-local" }, { dbPath, onStoreOpened });
+    assert.equal(deps.workspaceId, "workspace-local");
+    assert.equal(opened.length, 1, "the caller's hook receives the PGlite store the composition opened");
+    assert.equal(opened[0]!.storage.kind, "pglite");
+    assert.equal(fs.existsSync(dbPath), false, "a PGlite site never opens a SQLite content.db to validate the id");
+    await settle(deps);
+  } finally {
+    for (const store of opened) await store.close();
+  }
 });
