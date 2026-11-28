@@ -441,6 +441,20 @@ test('a product provider has no site context to read and its info messages stay 
   } finally { await f.close(); }
 });
 
+test('without an injected loader, boot resolves the bundled catalog and installed provider distribution', async () => {
+  const f = await fixture();
+  try {
+    // Export stays off, so the real OpenTelemetry provider initializes without sending anything.
+    await writeFile(f.required.configPath, JSON.stringify({ observability: { plugin: 'observability-opentelemetry',
+      input: { serviceName: 'tovu-desktop', endpoint: 'http://127.0.0.1:9/otlp', auth: 'bearer', token: 'tok-a' } } }));
+    const product = await bootProductTelemetry({ ...f.required, observabilityExportEnabled: false }, { readConsent: () => granted, warn: message => assert.fail(message) });
+    try {
+      assert.equal(product.active, true);
+      assert.equal(isNoopObservabilityPort(product.observability), false);
+    } finally { await product.dispose(); }
+  } finally { await f.close(); }
+});
+
 test('one configured provider leaves its sibling noop without importing its artifact', async () => {
   for (const key of ['observability', 'productAnalytics'] as const) {
     const f = await standaloneFixture();
