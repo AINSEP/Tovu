@@ -19,14 +19,14 @@ mock.module(new URL("../../../../../features/webhooks/keyring.env.js", import.me
 const { composeSiteKeysMembers } = await import("../site-keys-members.js");
 type Required = Parameters<typeof composeSiteKeysMembers>[0];
 
-function compose(t: test.TestContext, { dbPath, mode }: { dbPath: string; mode?: string }) {
+function compose(t: test.TestContext, { dbPath, mode, siteDir }: { dbPath: string; mode?: string; siteDir?: string }) {
   const previous = process.env.TOVU_RUNTIME_MODE;
   if (mode === undefined) delete process.env.TOVU_RUNTIME_MODE; else process.env.TOVU_RUNTIME_MODE = mode;
   t.after(() => { if (previous === undefined) delete process.env.TOVU_RUNTIME_MODE; else process.env.TOVU_RUNTIME_MODE = previous; });
   keyrings.length = 0;
   const db = openContentDb(":memory:");
   t.after(() => closeSqliteConnection({ source: db }));
-  const composed = composeSiteKeysMembers({ dbPath, overrides: {}, kernel: contentKernel({ store: db }) } as unknown as Required);
+  const composed = composeSiteKeysMembers({ dbPath, overrides: siteDir === undefined ? {} : { siteBinding: { dir: siteDir, name: "bound" } }, kernel: contentKernel({ store: db }) } as unknown as Required);
   return { composed, newsletter: (composed.newsletterKeyring as unknown as { sources: unknown }).sources, assistant: (composed.siteAssistantSecretKeyring as unknown as { sources: unknown }).sources };
 }
 
@@ -49,4 +49,9 @@ test("in production the newsletter keyring reads only the environment key while 
 test("a file database keys its keyring to the database's own site folder", t => {
   const { composed } = compose(t, { dbPath: "/sites/gamma/content.db" });
   assert.equal(composed.siteDirForKeyring, "/sites/gamma");
+});
+
+test("a database stored outside the bound site's folder keys its keyring to the site folder, not the database's parent", t => {
+  const { composed } = compose(t, { dbPath: "/data/elsewhere/content.db", siteDir: "/sites/delta" });
+  assert.equal(composed.siteDirForKeyring, "/sites/delta");
 });
