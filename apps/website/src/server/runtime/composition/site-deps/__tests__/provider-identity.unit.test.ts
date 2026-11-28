@@ -86,3 +86,54 @@ test("credentialProject builds only the repo halves the project vault has", () =
     { project: { workspaceId: "project", repo: "wrapped:owner-repo", createRepo: "wrapped:create-repo", replaceRepo: "wrapped:replace-repo", sealer: "sealer-1", keyring: "ring-1" } });
   assert.deepEqual(credentialProject({ projectVault: undefined, repo: wrap }), {});
 });
+
+/** A project store whose transaction brackets its work in `events`, so a test can see what ran inside it. */
+function recordingProjectStore(events: string[], parts: { config?: unknown; vaultRepo?: unknown } = {}) {
+  return {
+    projectId: "proj-tx",
+    vault: { workspaceId: "project", repo: parts.vaultRepo ?? {}, keyring: {}, sealer: {} },
+    attachments: {
+      renameSite: async () => undefined,
+      isAttached: async ({ siteId, keyId }: { siteId: string; keyId: string }) => { events.push(`attached?:${siteId}:${keyId}`); return true; },
+      attach: async ({ keyId }: { keyId: string }) => { events.push(`attach:${keyId}`); },
+      usersOf: async () => [{ siteId: "site-pi-1", siteName: "Bakery" }],
+    },
+    config: parts.config ?? {},
+    transaction: async ({ run }: { run: () => Promise<unknown> }) => { events.push("tx:begin"); const out = await run(); events.push("tx:end"); return out; },
+    close: () => undefined,
+  };
+}
+
+test("a provider key saved to the project runs its write and site attachment inside the project store's transaction", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const events: string[] = [];
+  let written = false;
+  const config = {
+    usage: async () => (written ? { keyId: "k" } : {}),
+    write: async ({ pluginId }: { pluginId: string }) => { events.push(`write:${pluginId}`); written = true; },
+  };
+  const localSite = { usage: async () => ({ store: "site", usedByThisSite: false, usedBy: [] }), write: async () => { throw new Error("site write not expected"); } };
+  const projectStore = recordingProjectStore(events, { config });
+  const references = { set: async ({ credentialId }: { credentialId: string }) => { events.push(`ref:${credentialId}`); } };
+  const result = await composeProviderConfig({ ...input({ openProjectStore: async () => projectStore } as unknown as Input["overrides"], "local", []), site: localSite as unknown as Input["site"], references: references as unknown as Input["references"] });
+  const saved = await result.providerConfigSource.write({ pluginId: "mailer-x", config: { region: "eu" } } as unknown as Parameters<Input["site"]["write"]>[0]);
+  const keyId = "plugin-state:mailer-x:provider.config";
+  assert.deepEqual(events, ["tx:begin", "write:mailer-x", `ref:${keyId}`, `attach:${keyId}`, `attached?:site-pi-1:${keyId}`, "tx:end"]);
+  assert.deepEqual(saved, { keyId, store: "project", usedByThisSite: true, usedBy: ["Bakery"] });
+});
+
+test("the project vault's replace repo re-checks the site's grant and replaces the owner key inside the project store's transaction", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const events: string[] = [];
+  const owner = {
+    find: async ({ id }: { id: string }) => { events.push(`find:${id}`); return { id }; },
+    put: async ({ record }: { record: { id: string } }) => { events.push(`put:${record.id}`); return "rev-3"; },
+  };
+  const projectStore = recordingProjectStore(events, { vaultRepo: owner });
+  const result = await composeProviderConfig(input({ openProjectStore: async () => projectStore } as unknown as Input["overrides"], "local", []));
+  const replaceRepo = result.projectVault?.replaceRepo;
+  assert.notEqual(replaceRepo, undefined);
+  const put = await replaceRepo!.put({ record: { workspaceId: "project", id: "key-9" }, expectedRevision: 2 } as unknown as Parameters<NonNullable<typeof replaceRepo>["put"]>[0]);
+  assert.equal(put, "rev-3");
+  assert.deepEqual(events, ["tx:begin", "attached?:site-pi-1:key-9", "find:key-9", "put:key-9", "tx:end"]);
+});
