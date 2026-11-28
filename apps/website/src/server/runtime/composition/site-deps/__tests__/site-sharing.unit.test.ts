@@ -24,7 +24,12 @@ function restoreShareEnv(t: TestContext) {
   t.after(() => { for (const [name, value] of previous) { if (value === undefined) delete process.env[name]; else process.env[name] = value; } });
 }
 
-async function rig(t: TestContext, { peers = [], sources = true, onPeerList }: { peers?: readonly object[]; sources?: boolean; onPeerList?: () => void } = {}) {
+type RigOptions = { peers?: readonly object[]; sources?: boolean; onPeerList?: () => void; sealedPeer?: object; guardedSend?: (input: unknown) => Promise<unknown> };
+
+/** The peer repo's vault half: a saved key opens to `key-peer-1` for the peer's own credential kind only. */
+const PEER_VAULT_BINDING = { kind: "publish-peer", ownerKey: "tovu", createService: () => ({ get: async () => ({ payload: { apiKey: "key-peer-1" } }) }) };
+
+async function rig(t: TestContext, { peers = [], sources = true, onPeerList, sealedPeer, guardedSend }: RigOptions = {}) {
   restoreShareEnv(t);
   const root = await mkdtemp(path.join(tmpdir(), "site-sharing-unit-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -49,7 +54,9 @@ async function rig(t: TestContext, { peers = [], sources = true, onPeerList }: {
     exportSiteBound: async (input: unknown) => { calls.push(["render", input]); throw new Error("render-stop"); },
     publishContentPeerRepo: {
       listByWorkspace: async (input: unknown) => { calls.push(["peers", input]); onPeerList?.(); return peers; },
-      findById: async (input: unknown) => { calls.push(["peer", input]); return null; },
+      findById: async (input: unknown) => { calls.push(["peer", input]); return sealedPeer ?? null; },
+      binding: PEER_VAULT_BINDING,
+      vault: {},
     },
   };
   const dbPath = path.join(root, "db", "content.db");
@@ -60,8 +67,9 @@ async function rig(t: TestContext, { peers = [], sources = true, onPeerList }: {
     mediaStorePorts: () => ({ loadSiteRegistry: async () => { calls.push(["objectStore", null]); return { registry: { list: () => [] }, refusals: [] }; } }),
     blobStore: {}, workspaceId: WORKSPACE, identity: { ownerPrincipalId: "owner" },
     settingsRepo: { findActiveDefinition: async () => null },
-    siteAssistantSecretKeyring: {}, siteAssistantSecretSealer: {}, publishContentPeerHttpClient: {},
-    guardedOutboundHttpClient: { send: async () => { throw new Error("no network in this rig"); } },
+    siteAssistantSecretKeyring: {}, siteAssistantSecretSealer: {},
+    publishContentPeerHttpClient: { send: async (input: unknown) => { calls.push(["peerHttp", input]); return { status: 204, headers: {}, bodyText: "" }; } },
+    guardedOutboundHttpClient: { send: guardedSend ?? (async () => { throw new Error("no network in this rig"); }) },
     routeDeps, savedKeys: {},
   } as unknown as Parameters<typeof configureSiteSharing>[0];
   configureSiteSharing(required);
@@ -124,4 +132,31 @@ test("a revoke saved against another base URL never resolves the connected peer'
   // No delivery for a binding the connected peer does not own: the share is disabled here and the remote copy is left alone.
   await assert.rejects(backend.revoke({ shareId }), { code: "DELETE_FAILED", message: "Share is disabled locally; configure its original storage to delete the remote artifact." });
   assert.deepEqual(calls, [["peers", { workspaceId: WORKSPACE }]]);
+});
+
+const LIVE_SHARE = (token: string, expiresAt: string) => ({ shareId: "1b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e", token, site: WORKSPACE, file: "site.tovu.zip", bytes: 1, sha256: "0".repeat(64),
+  url: `https://share.example/_share/${token}/site.tovu.zip`, status: "active", createdAt: "2026-11-19T00:00:00.000Z", revokedAt: null, expiresAt });
+
+// Mutation: l.78 the catalog ignores the site clock (`now: () => Date.now()`; the run date is past both expiries).
+test("the share catalog judges a public link's expiry by the site clock", async t => {
+  const { backend } = await rig(t);
+  const registry = backend.registry as unknown as { put(input: { record: object }): Promise<void>; findToken(input: { token: string; file: string }): Promise<{ shareId: string } | null> };
+  await registry.put({ record: LIVE_SHARE("C".repeat(16), "2026-11-20T09:59:59.000Z") });
+  assert.equal(await registry.findToken({ token: "C".repeat(16), file: "site.tovu.zip" }), null, "expired one second before the site clock's 10:00");
+  await registry.put({ record: { ...LIVE_SHARE("D".repeat(16), "2026-11-20T10:00:01.000Z"), shareId: "2b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e" } });
+  assert.equal((await registry.findToken({ token: "D".repeat(16), file: "site.tovu.zip" }))?.shareId, "2b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e");
+});
+
+// Mutation: l.131 hands the peer the guarded client (`httpClient: guardedOutboundHttpClient`), or drops the opened key.
+test("revoking a share on the connected peer deletes it there with the peer's saved key, over the publish client", async t => {
+  const { backend, calls } = await rig(t, { peers: [PEER], sealedPeer: { ...PEER, sealed: { v: 1 } }, guardedSend: async () => ({ status: 404, headers: {} }) });
+  const shareId = "3b0c4d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e", token = "E".repeat(16), key = `_share/${token}/site.tovu.zip`;
+  await backend.registry.put({ record: { shareId, token, site: WORKSPACE, file: "site.tovu.zip", bytes: 1, sha256: "0".repeat(64), url: `https://peer.example/${key}`, status: "active",
+    createdAt: "2026-11-20T00:00:00.000Z", revokedAt: null, storage: { provider: "tovu-server", binding: "https://peer.example", key } } });
+  const revoked = await backend.revoke({ shareId }) as { status: string };
+  assert.equal(revoked.status, "revoked");
+  const sends = calls.filter(([kind]) => kind === "peerHttp").map(([, input]) => input as { method: string; url: string; headers: Record<string, string> });
+  assert.deepEqual(sends.map(send => [send.method, send.url, send.headers.authorization]), [
+    ["DELETE", `https://peer.example/api/admin/v1/workspaces/ws-remote/site-shares/artifacts/${token}/site.tovu.zip`, "Bearer key-peer-1"],
+  ]);
 });
