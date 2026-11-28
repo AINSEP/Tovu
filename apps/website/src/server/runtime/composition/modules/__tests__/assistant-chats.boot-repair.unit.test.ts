@@ -43,3 +43,28 @@ test("a failed repair is logged and settles, so the routes stay up; no boot-work
   assert.deepEqual(errors, [["[assistant-chats] boot-time repair of interrupted chat turns failed", failure]]);
   assert.ok(mounted.includes("use /api/assistant/chats"));
 });
+
+test("the routine lease owner's interruption is awaited before repair; a failed interruption still lets the repair run; a passive window never waits", async () => {
+  const order: string[] = [];
+  let failInterruption!: (error: Error) => void;
+  const work: Promise<void>[] = [];
+  const finalizer = { reconcileInterrupted: async () => { order.push("repair"); return 0; } } as never;
+  const routineBoot = { isLeaseOwner: () => true, whenInterrupted: () => { order.push("interrupt"); return new Promise<void>((_resolve, reject) => { failInterruption = reject; }); } };
+  createAssistantChatsModule({ workspaceId: "ws" } as never, { finalizer, recoverInterrupted: true, routineBoot, onBootWork: ({ work: pending }) => { work.push(pending); } })
+    .registerRoutes!({ errors: createRouteIncidentReporter().errors, app: fakeApp().app });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(order, ["interrupt"], "repair waits for the routine side to settle");
+  failInterruption(new Error("interruption write failed"));
+  await work[0];
+  assert.deepEqual(order, ["interrupt", "repair"]);
+
+  const passive: string[] = [];
+  const passiveWork: Promise<void>[] = [];
+  const passiveBoot = { isLeaseOwner: () => false, whenInterrupted: () => { passive.push("interrupt"); return Promise.resolve(); } };
+  createAssistantChatsModule({ workspaceId: "ws" } as never, {
+    finalizer: { reconcileInterrupted: async () => { passive.push("repair"); return 0; } } as never,
+    recoverInterrupted: true, routineBoot: passiveBoot, onBootWork: ({ work: pending }) => { passiveWork.push(pending); },
+  }).registerRoutes!({ errors: createRouteIncidentReporter().errors, app: fakeApp().app });
+  await passiveWork[0];
+  assert.deepEqual(passive, ["repair"], "only the lease owner waits for the routine interruption");
+});
