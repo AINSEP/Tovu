@@ -5,7 +5,7 @@ import type { Response } from "express";
 
 import { createVisitorAgUiResume, type HeldVisitorApproval } from "#src/assistant/site/visitor-ag-ui-resume";
 import type { VisitorConfirmations } from "#src/assistant/site/visitor-confirmations";
-import { agUiApprovalChannel, createVisitorTurnSegments, type VisitorSegment } from "../site-assistant-ag-ui-approval.js";
+import { agUiApprovalChannel, createVisitorTurnSegments, watchSegmentClose, type VisitorSegment } from "../site-assistant-ag-ui-approval.js";
 
 /**
  * The visitor Ask channel over the REAL park/resume (its per-client cap of two held approvals and its
@@ -83,4 +83,27 @@ test("an accepted approval parks the turn, writes one interrupt naming the card 
   assert.equal(h.ended(), 1);
   assert.deepEqual(h.scheduled, [45_000]);
   assert.deepEqual(h.confirms, []);
+});
+
+test("a segment the visitor drops ends the turn's run; a segment we ended ourselves does not", () => {
+  const dropped = fakeSegment({ runId: "run-dropped" });
+  const droppedAbort = new AbortController();
+  watchSegmentClose({ segment: dropped.segment, abort: droppedAbort });
+  (dropped.segment.res as unknown as EventEmitter).emit("close");
+  assert.equal(droppedAbort.signal.aborted, true, "the visitor left mid-segment: the run stops");
+
+  const finished = fakeSegment({ runId: "run-finished" });
+  const finishedAbort = new AbortController();
+  watchSegmentClose({ segment: finished.segment, abort: finishedAbort });
+  finished.segment.res.end();
+  (finished.segment.res as unknown as EventEmitter).emit("close");
+  assert.equal(finishedAbort.signal.aborted, false, "our own end is not a Stop");
+});
+
+test("without an approval owner there is no Ask channel", () => {
+  const { segment } = fakeSegment({ runId: "run-ownerless" });
+  const resume = createVisitorAgUiResume<VisitorSegment>({ nowMs: () => 1_000, scheduler: { schedule: () => () => {} }, confirm: async () => true, reportError: () => {} });
+  const channel = agUiApprovalChannel({ confirmations: recordingConfirmations().confirmations, resume, segments: createVisitorTurnSegments({ initial: segment }),
+    owner: null, quotaKey: QUOTA_KEY, threadId: "thread-visitor", nowMs: () => 1_000, waitMs: 45_000, abort: new AbortController() });
+  assert.deepEqual(channel, {});
 });
