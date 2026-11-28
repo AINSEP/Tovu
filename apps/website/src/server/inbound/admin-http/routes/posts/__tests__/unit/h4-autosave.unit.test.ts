@@ -66,3 +66,26 @@ test('autosave refuses to park after a lookup failure that is not a miss, writin
   assert.equal((capture.jsonBody as { code: string }).code, 'INTERNAL_ERROR');
   assert.deepEqual(writes, []);
 });
+
+test('autosave GET reads and DELETE clears the snapshot of the post the slug resolves to', async () => {
+  const reads: unknown[] = [];
+  const clears: unknown[] = [];
+  const snapshot = { ...VALID, savedAt: '2026-10-28T00:00:00.000Z', savedByPrincipalId: 'owner' };
+  const app = express();
+  registerAdminPostAutosaveRoute({ errors: createRouteIncidentReporter().errors, app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
+    authorize: async () => ({ allowed: true, reason: 'owner' }),
+    postRepo: { findBySlug: async () => ({ id: 'post-9', kind: 'post' }),
+      readAutosave: async (input: unknown) => { reads.push(input); return snapshot; },
+      clearAutosave: async (input: unknown) => { clears.push(input); } },
+  }) });
+  const read = createCapturingResponse();
+  read.res.locals.principal = { id: 'owner' };
+  await lastRouteHandler(app, 'get', PATH)({ params: { workspaceId: 'ws', postId: 'hello' } }, read.res);
+  assert.deepEqual(read.capture, { statusCode: 200, jsonBody: { autosave: snapshot } });
+  const clear = createCapturingResponse();
+  clear.res.locals.principal = { id: 'owner' };
+  await lastRouteHandler(app, 'delete', PATH)({ params: { workspaceId: 'ws', postId: 'hello' } }, clear.res);
+  assert.deepEqual(clear.capture, { statusCode: 200, jsonBody: { ok: true } });
+  assert.deepEqual(reads, [{ workspaceId: 'ws', id: 'post-9' }]);
+  assert.deepEqual(clears, [{ workspaceId: 'ws', id: 'post-9' }]);
+});
