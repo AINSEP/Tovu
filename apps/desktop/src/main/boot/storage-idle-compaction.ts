@@ -69,12 +69,16 @@ export function createStorageIdleCompaction(
     if (disposed || child || deps.onAcPower() !== true) return "skipped";
     const idle = deps.idleSeconds();
     if (idle === "unknown" || idle < idleThresholdSeconds) return "skipped";
-    const dir = await pickSite(deps, opts);
-    if (!dir || disposed) return "skipped";
+    // Reserve the one child slot before the async site selection, so an overlapping tick cannot
+    // pass the guard above while this one is still choosing a site.
     child = true;
-    deps.recordAttempt({ dir, at: deps.now() });
-    try { await deps.spawnCompact({ dir }); } catch { /* the child reports its own refusal; the cooldown still applies */ } finally { child = false; }
-    return "ran";
+    try {
+      const dir = await pickSite(deps, opts);
+      if (!dir || disposed) return "skipped";
+      deps.recordAttempt({ dir, at: deps.now() });
+      try { await deps.spawnCompact({ dir }); } catch { /* the child reports its own refusal; the cooldown still applies */ }
+      return "ran";
+    } finally { child = false; }
   };
   const handle = deps.setInterval(() => { void tick(); }, tickMs);
   return { tick, dispose: () => { disposed = true; deps.clearInterval(handle); } };

@@ -89,6 +89,6 @@ test('an open Import tab can show only in the unoccluded Websites home layer', (
   assert.equal(deriveSitesHomeView(home).showImportPage, true);
   assert.equal(deriveSitesHomeView({ ...home, appearanceOpen: true }).showImportPage, false);
   assert.equal(deriveSitesHomeView({ ...home, activeTab: '/a' }).showImportPage, false);
-  assert.equal(deriveSitesHomeView({ ...home, activeId: 'agents' }).showImportPage, false);
+  assert.equal(deriveSitesHomeView({ ...home, activeId: 'settings' }).showImportPage, false);
   assert.equal(deriveSitesHomeView({ ...home, isImporting: false }).showImportPage, false);
 });

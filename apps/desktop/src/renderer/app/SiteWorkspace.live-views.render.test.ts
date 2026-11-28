@@ -224,5 +224,5 @@ test('the release probe returns the admin scroll container\'s position rather th
   const refused = runProbe(t, {});
   assert.equal(refused.release, false);
   assert.equal(refused.url, undefined);
-  assert.deepEqual(failure.mock.calls.map(({ arguments: args }) => args), [['.jini-admin-content']]);
+  assert.deepEqual(failure.mock.calls.map((call: { arguments: unknown[] }) => call.arguments), [['.jini-admin-content']]);
 });

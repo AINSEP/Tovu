@@ -246,7 +246,7 @@ test("cache sizing treats only a missing root as empty", async (t) => {
   assert.deepEqual(await measureTreeBytes({ fs, path: vanished }), { state: "measured", bytes: 0 });
 
   // Simulate a file removed after readdir but before lstat, without racing real I/O.
-  const disappearing: typeof fs = { ...fs, promises: { ...fs.promises, readdir: async () => ["vanished"] } as typeof fs.promises };
+  const disappearing: typeof fs = { ...fs, promises: new Proxy(fs.promises, { get: (real, key) => (key === "readdir" ? async () => ["vanished"] : Reflect.get(real, key)) }) };
   assert.deepEqual(await measureTreeBytes({ fs: disappearing, path: root }), { state: "unknown", reason: "ENOENT" });
   const unreadable: typeof fs = { ...fs, promises: { ...fs.promises, lstat: async () => { throw new Error("stat adapter failed"); } } };
   assert.deepEqual(await measureTreeBytes({ fs: unreadable, path: root }), { state: "unknown", reason: "Error: stat adapter failed" });

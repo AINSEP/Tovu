@@ -238,13 +238,14 @@ test("preview registration belongs to the exact shell and guest that emitted att
   const home = fakeHome({ registerPreviewGuest: (input) => registrations.push(input) });
   openSitesHomeWindow({ ports: home.ports });
   const attached = home.window.webContents.listeners.get("did-attach-webview") as (event: unknown, contents: SpellCheckWebContents) => void;
-  assert.deepEqual(registrations, [], "no guest exists during shell construction");
+  assert.equal(registrations.length, 0, "no guest exists during shell construction");
   const first = fakeContents([]), second = fakeContents([]);
   attached({}, first);
   attached({}, second);
+  // Identity first: the two fake guests are structurally equal, so only `equal` tells them apart.
+  assert.equal(registrations[0]?.webContents, first);
+  assert.equal(registrations[1]?.webContents, second);
   assert.deepEqual(registrations, [
     { window: home.window, webContents: first }, { window: home.window, webContents: second },
   ]);
-  assert.equal(registrations[0]?.webContents, first);
-  assert.equal(registrations[1]?.webContents, second);
 });

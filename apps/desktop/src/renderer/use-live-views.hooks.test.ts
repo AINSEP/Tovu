@@ -45,7 +45,10 @@ test('the host\'s probe timeout keeps a nonresponsive guest and tries the next h
   assert.equal(probes.some(({ id }) => id === 'orders'), false);
   t.mock.timers.tick(1);
   await settle();
-  assert.deepEqual(probes.at(-1), { id: 'orders', code: RELEASE_PROBE });
+  // The timed-out catalog probe moved on to orders, which agreed; with home focused and the limit
+  // at 1, catalog is still one view over, so the next pass asks the kept catalog guest again.
+  assert.deepEqual(probes.map(({ id }) => id), ['catalog', 'catalog', 'orders', 'catalog']);
+  assert.deepEqual(probes[2], { id: 'orders', code: RELEASE_PROBE });
   assert.equal(tabs.current().isLive({ id: 'catalog' }), true);
   assert.equal(tabs.current().isLive({ id: 'home' }), true);
   assert.equal(tabs.current().isLive({ id: 'orders' }), false);
