@@ -172,3 +172,17 @@ test("production binding is not NO_RETIREMENT", () => {
   assert.doesNotMatch(source, /NO_RETIREMENT/);
   assert.match(source, /durableJsonFor: desktopJsonFile/);
 });
+
+test("an unreadable identity at erase time deletes the site but records no proof, so its login is kept", async () => {
+  const f = fixture();
+  const siteDir = f.site("florist", "created");
+  const failing: SiteRetirementPort = { ...f.deps.retirement,
+    capture: () => { f.calls.push("capture"); throw new Error("site meta unreadable"); },
+    append: () => assert.fail("no candidate means no record") };
+  await handleDelete({ id: siteDir, deps: { ...f.deps, retirement: failing } });
+  assert.deepEqual(f.calls, ["capture"]);
+  assert.equal(fs.existsSync(siteDir), false, "the delete itself still happens");
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
+  const read = f.ledger.readStrict({});
+  assert.deepEqual(read.state === "ok" ? read.records : read, []);
+});

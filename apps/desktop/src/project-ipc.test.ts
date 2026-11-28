@@ -107,6 +107,29 @@ test('registered presence trusts only the shell, counts own windows, and uses th
   assert.equal(registered.has(IDLE_SITE_SLEEP_CHANNELS.read), false);
 });
 
+test('without a shell predicate, presence and sleep preferences refuse every sender; cancel import stops running imports', async (t) => {
+  class Sender extends EventEmitter {
+    getURL() { return new URL('../dist/renderer/index.html', import.meta.url).href; }
+    isDestroyed() { return false; }
+  }
+  const stops: unknown[][] = [];
+  const { isPresenceShell: _shell, ...deps } = baseDeps({ stopRunningImports: async (required: Record<string, never> = {}, options = {}) => { stops.push([required, options]); } });
+  t.after(() => fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }));
+  const registered = new Map<string, Parameters<ProjectIpcDeps['ipcMain']['handle']>[1]>();
+  const presence = registerSiteIpcHandlers({ ...deps, ipcMain: {
+    handle: (channel, handler) => { registered.set(channel, handler); },
+    removeHandler: channel => { registered.delete(channel); },
+  } } as ProjectIpcDeps);
+  t.after(() => presence.dispose());
+  const shell = new Sender();
+  assert.throws(() => registered.get(SITE_PRESENCE_CHANNEL)!({ sender: shell }, { siteIds: ['/sites/a'] }), /UNTRUSTED/);
+  assert.equal(presence.has({ siteId: '/sites/a' }), false);
+  assert.throws(() => registered.get(IDLE_SITE_SLEEP_CHANNELS.write)!({ sender: shell }, 30), /UNTRUSTED/);
+  assert.equal(fs.existsSync(path.join(path.dirname(deps.statePath), 'desktop-preferences.json')), false);
+  await registered.get(SITE_IPC_CHANNELS.cancelImport)!({ sender: shell });
+  assert.deepEqual(stops, [[{}, { reason: 'cancel' }]]);
+});
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function tempDir(): string {
