@@ -310,3 +310,34 @@ test("quit still drains its wait when an import child reports an error rather th
   await failed;
   assert.deepEqual(child.killed, []);
 });
+
+test("a child that closes stdin early does not fail the import; its exit code and output still decide", async () => {
+  const { child, promise } = run({ file: "/a/early.tovu.zip" });
+  child.stdin.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+  child.stdout.write(`${RESULT}\n`);
+  child.exit(0);
+  assert.deepEqual(await importedSite(promise), { dir: "/d", name: "d", siteId: "i", warnings: [] });
+});
+
+test("only the last 64 KiB of child output is kept, so an error line scrolled far out cannot be reported", async () => {
+  const { child, promise } = run({ file: "/a/noisy.tovu.zip" });
+  child.stderr.write("tovu: VALIDATION: an early stale line\n");
+  child.stderr.write("progress\n".repeat(8 * 1024)); // 72 KiB of chatter after it.
+  child.stderr.write("final words\n");
+  child.exit(1);
+  await assert.rejects(promise, (error: Error) => {
+    assert.equal(error.message.startsWith("The import stopped before it finished. No website was created. Details: exit code 1: "), true, error.message);
+    assert.equal(error.message.includes("stale"), false);
+    assert.equal(error.message.endsWith("progress\nfinal words"), true);
+    return true;
+  });
+});
+
+test("startup tidy never fails the launch when the importer cannot even be started", async () => {
+  let spawns = 0;
+  await tidyInterruptedImports({ appData: "/profile", repoRoot: REPO_ROOT, cliMode: "source" }, {
+    readDir: () => ["0.upload.zip"], baseEnv: { PATH: "/usr/bin" },
+    spawnFn: () => { spawns += 1; throw Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" }); },
+  });
+  assert.equal(spawns, 1);
+});
