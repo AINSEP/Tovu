@@ -29,9 +29,13 @@ const functionCall = (name: string, id: string): StubProviderReply => ({ status:
 const text = (reply: string): StubProviderReply => ({ status: 200,
   body: chunk({ candidates: [{ content: { role: "model", parts: [{ text: reply }] }, finishReason: "STOP", index: 0 }] }) });
 
-async function boot({ t, ask }: { t: TestContext; ask: boolean }) {
+async function boot({ t, ask }: { t: TestContext; ask: boolean }, { clockFails = () => false }: { clockFails?: () => boolean } = {}) {
   const requests: Record<string, unknown>[] = [];
+  const logged: Array<{ code: string; diagnostic: unknown }> = [];
   const deps = createRouteDeps();
+  // A clock that can be switched off mid-test: the module binds its clock once, at creation.
+  const clock = Object.assign(Object.create(deps.clock) as typeof deps.clock, {
+    nowMs: () => { if (clockFails()) throw new Error("clock offline"); return deps.clock.nowMs(); } });
   await deps.siteTitleReady;
   await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
@@ -50,11 +54,12 @@ async function boot({ t, ask }: { t: TestContext; ask: boolean }) {
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule({ deps: { ...deps, siteAssistantErrorLog: () => {} } as typeof deps, reporter: createRouteIncidentReporter().reporter },
-    { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" } }).registerRoutes?.({ app });
+  const handle = createSiteAssistantModule({ deps: { ...deps, clock, siteAssistantErrorLog: (entry: { code: string; diagnostic: unknown }) => { logged.push(entry); } } as typeof deps, reporter: createRouteIncidentReporter().reporter },
+    { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" } });
+  handle.registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   siteOrigin = new URL(baseUrl);
-  return { baseUrl, requests };
+  return { baseUrl, requests, deps, handle, logged };
 }
 
 /** A visitor tab's approval identity: guest cookie + tab credential, and NO page publication. */
@@ -190,4 +195,47 @@ test("a visitor resume with new messages, multiple answers or a foreign origin d
   assert.equal(continued.status, 200);
   assert.equal(events(await continued.text()).at(-1)?.type, "RUN_FINISHED");
   assert.equal(requests.length, 2);
+});
+
+test("process shutdown denies a parked approval: the held call ends and a later answer is the expired request", { timeout: 10_000 }, async (t) => {
+  const { baseUrl, requests, handle, logged } = await boot({ t, ask: true });
+  const tab = await guestTab(baseUrl);
+  const interruptId = await interruptOf(await start(baseUrl, tab));
+  handle.shutdown();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(requests.length, 1, "the held call ended: the model gets no continuation");
+  const late = await resume(baseUrl, tab, interruptId, "allow");
+  assert.deepEqual([late.status, (await late.json() as { error: string }).error], [400, VISITOR_APPROVAL_EXPIRED]);
+  assert.equal(requests.length, 1);
+  assert.deepEqual(logged.map((entry) => [entry.code, String(entry.diagnostic)]), [["provider_error", "The operation was aborted"]],
+    "the only incident is the held provider call being aborted; the denial itself succeeded");
+});
+
+test("a shutdown denial that fails is logged once as a visitor_tools_confirm incident", { timeout: 10_000 }, async (t) => {
+  let clockDown = false;
+  const { baseUrl, requests, handle, logged } = await boot({ t, ask: true }, { clockFails: () => clockDown });
+  const tab = await guestTab(baseUrl);
+  await interruptOf(await start(baseUrl, tab));
+  clockDown = true;
+  handle.shutdown();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  clockDown = false;
+  const confirmIncidents = logged.filter((entry) => entry.code === "visitor_tools_confirm");
+  assert.equal(confirmIncidents.length, 1);
+  assert.match(String(confirmIncidents[0]?.diagnostic), /clock offline/);
+  assert.equal(requests.length, 1, "the held call still ended: no continuation reached the model");
+});
+
+/** A visitor tab's credential request, sent from `origin` as a same-origin fetch. */
+const canonicalCredentials = (baseUrl: string, origin: string) => fetch(`${baseUrl}/api/site-assistant/frontend-sessions/credentials`, {
+  method: "POST", headers: { origin, "sec-fetch-site": "same-origin" } });
+
+test("a canonical-origin lookup that fails refuses the visitor credential and logs one visitor_frontend_control incident", { timeout: 10_000 }, async (t) => {
+  const { baseUrl, deps, logged } = await boot({ t, ask: false });
+  deps.originRegistry.canonicalOrigin = async () => { throw new Error("origin registry offline"); };
+  const refused = await canonicalCredentials(baseUrl, "https://shop.example");
+  assert.equal(refused.status, 403);
+  assert.equal(refused.headers.get("set-cookie"), null);
+  assert.deepEqual(logged.map((entry) => entry.code), ["visitor_frontend_control"]);
+  assert.match(String(logged[0]?.diagnostic), /origin registry offline/);
 });
