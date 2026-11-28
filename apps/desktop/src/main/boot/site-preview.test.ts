@@ -196,3 +196,25 @@ test('an HTTPS preview accepts localhost only and requires the site\'s assigned 
   assert.deepEqual(h.resizes, [{ width: 640 }]);
   assert.deepEqual(h.writes, [{ siteDir: '/sites/alpha', png: Buffer.from('png') }]);
 });
+
+test('a page path with broken percent-encoding fails closed before capturePage', async () => {
+  const h = captureHarness();
+  h.url('http://127.0.0.1:8123/%E0%A4%A');
+  assert.equal(await h.capture(target), false);
+  assert.equal(h.captureCalls(), 0);
+  assert.deepEqual(h.warnings, [], 'an unreadable path is not a capture failure');
+});
+
+test('a capture that rejects with a bare value is warned about by that value and stores nothing', async () => {
+  const warnings: string[] = [];
+  const writes: unknown[] = [];
+  const capture = createSitePreviewCapture({ ports: {
+    liveGuest: () => ({ partition: target.partition, getURL: () => 'http://127.0.0.1:8123/about', isCurrent: () => true,
+      capturePage: () => Promise.reject('renderer gone') }),
+    writePreview: (input) => { writes.push(input); return 1; },
+    warn: ({ message }) => warnings.push(message),
+  } });
+  assert.equal(await capture(target), false);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(warnings, ['tovu desktop: could not capture a preview for /sites/alpha — renderer gone']);
+});

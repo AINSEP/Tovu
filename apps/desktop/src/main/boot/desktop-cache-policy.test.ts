@@ -287,3 +287,21 @@ test("with version inference off, a fresh launch preserves code cache until an e
   assert.equal(fs.existsSync(entry), false);
   assert.equal(fs.readFileSync(path.join(dir, "Cookies"), "utf8"), "cookie-jar");
 });
+
+test("one partition pass runs the code-cache update once, however many partitions ask", async (t) => {
+  const { userData, name, dir } = profileWithPartition();
+  t.after(() => fs.rmSync(userData, { recursive: true, force: true }));
+  const marker = desktopMaintenanceMarker({ userDataDir: userData, fs });
+  await marker.writeLaunchVersion({ version: "1.0.0" });
+  const { writer, cacheFs } = bootDeps({ userData });
+  const codeCache = bindDesktopCodeCache({
+    appVersion: "2.0.0", argv: [], launchMode: () => "update", marker, fs: cacheFs, evidence: GO,
+    interlock: { readHoldersStrict: unheld, newToken, isManaged: (candidate) => candidate === name, clock: noClock },
+    measure: async () => assert.fail("boot does not measure code cache"), sessionDataDir: userData,
+  });
+  const first = codeCache.bootMaintenance({ partition: name, path: dir, classification: "tracked", writer });
+  const second = codeCache.bootMaintenance({ partition: "other", path: path.join(userData, "Partitions", "other"), classification: "tracked", writer });
+  assert.equal(second, first, "the same pass shares the in-flight run");
+  assert.deepEqual(await second, { state: "ran", update: true, cleared: [name], kept: [] });
+  assert.equal(fs.existsSync(path.join(dir, "Code Cache", "js")), false);
+});

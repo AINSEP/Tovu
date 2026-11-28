@@ -323,3 +323,32 @@ test('a failed reviewed disconnect returns the apply refusal and does not run an
     { action: 'disconnect', fields: { id: 'oauth', expectedRevision: 5, apply: true, expectedDigest: 'canonical-review' } },
   ]);
 });
+
+test('a refused disconnect review is returned as is: nothing is confirmed and nothing is applied', async () => {
+  const calls: Parameters<Run>[0][] = [];
+  const asked: unknown[] = [];
+  const refusal = { version: 1, ok: false, action: 'disconnect', error: { code: 'not-found', message: 'That shared connection no longer exists.' } } as const;
+  const controller = createOwnerStoreController({
+    run: async (input) => { calls.push(input); return refusal as OwnerStoreReply<typeof input.action>; },
+    pickBackup: async () => null, confirmImport: async () => false,
+    confirmDisconnect: async ({ report }) => { asked.push(report); return true; },
+  });
+  assert.deepEqual(await controller.execute({ action: 'disconnect', input: { id: 'oauth', expectedRevision: 3 } }), refusal);
+  assert.deepEqual(asked, []);
+  assert.deepEqual(calls, [{ action: 'disconnect', fields: { id: 'oauth', expectedRevision: 3, apply: false } }]);
+});
+
+test('the import confirmation counts several keys in the plural and adds no empty sections', () => {
+  const { message, detail } = importConfirmation({ report: { applied: false, pending: [], items: [
+    { id: 'a', label: 'Mail', kind: 'vendor', provider: 'resend', status: 'new' },
+    { id: 'b', label: 'Assistant', kind: 'site-assistant', provider: null, status: 'new' }] } });
+  assert.equal(message, 'Import 2 keys into your project?');
+  assert.equal(detail, ['Imports into your project:', '• Mail (resend)', '• Assistant', '',
+    'No site is changed, no default key changes, and the source is never modified.'].join('\n'));
+});
+
+test('the disconnect confirmation says so when no site uses the shared connection', () => {
+  const { detail } = disconnectConfirmation({ report: { id: 'oauth', label: 'Calendar', sites: [], revision: 1, sourceDigest: 'none',
+    applied: false, status: 'connected', remoteRevocation: 'pending' } });
+  assert.equal(detail.split('\n\n').slice(0, 2).join('\n\n'), 'Calendar\n\nNo sites currently use this shared connection.');
+});
