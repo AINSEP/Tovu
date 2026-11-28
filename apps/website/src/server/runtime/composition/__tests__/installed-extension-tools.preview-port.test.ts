@@ -8,6 +8,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 import { CONTENT_ANALYZER_MANIFEST } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { PostNotFoundError } from "@jini-ai/cms/posts/post";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { InstalledExtensionToolDeps } from "#src/assistant/installed-extension-tools";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
@@ -30,7 +31,7 @@ const RECORD: PluginDiscoveryRecord = {
   manifest: CONTENT_ANALYZER_MANIFEST,
 };
 
-async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Promise<Record<string, unknown>> {
+async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>, postId = "post-1"): Promise<Record<string, unknown>> {
   const workspaceId = randomUUID();
   const registrations: ToolRegistration[] = [];
   const registry = { register: (registration: ToolRegistration) => void registrations.push(registration) };
@@ -61,7 +62,7 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
     }), log: "[preview-port-test]" });
   const tool = registrations.find((registration) => registration.descriptor.id === "plugin_capability_content_analyzer");
   assert.ok(tool, "the enabled tier-2 plugin's capability tool must be registered");
-  return (await tool.handler({ input: { postId: "post-1" }, principal: { id: "owner" }, run: { id: "run-1" } } as never)) as Record<string, unknown>;
+  return (await tool.handler({ input: { postId }, principal: { id: "owner" }, run: { id: "run-1" } } as never)) as Record<string, unknown>;
 }
 
 test("the daemon's capability tool runs a tier-2 plugin fresh through the injected preview binding", async () => {
@@ -74,4 +75,12 @@ test("without a preview binding the same tool reads the stored value", async () 
   const result = await callAnalyzerTool({});
   assert.equal(result.computedNow, false);
   assert.equal((result.fields as Record<string, unknown>).score, 12);
+});
+
+test("the capability tool refuses a post that does not exist with a not-found error naming it", async () => {
+  await assert.rejects(callAnalyzerTool({}, "post-missing"), (error: unknown) => {
+    assert.ok(error instanceof PostNotFoundError);
+    assert.match(error.message, /post 'post-missing' was not found/);
+    return true;
+  });
 });
