@@ -9,6 +9,7 @@ import express from "express";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import { freshThemePreviewHtml } from "@jini-ai/cms/public-http/middleware/theme-preview-refresh";
 import { createThemePreviewMiddleware } from "../theme-preview-refresh.js";
+import { assertReporterDiagnostics, recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 
 test("preview assets get a unique directory, preserving relative imports and existing queries", () => {
   const html =
@@ -344,6 +345,7 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   const logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const { fs, path, themesDir, reload, deps } = await bootServerRoster(t);
+  const { reporter, records, reports } = recordingComposedReporter();
   const ok = createCapturingResponse();
   ok.res.locals.principal = { id: "owner" };
   await reload({ params: { workspaceId: "ws" } }, ok.res);
@@ -356,16 +358,19 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   (deps as { themesDir: string }).themesDir = blocker;
   const failed = createCapturingResponse();
   failed.res.locals.principal = { id: "owner" };
+  failed.res.locals.failureReporter = reporter;
   await reload({ params: { workspaceId: "ws" } }, failed.res);
   assert.equal(failed.capture.statusCode, 500);
   const body = failed.capture.jsonBody as { error: string; errorId: string };
   assert.match(body.error, /The preview could not be reloaded/);
   assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET/);
-  const entry = logs.find(args => args[0] === "[theme-preview:refresh]"); assert.ok(entry, "the failure is logged");
-  const detail = entry[1] as { errorId: string; diagnostic: string };
+  // The composed reporter is the failure's one sink (host record + tracker report).
+  assertReporterDiagnostics({ records, operation: "theme-preview:refresh", diagnostics: [/boom/] });
+  const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, body.errorId);
-  assert.match(detail.diagnostic, /boom/);
+  assert.equal(reports.length, 1, "one tracker report");
+  assert.ok(!JSON.stringify(logs).includes(detail.errorId), "no legacy console sink line for this incident");
   // The native stack is kept. The handler resumes after an await, so no frame of this test file is on it any
   // more; the failing call chain inside the product is the proof.
   assert.match(detail.diagnostic, /at requestThemePreviewRefresh \(.*refresh\.node\.(?:ts|js)/);

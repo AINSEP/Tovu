@@ -15,7 +15,7 @@ const readFileSync: typeof fs.readFileSync = ((file: Parameters<typeof fs.readFi
 }) as typeof fs.readFileSync;
 mock.module('node:fs', { namedExports: { ...fs, readFileSync }, defaultExport: { ...fs, readFileSync } });
 const { applySiteCookieConsent } = await import('../site-cookie-consent.js');
-const { composedReporterProbe, secretBearingError } = await import('#src/server/__tests__/helpers/composed-reporter-probe');
+const { assertReporterDiagnostics, composedReporterProbe, recordingComposedReporter, secretBearingError } = await import('#src/server/__tests__/helpers/composed-reporter-probe');
 
 test('consent failures retain redacted diagnostics and public incident references', async (t) => {
   const warnings: unknown[][] = []; const errors: unknown[][] = [];
@@ -60,18 +60,20 @@ test('consent failures retain redacted diagnostics and public incident reference
       failRead = route.startsWith('POST');
       const handler = handlers.get(route); assert.ok(handler, `${route} is registered`);
       let status = 200; let body: unknown;
-      const res = { locals: {}, status(value: number) { status = value; return res; }, set() { return res; }, type() { return res; }, json(value: unknown) { body = value; return res; }, send(value: unknown) { body = value; return res; } };
+      const { reporter, records, reports } = recordingComposedReporter();
+      const res = { locals: { failureReporter: reporter }, status(value: number) { status = value; return res; }, set() { return res; }, type() { return res; }, json(value: unknown) { body = value; return res; }, send(value: unknown) { body = value; return res; } };
       const req = { body: Buffer.from('PRIVATE_VISITOR_BODY'), method: route.split(' ')[0], originalUrl: '/_consent', get: () => undefined, ip: '127.0.0.1' };
       await handler(req as unknown as Request, res as unknown as Response);
       assert.equal(status, 503);
       const text = typeof body === 'string' ? body : JSON.stringify(body);
       assert.match(text, new RegExp(visible));
-      const entry = errors.find(args => args[0] === `[${operation}]`); assert.ok(entry, `${operation} is reported`);
-      const detail = entry[1] as { errorId: string; diagnostic: string };
+      // The composed reporter is each failure's one sink (host record + tracker report).
+      assertReporterDiagnostics({ records, operation, diagnostics: [/boom[\s\S]*site-cookie-consent\.errors\.unit\.test\.ts/] });
+      assert.equal(reports.length, 1, `${operation} is reported once to the tracker`);
+      const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
       assert.match(text, new RegExp(detail.errorId));
-      assert.match(detail.diagnostic, /boom/);
-      assert.match(detail.diagnostic, /site-cookie-consent\.errors\.unit\.test\.ts/);
       assert.doesNotMatch(JSON.stringify({ body, detail }), /SECRETSECRETSECRETSECRET|PRIVATE_VISITOR_BODY/);
+      assert.ok(!JSON.stringify(errors).includes(detail.errorId), `no legacy console sink line for ${operation}`);
     }
   } finally { failAssets = false; }
 });

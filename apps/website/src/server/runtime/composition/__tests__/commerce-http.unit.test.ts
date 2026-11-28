@@ -4,10 +4,12 @@ import test from 'node:test';
 import express from 'express';
 import type { RouteDeps } from '#src/server/routes/types';
 import { registerCommerceHttp } from '../commerce-http.js';
+import { assertReporterDiagnostics, recordingComposedReporter } from '#src/server/__tests__/helpers/composed-reporter-probe';
 
 test('storefront readiness failure returns its redacted incident reference', async t => {
   const logs: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const { reporter, records, reports } = recordingComposedReporter();
   let handler: ((req: unknown, res: unknown, next: () => void) => Promise<void>) | undefined;
   const app = { use: (route: typeof handler) => { handler = route; } } as unknown as express.Express;
   registerCommerceHttp({ app, deps: { workspaceId: 'workspace', clock: { nowMs: () => 0, nowIso: () => '2026-11-05T00:00:00.000Z' }, commerce: {
@@ -15,18 +17,20 @@ test('storefront readiness failure returns its redacted incident reference', asy
   } } as unknown as RouteDeps });
   assert.ok(handler, 'the storefront guard is registered');
   let status = 0; let body = '';
-  const res = { locals: {}, status(code: number) { status = code; return res; }, type() { return res; }, send(value: string) { body = value; return res; } };
+  const res = { locals: { failureReporter: reporter }, status(code: number) { status = code; return res; }, type() { return res; }, send(value: string) { body = value; return res; } };
   await handler({ path: '/products' }, res, () => assert.fail('the failure must be answered'));
   assert.equal(status, 503);
   assert.match(body, /The shop catalog is temporarily unavailable/);
   const match = /Reference: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/.exec(body); assert.ok(match, 'the visitor receives an incident reference');
   assert.doesNotMatch(body, /boom|SECRETSECRETSECRETSECRET/);
-  const entry = logs.find(args => args[0] === '[commerce:storefront]'); assert.ok(entry, 'the incident is logged');
-  const detail = entry[1] as { errorId: string; diagnostic: string };
+  // The composed reporter is the incident's one sink (host record + tracker report); no legacy console line.
+  assertReporterDiagnostics({ records, operation: 'commerce:storefront', diagnostics: [/boom[\s\S]*commerce-http\.unit\.test\.ts/] });
+  const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, match[1]);
-  assert.match(detail.diagnostic, /boom/);
-  assert.match(detail.diagnostic, /commerce-http\.unit\.test\.ts/);
   assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
+  assert.equal(reports.length, 1, 'one tracker report');
+  assert.doesNotMatch(JSON.stringify(reports, (_k, v: unknown) => v instanceof Error ? { message: v.message, stack: v.stack } : v), /SECRETSECRETSECRETSECRET/);
+  assert.ok(!JSON.stringify(logs).includes(match[1]), 'no legacy console sink line for this incident');
 });
 
 test('disabled commerce lets published product and commerce paths reach the CMS', async t => {
