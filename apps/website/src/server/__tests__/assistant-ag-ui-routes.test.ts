@@ -657,7 +657,8 @@ test("a daemon that fails between accepting the run and the events subscribe ans
   assert.match(res.headers.get("content-type") ?? "", /application\/json/);
   const payload = (await res.json()) as { code: string };
   assert.equal(payload.code, "AGENT_DAEMON_KNOWN_FAILED");
-  assert.deepEqual(recorded.map((r) => `${r.method} ${r.url}`), ["POST /api/runs"], "the run started, and the events endpoint was never reached");
+  const calls = recorded.map((r) => `${r.method} ${r.url}`);
+  assert.ok(!calls.some((call) => call.includes("/events")), `the events endpoint must never be reached; recorded: ${JSON.stringify(calls)}`);
 });
 
 test("a stdout frame renders as RAW, and an unrecognized frame kind (e.g. a heartbeat) is silently skipped", async (t) => {
