@@ -379,3 +379,61 @@ test("a saved key whose provider column is empty is named by its label and site 
     assert.equal(row.keyId.endsWith(":vercel-a"), true);
   } finally { await f.close(); }
 });
+
+test("a source site whose meta file moves it off SQLite is not opened as SQLite: one locked row, and its key id is refused", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Deploy");
+    const metaPath = path.join(f.a.dir, ".site-meta.json");
+    const meta = JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;
+    fs.writeFileSync(metaPath, JSON.stringify({ ...meta, storage: { kind: "pglite" } }));
+    // A readable SQLite vault, holding the key, stays where a non-SQLite site's paths point.
+    await f.a.kernel.execute(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
+    fs.copyFileSync(f.a.dbPath, path.join(f.a.dir, "content.db"));
+    const unreadable = "site-a can't be read right now. Open it in Tovu, then try again. Details: P25_SITE_KEYS_UNREADABLE; secret values omitted.";
+    const choices = await f.siteKeys.list({});
+    assert.deepEqual(choices.filter(row => row.siteName === "site-a"),
+      [{ keyId: "saved-on-site:site-a:", kind: "vendor", name: "Keys saved on site-a", siteName: "site-a", locked: unreadable }],
+      "the SQLite file left in the site folder is not read");
+    await assert.rejects(f.siteKeys.adopt({ keyId: "saved-on-site:site-a:vercel-a" }), (error: Error) => {
+      assert.equal(error.name, "ToolInputError");
+      assert.equal(error.message, unreadable);
+      return true;
+    });
+    assert.deepEqual(await f.projectRows(), []);
+  } finally { await f.close(); }
+});
+
+test("a saved key with no stored value is listed but refused on adopt as empty, adding nothing", async () => {
+  const f = await fixture();
+  try {
+    await f.a.service.put({ workspaceId: f.a.id, kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, id: "vercel-empty", expectedRevision: null,
+      provider: "vercel", label: "Deploy", meta: vendorMeta, payload: null });
+    const row = siteRow(await f.siteKeys.list({}), "Vercel, Deploy, site-a");
+    assert.equal(row.locked, undefined, "metadata alone cannot tell the value is missing");
+    await assert.rejects(f.siteKeys.adopt({ keyId: row.keyId }), (error: Error) => {
+      assert.equal(error.name, "ToolInputError");
+      assert.equal(error.message, "This saved key on site-a is empty. Save it there again, then try again. Details: P25_SITE_KEY_EMPTY.");
+      return true;
+    });
+    assert.deepEqual(await f.projectRows(), []);
+  } finally { await f.close(); }
+});
+
+test("a key whose value has no token field is adopted without a hint and never merged into an empty Shared Key with the same hints", async () => {
+  const f = await fixture();
+  try {
+    await f.project.put({ workspaceId: "project", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, id: "deploy-empty", expectedRevision: null,
+      provider: "vercel", label: "Deploy", meta: vendorMeta, payload: null });
+    const payload = { vendorId: "vercel", apiKey: "fake-one" };
+    await f.a.service.put({ workspaceId: f.a.id, kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, id: "deploy-a", expectedRevision: null,
+      provider: "vercel", label: "Deploy", meta: vendorMeta, payload });
+    const adopted = await f.siteKeys.adopt({ keyId: "saved-on-site:site-a:deploy-a" });
+    assert.equal(adopted.keyId, "deploy-a", "a new Shared Key, not the empty one whose hints also read null");
+    const stored = await f.project.get({ workspaceId: "project", id: "deploy-a", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null });
+    assert.deepEqual(stored?.payload, payload);
+    assert.deepEqual([stored?.summary.label, stored?.summary.last4, stored?.summary.tokenLength], ["Deploy (site-a)", null, null]);
+    const empty = await f.project.get({ workspaceId: "project", id: "deploy-empty", kind: "vendor", ownerKey: "tovu", principalId: null, binding: null });
+    assert.equal(empty?.payload, null, "the empty Shared Key is left empty");
+  } finally { await f.close(); }
+});
