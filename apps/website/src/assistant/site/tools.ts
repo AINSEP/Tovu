@@ -165,7 +165,8 @@ function extractText({ node }: { node: unknown }, { out = [], budget = { left: M
  *  @complexity O(n) in the body's node count or HTML length. */
 function entryText(post: PostRecord): string {
   if (post.bodyFormat === "html") return htmlToText({ html: post.bodyHtml ?? "" }).replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_CHARS);
-  return extractText({ node: post.bodyJson }).join(" ").trim();
+  // The per-node budget does not count the join separators, so cap the joined prose as the html branch does.
+  return extractText({ node: post.bodyJson }).join(" ").trim().slice(0, MAX_TEXT_CHARS);
 }
 
 export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options = {}) {
