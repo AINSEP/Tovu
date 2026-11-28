@@ -267,3 +267,21 @@ test("a listed item that expires while its confirmation is still live is reliste
   assert.deepEqual(h.calls, { removed: [], trashed: [], dialogs: 0 });
   assert.deepEqual(errors, [], "the missing target is an answered relist, not a caught exception");
 });
+
+test("a dismissed folder that no longer exists is kept as changed, and nothing is trashed", async (t) => {
+  const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const deps = trashDeps(root); // "old" is dismissed but was never created on disk
+  assert.deepEqual(await bindTrashDismissedFolder(deps)({ dir: path.join(root, "old") }), { state: "kept", reason: "changed" });
+  assert.deepEqual(deps.trashed, []);
+});
+
+test("a damaged tracked list keeps the folder as unknown without touching the disk", async (t) => {
+  const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "old"));
+  const deps = trashDeps(root, { readTrackedStrict: async () => ({ state: "unknown" }) });
+  assert.deepEqual(await bindTrashDismissedFolder(deps)({ dir: path.join(root, "old") }), { state: "kept", reason: "unknown" });
+  assert.deepEqual(deps.trashed, []);
+  assert.equal(fs.existsSync(path.join(root, "old")), true);
+});

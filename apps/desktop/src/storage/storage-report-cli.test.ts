@@ -90,3 +90,27 @@ test("capabilities reject non-string operations and reports reject malformed cla
     stdout: JSON.stringify({ ...REPORT, totalBytes: null, classes: { automatic: { bytes: null, files: 2 } } }),
   }), { state: "ok", report: { totalBytes: null, knownBytes: 30, classes: { automatic: { bytes: null, files: 2 } } } });
 });
+
+test("a report whose classes are not a name-keyed object is unknown", () => {
+  for (const classes of [null, [{ bytes: 1, files: 1 }], "automatic", undefined]) {
+    assert.deepEqual(projectStorageReport({ stdout: JSON.stringify({ ...REPORT, classes }) }), { state: "unknown" }, String(classes));
+  }
+});
+
+test("a report child that fails or exits nonzero is unknown, and its slot is released for the next site", async () => {
+  const replies = [{ state: "failed" as const }, { state: "exited" as const, code: 2, stdout: JSON.stringify(REPORT) }, { state: "exited" as const, code: 0, stdout: JSON.stringify(REPORT) }];
+  const asked: string[][] = [];
+  const report = bindStorageReports({ runCli: async ({ cliArgs }) => { asked.push([...cliArgs]); return replies.shift()!; } });
+  assert.deepEqual(await report({ dir: "/sites/a" }), { state: "unknown" });
+  assert.deepEqual(await report({ dir: "/sites/b" }), { state: "unknown" });
+  assert.equal((await report({ dir: "/sites/c" })).state, "ok");
+  assert.deepEqual(asked, [["storage", "report", "/sites/a", "--json"], ["storage", "report", "/sites/b", "--json"], ["storage", "report", "/sites/c", "--json"]]);
+});
+
+test("a CLI binary that vanished before spawn reports failed from the child's error event", async () => {
+  const runCli = bindRunCli({
+    planFor: () => ({ command: "/nonexistent/tovu-storage-cli", args: [] }),
+    spawn: ({ command, args }) => spawn(command, [...args], { stdio: ["ignore", "pipe", "ignore"] }), // ENOENT arrives as an event, not a throw
+  });
+  assert.deepEqual(await runCli({ cliArgs: ["storage", "report", "/sites/a", "--json"] }), { state: "failed" });
+});
