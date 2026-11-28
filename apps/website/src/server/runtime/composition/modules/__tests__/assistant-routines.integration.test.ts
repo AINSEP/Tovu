@@ -512,3 +512,17 @@ test("an injected run handler builder wins over the composed starter", async (t)
     assert.deepEqual(h.starts, [], "the composed starter is not used when a handler builder is injected");
   } finally { await h.close(); }
 });
+
+test("a scheduled slot whose starter throws is reported through the composed log under the scheduler's code and the error type only", async (t) => {
+  const contentDbPath = tempSite(t);
+  await seedRoutine(contentDbPath);
+  const logged: Array<{ event: string; error: unknown }> = [];
+  const h = harness(t, { contentDbPath, log: (entry) => { logged.push(entry); }, runStarter: async () => { throw new Error("starter down"); } });
+  try {
+    await h.compose();
+    await h.clock.advance(2 * 60 * 60_000);
+    assert.ok(logged.length >= 1, "the failed slot was logged");
+    assert.deepEqual([...new Set(logged.map((entry) => JSON.stringify(entry)))], [JSON.stringify({ event: "ROUTINE_RUN_FAILED", error: "Error" })]);
+    assert.doesNotMatch(JSON.stringify(logged), /starter down/, "only the error's type reaches the log");
+  } finally { await h.close(); }
+});
