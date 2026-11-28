@@ -322,6 +322,13 @@ test("a dir is matched on a whole segment, and a root file is under no src area"
 test("an area with no dirs or no extensions owns nothing", () => {
   assert.equal(areaOwns({ area: { id: "empty" }, file: "src/a.ts" }), false);
   assert.equal(areaOwns({ area: { id: "no-ext", dirs: ["src"] }, file: "src/a.ts" }), false);
+  assert.equal(areaOwns({ area: { id: "no-dirs", extensions: [".ts"] }, file: "src/a.ts" }), false);
+});
+
+test("an area without excludeDirs owns every matching file under its dirs", () => {
+  const area = { id: "plain", dirs: ["src"], extensions: [".ts"] };
+  assert.equal(areaOwns({ area, file: "src/renderer/deep/a.ts" }), true);
+  assert.equal(areaOwns({ area, file: "scripts/a.ts" }), false);
 });
 
 test("every file owned exactly once is a clean inventory", () => {
@@ -583,4 +590,20 @@ test("summary-only ties keep the first image independently for each axis", () =>
     ["LF:12", "LH:5", "BRF:7", "BRH:2", "FNF:4", "FNH:1"],
     ["LF:8", "LH:5", "BRF:4", "BRH:3", "FNF:2", "FNH:1"],
   ), { lf: 12, lh: 5, brf: 4, brh: 3, fnf: 4, fnh: 1 });
+});
+
+test("a record with entries but no summary counters reads zero totals and keeps its entries", () => {
+  const image = readLcovImage({ record: ["SF:src/a.ts", "DA:1,1", "DA:2,0"].join("\n") });
+  assert.deepEqual({ found: image.line.found, hit: image.line.hit }, { found: 0, hit: 0 });
+  assert.deepEqual([...image.line.entries], [["1", 1], ["2", 0]]);
+});
+
+test("a summary-only second image cannot be unioned with an entry-bearing first one; the higher hit wins", () => {
+  assert.deepEqual(counted(["DA:1,1", "DA:2,0", "LF:2", "LH:1"], ["LF:10", "LH:3"]), { lf: 10, lh: 3, brf: 0, brh: 0, fnf: 0, fnh: 0 });
+  assert.deepEqual(counted(["DA:1,1", "DA:2,1", "LF:2", "LH:2"], ["LF:10", "LH:1"]), { lf: 2, lh: 2, brf: 0, brh: 0, fnf: 0, fnh: 0 });
+});
+
+test("an entry only the second image carries joins the union instead of being dropped", () => {
+  // Two images of one file can disagree on their line tables (the tsx pass moves lines).
+  assert.deepEqual(counted(["DA:1,1", "LF:1", "LH:1"], ["DA:1,0", "DA:2,4", "LF:2", "LH:1"]), { lf: 2, lh: 2, brf: 0, brh: 0, fnf: 0, fnh: 0 });
 });
