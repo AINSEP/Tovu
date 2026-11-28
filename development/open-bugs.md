@@ -2389,3 +2389,8 @@ Fixed unless marked OPEN.
 - **FIXED (test, Codex):** Tovu admin `folder-zip-port` wiring assertion rendered `useWiredPlugins` without the AdminKit provider tree.
 - **OPEN (pre-existing, red on merge-27 too; production-pointing):** github overlay `source-control-credential.test.mjs` imports `resolveDefaultForSourceControl`, which `store.ts` does not export (SyntaxError on import); `form-file-cleanup-wiring` throws `paths[0] is undefined` (delayed form cleanup gets no path); `site-chat-selection` hits `InMemorySettingsRepo.transaction is not reentrant`; railway overlay `deploy-config` `line.includes is not a function`; `no-raw-sqlite` ratchet red (new raw SQLite outside the kernel).
 - **OPEN:** chat P26 test still asserts `{ runId: "ag:empty" }` while production now rejects an empty AG-UI stream with "The assistant stopped before replying. Send your message again." (also `ag-ui/interrupts.test.ts`).
+
+## gap-fill-1127-B3 (2026-11-28) — Jini user-management + integrations coverage
+- **FIXED (Jini codex/w62-cov-int-2 2b387da8):** `packages/integrations/src/web-screenshot/web-screenshot.ts` ~395 leaked the own-site loopback server when `ownSiteUrl` threw ("sitePath must stay on this site") before the try/finally that closes it. The failing test was written first, then the URL computation was moved inside the try.
+- **FIXED (test):** the user-management package build (`tsc` compiles `src/**/__tests__`) failed on codex/w62-cov-um-1 because of B2 test type errors (c189f48d).
+
