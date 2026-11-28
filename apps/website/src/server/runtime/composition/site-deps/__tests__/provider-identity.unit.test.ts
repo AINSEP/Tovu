@@ -137,3 +137,33 @@ test("the project vault's replace repo re-checks the site's grant and replaces t
   assert.equal(put, "rev-3");
   assert.deepEqual(events, ["tx:begin", "attached?:site-pi-1:key-9", "find:key-9", "put:key-9", "tx:end"]);
 });
+
+/** The AAD the project vault seals an owner `vendor` key under, as `siteGrantedSealer` parses it. */
+const VENDOR_KEY_AAD = `secrets-vault:v1:${JSON.stringify(["project", "key-9", "vendor", "tovu", null, null])}`;
+
+async function projectSealer(events: string[], attached: boolean) {
+  const projectStore = recordingProjectStore(events);
+  projectStore.attachments.isAttached = async ({ siteId, keyId }) => { events.push(`attached?:${siteId}:${keyId}`); return attached; };
+  const sealer = { seal: async () => "sealed", open: async () => { events.push("open"); return "plain-9"; } };
+  const store = { ...projectStore, vault: { ...projectStore.vault, sealer } };
+  const result = await composeProviderConfig(input({ openProjectStore: async () => store } as unknown as Input["overrides"], "local", []));
+  const projectVaultSealer = result.projectVault?.sealer;
+  assert.notEqual(projectVaultSealer, undefined);
+  return { open: () => projectVaultSealer!.open({ ciphertext: "c" } as unknown as Parameters<NonNullable<typeof projectVaultSealer>["open"]>[0], { aad: VENDOR_KEY_AAD }) };
+}
+
+test("the project vault's sealer opens an owner key only while this site's grant for that key stands, checked before and after", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const events: string[] = [];
+  const { open } = await projectSealer(events, true);
+  assert.equal(await open(), "plain-9");
+  assert.deepEqual(events, ["attached?:site-pi-1:key-9", "open", "attached?:site-pi-1:key-9"]);
+});
+
+test("the project vault's sealer refuses an owner key this site is no longer attached to, without decrypting it", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const events: string[] = [];
+  const { open } = await projectSealer(events, false);
+  await assert.rejects(open(), { message: "This site no longer has access to this saved key. Open Use a saved key to approve access again." });
+  assert.deepEqual(events, ["attached?:site-pi-1:key-9"]);
+});
