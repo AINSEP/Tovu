@@ -4,3 +4,7 @@ IN PROGRESS run C3b | jobs 0/2 | started 2026-11-28 00:02 UTC
 
 Setup done 00:25 UTC: Node 24.22.3 (/opt/node24), Jini integ/merge-28-2026-11-26 d1ced6c5 `pnpm install --frozen-lockfile` + `pnpm -r build` green; Tovu `npm ci --ignore-scripts` (root, site-chat), link:jini, `tsc -p` contracts + sdk.
 Wave 1 (00:27 UTC): 4 subagents — 13a (non-site-deps composition), 13b (composition/site-deps/*), 14a (runtime lifecycle/configuration/composition), 14b (packages/contracts, packages/sdk, plugin-tier2). Each in its own worktree off the job branch.
+- 00:55 UTC 14b returned (commit 0bf9ae65, pushed): contracts/sdk/plugin-tier2 slice closed except unreachable content-chat-title.ts :15/:49 (refactor candidate).
+- 01:05 UTC 14a first commit cherry-picked and pushed (57df32fa). 13a first commit pushed to codex/tv-w62-cov-web-13 (33a1e8dc).
+- 01:10 UTC 14c dispatched on the configuration/composition/small-lifecycle rows; returned 01:15: all 12 at 100/100/100 with importers (no tests needed).
+- 01:17 UTC 14d dispatched: triage the 3 red tests in job 14's files (webhook x2, production-readiness-boot AC-23/24).
