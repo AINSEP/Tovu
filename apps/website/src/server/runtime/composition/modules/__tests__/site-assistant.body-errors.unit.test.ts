@@ -106,3 +106,20 @@ test("an error raised after the chat reply has started is handed on, never answe
   assert.notEqual(seen, 500, "no public error answer was attempted on the begun reply");
   assert.deepEqual(logged, [], "the visitor chat error handler did not answer the request");
 });
+
+/** A middleware ahead of the chat route that has already begun the reply, as a proxy or early-hints layer can. */
+const replyAlreadyBegun = (app: express.Express) => {
+  app.use(CHAT, (_req, res, next) => { res.writeHead(200, { "content-type": "text/plain" }); res.write("started\n"); next(); });
+};
+
+test("a turn that fails on a reply already begun upstream still ends that reply with one error frame", { timeout: 5_000 }, async (t) => {
+  const { baseUrl, logged } = await boot(t, createRouteDeps(), { before: replyAlreadyBegun });
+  const res = await fetch(`${baseUrl}${CHAT}`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: "hello" }), signal: AbortSignal.timeout(2_000) });
+  const body = await res.text();
+  assert.deepEqual(logged.map(entry => entry.code), ["ASSISTANT_DISABLED", "unavailable"], "the refusal that could not be sent, then the failed turn");
+  assert.match(String(logged[1]!.diagnostic), /ERR_HTTP_HEADERS_SENT/);
+  assert.ok(body.startsWith("started\n"), body);
+  assert.match(body, new RegExp(`event: error\ndata: \\{"code":"unavailable","errorId":"${logged[1]!.errorId}"`), "the begun reply ends with one error frame carrying the logged incident id");
+  assert.equal(body.split("event: error").length, 2, "exactly one error frame");
+});
