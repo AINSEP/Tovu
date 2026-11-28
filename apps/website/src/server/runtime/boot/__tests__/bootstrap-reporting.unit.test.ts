@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { mock, test } from "node:test";
 import type { TovuSeedBundledAgentPluginsResult } from "#src/features/agent-plugins/lifecycle";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "#src/assistant/external-mcp-roster-change";
@@ -16,25 +19,28 @@ let report: TovuSeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcome
 // Boot-warning inputs (plugins plan v2 §3.4): mutated per case, read by bootstrap at call time.
 const selection = new Map<string, string>();
 let activations: { schemaVersion: 1; plugins: Record<string, { enabled: boolean }> } = { schemaVersion: 1, plugins: {} };
-let activationsFailure: Error | undefined;
+let activationsFailure: unknown;
 let installed: { pluginId: string }[] = [];
-let syncFaces = async (): Promise<void> => {};
+type FacesInput = Parameters<typeof faces.syncProviderFaces>[0];
+let syncFaces = async (_input: FacesInput): Promise<void> => {};
+let renamesInput: Parameters<typeof renames.applyAgentPluginToolRenames>[0] | undefined;
+let grantsInput: Parameters<typeof grants.grantDeclaredToolsAtBoot>[0]["deps"] | undefined;
 let lockSoon = async (): Promise<string[]> => [];
 mock.module("#src/features/agent-plugins/lifecycle", { namedExports: { ...lifecycle,
   seedBundledAgentPlugins: async () => { calls.push("seed"); return report; },
   listInstalledPlugins: async () => installed,
   explicitRootAgentPluginActivations: { ...lifecycle.explicitRootAgentPluginActivations,
-    readAgentPluginActivations: async () => { if (activationsFailure) throw activationsFailure; return activations; } },
+    readAgentPluginActivations: async () => { if (activationsFailure !== undefined) throw activationsFailure; return activations; } },
 } });
 mock.module("#src/features/agent-plugins/bundled-catalog", { namedExports: { ...catalog, SELECTED_AGENT_PLUGIN_PACKAGES: selection } });
 mock.module("#src/features/agent-plugins/import-access-token", { namedExports: { ...tokens,
   importAgentPluginAccessTokensFromEnv: async () => { calls.push("tokens"); },
 } });
 mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { ...renames,
-  applyAgentPluginToolRenames: async () => { calls.push("renames"); },
+  applyAgentPluginToolRenames: async (input: Parameters<typeof renames.applyAgentPluginToolRenames>[0]) => { calls.push("renames"); renamesInput = input; },
 } });
 mock.module("@jini-ai/agent-plugins/site/provider-plugin-link", { namedExports: { ...faces,
-  syncProviderFaces: async () => { calls.push("faces"); await syncFaces(); },
+  syncProviderFaces: async (input: FacesInput) => { calls.push("faces"); await syncFaces(input); },
 } });
 mock.module("@jini-ai/agent-plugins/site/soon-lock", { namedExports: { ...soonLock,
   lockSoonAgentPlugins: async () => { calls.push("soon-lock"); return await lockSoon(); },
@@ -45,6 +51,7 @@ mock.module("#src/features/agent-plugins/grant-signed-in-defaults", { namedExpor
     assert.equal(input.workspaceId, bundledDeps.workspaceId);
     assert.equal(input.agentPluginLayout, bundledDeps.agentPluginLayout);
     calls.push("grants");
+    grantsInput = input;
   },
 } });
 const { buildBootModules, bundledAgentPluginBootWarnings } = await import("../bootstrap.js");
@@ -230,4 +237,83 @@ test("a nonempty Soon lock broadcasts the exact lowered roster before importing 
     "info:[bundled-agent-plugins] switched off plugins that aren't ready yet: upcoming-mail, upcoming-docs",
     "roster", "tokens", "renames", "grants",
   ]);
+});
+
+test("non-Error throws from the activations read, face sync and Soon lock are logged by their string form", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  activationsFailure = "activations file is locked";
+  syncFaces = async () => { throw "provider store is busy"; };
+  lockSoon = async () => { throw new Error("soon ledger is offline"); };
+  t.after(() => { syncFaces = async () => {}; lockSoon = async () => []; });
+  t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
+  const module = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" })
+    .find(candidate => candidate.name === "bundled-agent-plugins");
+  assert.ok(module);
+  await module.prepare();
+  assert.deepEqual(calls, [
+    "seed",
+    "warn:[bundled-agent-plugins] could not compare enabled plugins with this build: activations file is locked",
+    "faces",
+    "warn:[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: provider store is busy",
+    "soon-lock",
+    "warn:[bundled-agent-plugins] plugins that aren't ready yet could not be switched off; the next start retries: soon ledger is offline",
+    "tokens", "renames", "grants",
+  ]);
+});
+
+test("face sync reads each provider switch from the activation repo and its ports resolve this workspace's plugin root", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  const root = await mkdtemp(path.join(tmpdir(), "boot-faces-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const layoutReads: { workspaceId: string }[] = [];
+  const activationReads: { workspaceId: string; pluginId: string }[] = [];
+  const switches: Record<string, { enabled: boolean }> = { "pay-on": { enabled: true }, "pay-off": { enabled: false } };
+  t.mock.method(bundledDeps.agentPluginLayout, "forWorkspace", (required: { workspaceId: string }) => { layoutReads.push(required); return { root }; });
+  const facesDeps = { ...bundledDeps,
+    pluginActivationRepo: { getActivation: async (required: { workspaceId: string; pluginId: string }) => { activationReads.push(required); return switches[required.pluginId] ?? null; } },
+  } as unknown as NewsletterRouteDeps;
+  let captured: FacesInput | undefined;
+  syncFaces = async (input) => { captured = input; };
+  t.after(() => { syncFaces = async () => {}; });
+  const module = buildBootModules(facesDeps, { useMemory: true, defaultContentDbPath: () => ":memory:" })
+    .find(candidate => candidate.name === "bundled-agent-plugins");
+  assert.ok(module);
+  await module.prepare();
+  assert.ok(captured);
+  assert.equal(await captured.providerEnabled({ pluginId: "pay-on" }), true);
+  assert.equal(await captured.providerEnabled({ pluginId: "pay-off" }), false);
+  assert.equal(await captured.providerEnabled({ pluginId: "pay-missing" }), false);
+  assert.deepEqual(activationReads, [
+    { workspaceId: "test-workspace", pluginId: "pay-on" },
+    { workspaceId: "test-workspace", pluginId: "pay-off" },
+    { workspaceId: "test-workspace", pluginId: "pay-missing" },
+  ]);
+  layoutReads.length = 0;
+  const links = await captured.ports.links();
+  assert.deepEqual(layoutReads, [{ workspaceId: "test-workspace" }]);
+  assert.equal(links.size, 0);
+});
+
+test("tool renames and declared-tool grants each get a roster notifier that reaches the external MCP roster bus", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  renamesInput = undefined; grantsInput = undefined;
+  const notified: unknown[] = [];
+  onExternalMcpRosterChanged({ key: "boot-roster-notifier", listener: change => { notified.push(change); } });
+  t.after(() => resetExternalMcpRosterChangeListenersForTests());
+  const module = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" })
+    .find(candidate => candidate.name === "bundled-agent-plugins");
+  assert.ok(module);
+  await module.prepare();
+  assert.ok(renamesInput && grantsInput);
+  assert.equal(notified.length, 0);
+  await renamesInput.deps.notifyRosterChanged();
+  assert.equal(notified.length, 1);
+  await grantsInput.notifyRosterChanged();
+  assert.equal(notified.length, 2);
 });
