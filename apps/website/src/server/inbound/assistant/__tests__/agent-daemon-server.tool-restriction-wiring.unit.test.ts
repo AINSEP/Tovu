@@ -30,12 +30,18 @@ import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js"
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-run-launch.ts"), "utf8");
 
 describe("Finding 2 wiring — the spawned assistant's tool grant is actually restricted, not just prompted", () => {
+  // The launch reads the resolver from its ports; createRunStartHandler (agent-daemon-run-start.ts)
+  // imports the shared one and installs it as the port's default.
   test("imports the shared tool policy resolver from assistant-system-overlay.ts", () => {
+    const runStartSource = readFileSync(path.join(import.meta.dirname, "../agent-daemon-run-start.ts"), "utf8");
     assert.match(
-      DAEMON_ENTRY_SOURCE,
+      runStartSource,
       /import\s*\{[^}]*resolveAssistantDisallowedTools[^}]*\}\s*from\s*["'][^"']*assistant-system-overlay(\.js)?["']/,
-      "agent-daemon-server.ts must import the shared resolver, not hardcode a second copy of the list",
+      "agent-daemon-run-start.ts must import the shared resolver, not hardcode a second copy of the list",
     );
+    const handler = runStartSource.slice(runStartSource.indexOf("export function createRunStartHandler("));
+    assert.match(handler, /const ports: RunStartPorts = \{ \.\.\.required,\n[^\n]*\bresolveAssistantDisallowedTools\b/, "createRunStartHandler must install the shared resolver as the launch port's default");
+    assert.match(DAEMON_ENTRY_SOURCE, /const \{[^}]*\bresolveAssistantDisallowedTools\b[^}]*\} = ports;/, "the launch must take the resolver from its ports");
   });
 
 
