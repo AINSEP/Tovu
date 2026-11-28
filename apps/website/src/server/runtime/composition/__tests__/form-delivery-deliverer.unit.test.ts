@@ -15,7 +15,7 @@ import { FormDeliveryError } from "@jini-ai/cms/forms";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 
-import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import { type FormDestinationKit, type FormDestinationRegistry } from "@jini-ai/cms/forms";
 import { ACME_PLUGIN, ACME_WORKSPACE, connectHosted, startAcmeHarness, type AcmeHarness } from "../../../../features/api-connections/__tests__/support/acme-harness.js";
@@ -73,4 +73,61 @@ test("security: a plugin disabled after an attempt delivers nothing on the next:
   await assert.rejects(deliver({ workspaceId: ACME_WORKSPACE, job }), (error: unknown) => error instanceof FormDeliveryError && error.code === "adapter-unavailable" && error.retryable);
   assert.equal(delivered, 1, "nothing was delivered once the plugin was disabled");
   assert.equal(harness.provider.tokenCalls, tokenCalls, "no token was read for the disabled plugin");
+});
+
+test("an owned OAuth ref whose frozen binding names no account fails closed as the forms delivery error configuration-invalid, before any token read", async () => {
+  const host = harness.makeHost();
+  const { connectionRef } = await connectHosted(harness, host);
+  let delivered = 0;
+  const registry = buildFormDestinationRegistry({ refusals: [], loaded: [{ descriptor: { id: "acme-office-rows", label: "Rows", module: "rows.mjs" }, pluginId: ACME_PLUGIN,
+    module: { deliver: async () => { delivered += 1; } } }] });
+  const keyring = new InMemoryKeyring({ hkdfSalt: "form-delivery-deliverer-unit" });
+  const deliver = composeFormDeliveryDeliverer({ apiConnections: { host }, kit, loadRegistry: async () => registry,
+    credentials: { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }) } });
+  const tokenCalls = harness.provider.tokenCalls;
+  const job = { binding: { bindingId: "b1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: {} }, idempotencyKey: "[\"s1\",\"b1\"]",
+    snapshot: { form: { slug: "contact", fields: [{ name: "email", required: true }] }, submission: { id: "s1", answers: { email: "a@example.test" }, submittedAt: "2026-10-20T10:00:00.000Z" } } };
+
+  await assert.rejects(deliver({ workspaceId: ACME_WORKSPACE, job }), (error: unknown) => error instanceof FormDeliveryError && error.code === "configuration-invalid" && !error.retryable);
+  assert.equal(delivered, 0);
+  assert.equal(harness.provider.tokenCalls, tokenCalls, "no token was read");
+});
+
+test("a workspace without this API-connection host delivers with its saved custom credential that works for the adapter", async () => {
+  const host = harness.makeHost();
+  const workspaceId = "site-other";
+  assert.notEqual(workspaceId, ACME_WORKSPACE);
+  const credentials: unknown[] = [];
+  const registry = buildFormDestinationRegistry({ refusals: [], loaded: [{ descriptor: { id: "acme-office-rows", label: "Rows", module: "rows.mjs" }, pluginId: ACME_PLUGIN,
+    module: { deliver: async ({ credential }) => { credentials.push(credential); } } }] });
+  const keyring = new InMemoryKeyring({ hkdfSalt: "form-delivery-deliverer-unit" });
+  const vault = { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }), keyring, clock: { nowMs: () => 0 }, idGen: { newId: () => "cred-rows" } };
+  const saved = await createCustomCredential(vault, { workspaceId, label: "Rows key", category: "general", baseUrl: "https://rows.example.test", worksFor: ["acme-office-rows"], connection: { token: "rows-tok" } });
+  const deliver = composeFormDeliveryDeliverer({ apiConnections: { host }, kit, loadRegistry: async () => registry, credentials: vault });
+  const tokenCalls = harness.provider.tokenCalls;
+  const job = { binding: { bindingId: "b1", adapterId: "acme-office-rows", connectionRef: saved.id, enabled: true, config: { accountId: "acct-1" } }, idempotencyKey: "[\"s1\",\"b1\"]",
+    snapshot: { form: { slug: "contact", fields: [{ name: "email", required: true }] }, submission: { id: "s1", answers: { email: "a@example.test" }, submittedAt: "2026-10-20T10:00:00.000Z" } } };
+
+  await deliver({ workspaceId, job });
+
+  assert.deepEqual(credentials, [{ token: "rows-tok", baseUrl: "https://rows.example.test", additionalHosts: [] }]);
+  assert.equal(harness.provider.tokenCalls, tokenCalls, "the OAuth host was never asked for a token");
+});
+
+test("security: another workspace's attempt naming this host's OAuth ref is never given that host: authorization-required, no token read", async () => {
+  const host = harness.makeHost();
+  const { connectionRef } = await connectHosted(harness, host);
+  let delivered = 0;
+  const registry = buildFormDestinationRegistry({ refusals: [], loaded: [{ descriptor: { id: "acme-office-rows", label: "Rows", module: "rows.mjs" }, pluginId: ACME_PLUGIN,
+    module: { deliver: async () => { delivered += 1; } } }] });
+  const keyring = new InMemoryKeyring({ hkdfSalt: "form-delivery-deliverer-unit" });
+  const deliver = composeFormDeliveryDeliverer({ apiConnections: { host }, kit, loadRegistry: async () => registry,
+    credentials: { repo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer({ keyring }) } });
+  const tokenCalls = harness.provider.tokenCalls;
+  const job = { binding: { bindingId: "b1", adapterId: "acme-office-rows", connectionRef, enabled: true, config: { accountId: "acct-1" } }, idempotencyKey: "[\"s1\",\"b1\"]",
+    snapshot: { form: { slug: "contact", fields: [{ name: "email", required: true }] }, submission: { id: "s1", answers: { email: "a@example.test" }, submittedAt: "2026-10-20T10:00:00.000Z" } } };
+
+  await assert.rejects(deliver({ workspaceId: "site-other", job }), (error: unknown) => error instanceof FormDeliveryError && error.code === "authorization-required" && !error.retryable);
+  assert.equal(delivered, 0);
+  assert.equal(harness.provider.tokenCalls, tokenCalls, "no token was read for another workspace");
 });

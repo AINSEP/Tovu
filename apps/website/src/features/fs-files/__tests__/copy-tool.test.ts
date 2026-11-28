@@ -172,3 +172,13 @@ test("files_copy's per-file cap and URL theme-fetch policy are the theme owner's
   assert.equal(host.themeImportFetch.policy, THEME_IMPORT_POLICY);
   assert.equal(host.themeImportFetch.accept, THEME_IMPORT_ACCEPT);
 });
+
+test("a URL copied to media fetches under the media import policy and imports the complete bytes", async t => {
+  const h = await harness(t);
+  const url = "https://cdn.example.test/hero.png";
+  const imported = await h.call({ sources: [{ root: "url", url }], destination: { kind: "media" } }) as Result;
+  assert.deepEqual(imported.media.map((media) => [media.slug, (media as { sourceUrl?: string }).sourceUrl]), [["hero", url]]);
+  // The media policy accepts images and videos; the theme fetch would ask for its own narrower accept list.
+  assert.deepEqual(h.requests.map(({ method, url, headers }) => [method, url, headers?.Accept]), [["GET", url, "image/*, video/*"]]);
+  assert.notEqual(THEME_IMPORT_ACCEPT, "image/*, video/*");
+});
