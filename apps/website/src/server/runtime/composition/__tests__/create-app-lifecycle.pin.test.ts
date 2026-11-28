@@ -166,3 +166,24 @@ test("stopForIdle: background work (a share backend with work, a sending campaig
   assert.deepEqual(await vetoed((deps) => { deps.newsletterCampaignRepo.hasSending = async () => true; }),
     { reply: { idle: false }, stops: 0 }, "a campaign that is sending");
 });
+
+test("stopForIdle: a share backend or campaign repo that cannot answer counts as busy; one that answers no work does not", async () => {
+  const outcome = async (arrange: (deps: ReturnType<typeof createRouteDeps>) => void): Promise<{ reply: { idle: boolean }; stops: number }> => {
+    stopHooks.length = 0;
+    const deps = createRouteDeps();
+    deps.newsletterCampaignRepo.hasSending = async () => false;
+    arrange(deps);
+    let stops = 0;
+    createApp(deps, { stopForIdle: () => { stops += 1; } });
+    return { reply: await stopHooks[0]!(), stops };
+  };
+  assert.deepEqual(await outcome((deps) => {
+    (deps as { siteShareBackend?: unknown }).siteShareBackend = { registry: undefined, hasWork: () => false };
+  }), { reply: { idle: true }, stops: 1 }, "a share backend that reports no work lets the site stop");
+  assert.deepEqual(await outcome((deps) => {
+    (deps as { siteShareBackend?: unknown }).siteShareBackend = { registry: undefined };
+  }), { reply: { idle: false }, stops: 0 }, "a share backend with no work probe is treated as busy");
+  assert.deepEqual(await outcome((deps) => {
+    Object.defineProperty(deps.newsletterCampaignRepo, "hasSending", { value: undefined });
+  }), { reply: { idle: false }, stops: 0 }, "a campaign repo with no sending probe is treated as busy");
+});
