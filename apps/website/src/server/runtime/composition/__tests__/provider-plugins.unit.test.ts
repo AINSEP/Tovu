@@ -1111,3 +1111,90 @@ test('form provider stays listed after its first initialization fails and recove
     assert.equal(after?.available, true);
   } finally { await providers.dispose({}); delete SETTINGS['forms-recover']; }
 });
+
+const TRACKER_WARNING = '[tracker] a telemetry provider failed; application work continues';
+const HEALTHY_ANALYTICS = { settings: {}, secrets: { apiKey: 'key-b' } };
+
+test('a throwing cookie-consent hook drops only its own contribution and warns once', async () => {
+  const healthy = { adapter: { id: 'healthy', kind: 'consent-adapter', category: 'analytics', src: '/healthy.mjs' } };
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog', 'analytics-healthy'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
+      port: { capture() {}, identify() {}, consentAdapter: () => { throw new Error('adapter broke'); } } }) },
+    'analytics-healthy': { contract: 'product_analytics', id: 'healthy', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
+      port: { capture() {}, identify() {}, consentAdapter: () => healthy } }) },
+  } });
+  const warnings: string[] = [];
+  const providers = await bootProviderPlugins({ runtime, config: configOf({ ...CONFIGS, 'analytics-healthy': HEALTHY_ANALYTICS }), serviceName: 'tovu', site: SITE, ...consentAlways },
+    { warn: message => { warnings.push(message); } });
+  try {
+    assert.deepEqual(providers.consentAdapters?.({ base: '/_consent' }), [healthy]);
+    assert.deepEqual(warnings, [TRACKER_WARNING]);
+  } finally { await providers.dispose({}); }
+});
+
+test('a throwing browser hook drops only its own SDK, warns once, and a live change of that provider requires restart', async () => {
+  const contribution = { source: 'function(){return function(mode){};}', origins: [], supportsStatic: false, supportsLiveConsent: true };
+  const configs = { ...CONFIGS, 'analytics-healthy': HEALTHY_ANALYTICS };
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog', 'analytics-healthy'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
+      port: { capture() {}, identify() {}, browserAnalytics: () => { throw new Error('sdk broke'); } } }) },
+    'analytics-healthy': { contract: 'product_analytics', id: 'healthy', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
+      port: { capture() {}, identify() {}, browserAnalytics: () => contribution } }) },
+  } });
+  const warnings: string[] = [];
+  const providers = await bootProviderPlugins({ runtime, config: configOf(configs), serviceName: 'tovu', site: SITE, ...consentAlways },
+    { warn: message => { warnings.push(message); } });
+  try {
+    assert.deepEqual(providers.browserAnalytics?.({ surface: 'admin' }), [{ ...contribution, configuration: {
+      url: '/_jini/browser-analytics?surface=admin', revision: createHash('sha256').update(JSON.stringify([contribution])).digest('hex'),
+    } }]);
+    assert.deepEqual(warnings, [TRACKER_WARNING]);
+    configs['analytics-posthog'] = { settings: CONFIGS['analytics-posthog']!.settings, secrets: { apiKey: 'key-c' } };
+    assert.equal(await providers.reapply({ pluginId: 'analytics-posthog' }), 'restart', 'an unreadable browser hook cannot promise live retirement');
+  } finally { await providers.dispose({}); }
+});
+
+test('an admitted plugin that never registers its declared provider fails with generic guidance; unknown plugins report now', async () => {
+  const { runtime } = fakeRuntime({ installed: ['observability-sentry'], factories: {
+    'observability-sentry': { contract: 'observability', id: 'sentry', factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port: recordingObservability([]) }) },
+  } });
+  runtime.loadProviderPlugins = async ({ pluginIds }) => [...pluginIds];
+  const warnings: string[] = [];
+  const ports = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: message => { warnings.push(message); } });
+  try {
+    assert.equal(ports.appliesAt({ pluginId: 'observability-sentry' }), 'failed');
+    assert.deepEqual(await ports.reapply({ pluginId: 'observability-sentry' }), {
+      appliesAt: 'failed', reason: 'The provider could not initialize.', action: 'Check the plugin settings and installation, then save again.' });
+    assert.equal(ports.observabilityEnabled!(), false);
+    assert.deepEqual(warnings, ["provider plugin 'observability-sentry' did not initialize: Error", "provider plugin 'observability-sentry' did not initialize: Error"]);
+    assert.equal(ports.appliesAt({ pluginId: 'never-installed' }), 'now');
+  } finally { await ports.dispose({}); }
+});
+
+test('without an info sink, a factory info message goes to the console', async (t) => {
+  const info = t.mock.method(console, 'info', () => {});
+  const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
+    'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: (_input, optional = {}) => {
+      (optional.info as (message: string) => void)('posthog ready');
+      return { port: { capture() {}, identify() {} }, dispose() {} };
+    } },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.deepEqual(info.mock.calls.map(call => call.arguments), [['posthog ready']]);
+  } finally { await providers.dispose({}); }
+});
+
+test('a payments port the plugin corrupts after admission is withheld from checkout', async () => {
+  const fake = createLipayFake({ now: () => 1000 });
+  const port: Record<string, unknown> = { ...fake.provider };
+  const { runtime } = fakeRuntime({ installed: ['payments-example'], factories: {
+    'payments-example': { contract: 'payments', id: fake.provider.id, factory: fakeFactory({ calls: { inputs: [], disposed: 0 }, port }) },
+  } });
+  const providers = await bootProviderPlugins({ runtime, config: configOf({ 'payments-example': { settings: {}, secrets: { apiKey: 'test-only' } } }), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet });
+  try {
+    assert.deepEqual(providers.paymentProviders({}).map(item => item.pluginId), ['payments-example']);
+    delete port.createIntent;
+    assert.deepEqual(providers.paymentProviders({}), []);
+  } finally { await providers.dispose({}); }
+});
