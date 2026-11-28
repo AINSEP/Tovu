@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL } from './contracts/app-version.ts';
 import { createUpdateCheckNow } from '@jini-ai/desktop-host/electron/updates';
-import type { CheckableUpdater, UpdateCheckNowDeps, UpdateNotice } from '@jini-ai/desktop-host/electron/updates';
+import type { CheckableUpdater, UpdateCheckNowDeps, UpdateNotice, UpdateNoticeArgs } from '@jini-ai/desktop-host/electron/updates';
 import { describeUpdateErrorForLog, plainUpdateError, registerHostUpdateCheckIpc, updateCheckCopy, updateCheckNotice, updateErrorMessage } from './update-check-now.ts';
 
 type CheckResult = Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>;
@@ -173,4 +173,14 @@ test('an update error without diagnostics still gives retry guidance without an 
     message: 'Couldn’t check for updates',
     detail: 'Tovu couldn’t check for updates. Try Check for updates again in a few minutes.',
   });
+});
+
+test('an outcome kind from an untyped caller that no case knows yields no notice instead of throwing', () => {
+  // A JavaScript caller (or a newer desktop-host) can hand over a kind the typed union does not list.
+  const outcome = { kind: 'paused-by-policy' } as unknown as UpdateNoticeArgs['outcome'];
+  assert.equal(updateCheckNotice({ outcome, currentVersion: '0.1.22', isPackaged: true, automaticUpdates: true }), undefined);
+});
+
+test('a downloaded update shows no check notice, because the restart prompt already speaks for it', () => {
+  assert.equal(updateCheckNotice({ outcome: { kind: 'ready', version: '0.1.23' }, currentVersion: '0.1.22', isPackaged: true, automaticUpdates: true }), null);
 });
