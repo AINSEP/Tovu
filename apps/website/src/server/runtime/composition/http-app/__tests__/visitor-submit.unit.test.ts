@@ -3,9 +3,12 @@
  * media, `statfs` of the uploads dir otherwise) and upload attribution to the site's active System
  * principal. The route and the file-storage factory are replaced so the closures `visitor-submit.ts`
  * builds can be invoked directly; `node:fs/promises` keeps every real export except `statfs`.
+ * The comments and analytics routes are replaced the same way, to read the salt promise and the
+ * host-to-workspace resolver `registerCommentsSubmit` / `registerAnalyticsIngest` hand them.
  */
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
+import { DEV_COMMENTS_IP_SALT } from "@jini-ai/cms/comments/site/ip-hash-salt";
 import type { MountInput } from "../module-handles.js";
 
 type RouteInput = { app: unknown; deps: { workspaceId: string; submitForm: { readUploadFreeBytes: () => Promise<number | undefined>; uploadSpaceMessage: string; files: unknown } } };
@@ -22,7 +25,15 @@ const realRoute = await import("../../../../inbound/public-http/routes/site/form
 mock.module("../../../../inbound/public-http/routes/site/forms-submit.js", { namedExports: { ...realRoute, registerFormsSubmitRoute: (input: RouteInput) => { routeCalls.push(input); } } });
 const realStorage = await import("@jini-ai/cms/forms/site/form-file-storage");
 mock.module("@jini-ai/cms/forms/site/form-file-storage", { namedExports: { ...realStorage, createFormFileStorage: (input: StorageInput) => { storageCalls.push(input); return storage; } } });
-const { registerFormsSubmit } = await import("../visitor-submit.js");
+type CommentsRouteInput = { deps: { workspaceId: string; ipHashSalt: Promise<string> } };
+type AnalyticsRouteInput = { deps: { resolveWorkspaceForHost: (input?: unknown) => Promise<string> } };
+const commentsRouteCalls: CommentsRouteInput[] = [];
+const analyticsRouteCalls: AnalyticsRouteInput[] = [];
+const realCommentsRoute = await import("../../../../inbound/public-http/routes/site/comments-submit.js");
+mock.module("../../../../inbound/public-http/routes/site/comments-submit.js", { namedExports: { ...realCommentsRoute, registerCommentsSubmitRoute: (input: CommentsRouteInput) => { commentsRouteCalls.push(input); } } });
+const realAnalyticsRoute = await import("../../../../inbound/public-http/routes/site/analytics-ingest.js");
+mock.module("../../../../inbound/public-http/routes/site/analytics-ingest.js", { namedExports: { ...realAnalyticsRoute, registerAnalyticsIngestRoute: (input: AnalyticsRouteInput) => { analyticsRouteCalls.push(input); } } });
+const { registerFormsSubmit, registerCommentsSubmit, registerAnalyticsIngest } = await import("../visitor-submit.js");
 
 type Principal = { id: string; kind: string; status: string; displayName: string };
 
@@ -87,4 +98,42 @@ test("upload attribution waits for the identity seed, then picks only the active
 test("upload attribution refuses when the site has no active System principal", async () => {
   const { storageInput } = register({ principals: [{ id: "p-disabled", kind: "system", status: "disabled", displayName: "System" }] });
   await assert.rejects(storageInput.resolveCreatedByPrincipal({ workspaceId: "ws-forms" }), { message: "form uploads require the site's System principal" });
+});
+
+test("comments salt: a production server with no salt and no site key warns on the server console and never uses the public constant", async (t) => {
+  const saved = { mode: process.env.TOVU_RUNTIME_MODE, salt: process.env.COMMENTS_IP_SALT };
+  t.after(() => {
+    if (saved.mode === undefined) delete process.env.TOVU_RUNTIME_MODE; else process.env.TOVU_RUNTIME_MODE = saved.mode;
+    if (saved.salt === undefined) delete process.env.COMMENTS_IP_SALT; else process.env.COMMENTS_IP_SALT = saved.salt;
+  });
+  process.env.TOVU_RUNTIME_MODE = "production";
+  delete process.env.COMMENTS_IP_SALT;
+  const warnings: unknown[] = [];
+  t.mock.method(console, "warn", (line: unknown) => { warnings.push(line); });
+  commentsRouteCalls.length = 0;
+  const routeDeps = {
+    workspaceId: "ws-comments",
+    siteAssistantSecretKeyring: { derive: async () => { throw new Error("no site key"); } },
+    clock: { nowMs: () => 0, nowIso: () => "2026-01-01T00:00:00.000Z" }, idGen: { newId: () => "id-1" },
+  } as unknown as MountInput["routeDeps"];
+  registerCommentsSubmit({ app: {} as MountInput["app"], routeDeps });
+  assert.equal(commentsRouteCalls.length, 1);
+  assert.equal(commentsRouteCalls[0]!.deps.workspaceId, "ws-comments");
+  const salt = await commentsRouteCalls[0]!.deps.ipHashSalt;
+  assert.notEqual(salt, DEV_COMMENTS_IP_SALT);
+  assert.equal(warnings.length, 1);
+  assert.match(String(warnings[0]), /^\[comments\] COMMENTS_IP_SALT is unset and no site key resolved/);
+});
+
+test("analytics ingest: every host resolves to the single site workspace", async () => {
+  analyticsRouteCalls.length = 0;
+  const routeDeps = {
+    workspaceId: "ws-analytics",
+    clock: { nowMs: () => 0, nowIso: () => "2026-01-01T00:00:00.000Z" }, idGen: { newId: () => "id-1" },
+  } as unknown as MountInput["routeDeps"];
+  registerAnalyticsIngest({ app: {} as MountInput["app"], routeDeps, errors: {} as never });
+  assert.equal(analyticsRouteCalls.length, 1);
+  const { resolveWorkspaceForHost } = analyticsRouteCalls[0]!.deps;
+  assert.equal(await resolveWorkspaceForHost({ host: "a.example" }), "ws-analytics");
+  assert.equal(await resolveWorkspaceForHost({ host: "b.example" }), "ws-analytics");
 });
