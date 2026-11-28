@@ -72,3 +72,16 @@ test("FIX 16: desktop is check-only even with a rehearsal: no apply is exposed, 
   assert.deepEqual(ids, ["site_update_check"]);
   assert.deepEqual(r.calls, []);
 });
+
+test("the desktop site port stages, then installs the app with no site-data step of its own, and rolls back by restoring the backup", async () => {
+  const r = rig();
+  const runtime = bindSiteUpdateRuntime(r.required(ENV), { desktop: r.desktop });
+  assert.ok(runtime && "site" in runtime && "backup" in runtime, "the desktop binding carries the site update and backup ports");
+  const plan = { fromVersion: "1.2.0", toVersion: "1.3.0", notes: "n" };
+  const { backupId } = await runtime.backup.createBackup({ fromVersion: "1.2.0" });
+  assert.deepEqual(r.calls, ["capture"]);
+  await runtime.site.applyUpdate({ plan, backupId });
+  assert.deepEqual(r.calls, ["capture", "stage:1.3.0", "apply:1.3.0"], "the relaunched app migrates on its own boot, so apply restores nothing");
+  await runtime.site.rollback({ to: "1.2.0", backupId });
+  assert.deepEqual(r.calls, ["capture", "stage:1.3.0", "apply:1.3.0", "rollback:1.2.0", "restore:rp-1"]);
+});

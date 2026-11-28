@@ -97,3 +97,18 @@ test("the JSON getter throws on a non-2xx answer and parses a 2xx one", async ()
   assert.deepEqual(await createHttpJsonGetter({ client: client(200) })({ url: FEED }), { a: 1 });
   await assert.rejects(() => createHttpJsonGetter({ client: client(404) })({ url: FEED }), /404/);
 });
+
+test("the JSON getter sends one GET with the release-feed headers and forwards the caller's abort signal only when given", async () => {
+  const requests: unknown[] = [];
+  const client = { send: async ({ request }: { request: unknown }) => { requests.push(request); return { status: 200, headers: {}, bodyText: "{\"b\":2}" }; } };
+  const signal = new AbortController().signal;
+  const getJson = createHttpJsonGetter({ client });
+  assert.deepEqual(await getJson({ url: FEED }, { signal }), { b: 2 });
+  assert.deepEqual(await getJson({ url: FEED }), { b: 2 });
+  const headers = { accept: "application/vnd.github+json, application/json", "user-agent": "tovu-site-update" };
+  assert.deepEqual(requests, [
+    { url: FEED, method: "GET", headers, idleTimeoutMs: 10_000, signal },
+    { url: FEED, method: "GET", headers, idleTimeoutMs: 10_000 },
+  ]);
+  assert.equal("signal" in (requests[1] as object), false, "no signal key at all without a caller signal");
+});
