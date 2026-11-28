@@ -266,3 +266,11 @@ test('ResourcesChip outside a ResourcesMonitor renders nothing', (t) => {
   const view = mount(t, createElement('nav', null, createElement(ResourcesChip)));
   assert.equal(view.host.innerHTML, '<nav></nav>');
 });
+
+test('ResourcesPanel: before any reading, or when readings are unavailable, the total says both are unavailable', (t) => {
+  const props = { projects: [SITE], onSiteUpdated() {}, onClose() {}, usePower: () => useSitePower({}, { onSiteUpdated: () => {}, getBridge: () => ({}) as never }), Shell, useTrap() {} };
+  const { host, render } = mount(t, createElement(ResourcesPanel, { ...props, snapshot: null }));
+  assert.equal(host.querySelector('.resources-total')!.textContent, 'Total: Memory unavailable · CPU unavailable');
+  render(createElement(ResourcesPanel, { ...props, snapshot: { ...SNAPSHOT, status: 'unavailable' } }));
+  assert.equal(host.querySelector('.resources-total')!.textContent, 'Total: Memory unavailable · CPU unavailable', 'an unavailable snapshot\'s stale total is not shown');
+});
