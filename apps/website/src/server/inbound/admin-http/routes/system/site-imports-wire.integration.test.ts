@@ -98,3 +98,11 @@ test("site import paging preserves gate precedence and private response headers"
   assert.deepEqual(await response.json(), { imports: [], nextCursor: "next" });
   assert.deepEqual(calls, [{ principalId: "recipient", cursor: "abc" }]);
 });
+
+test("site-import owner setup: a form over the 8 kB limit is refused by the parser before the backend sees a password", async t => {
+  const origin = await startTestServer(appWith(backend), t), root = origin + "/api/admin/v1/workspaces/ws/site-imports/" + id + "/owner";
+  const oversized = "adminPassword=" + "a".repeat(9 * 1024);
+  const response = await fetch(root, { method: "POST", headers: { origin, "content-type": "application/x-www-form-urlencoded" }, body: oversized });
+  // `backend.completeOwner` fails the test if reached: the refusal comes from the form parser.
+  assert.deepEqual(await answer(response), { status: 413, body: { code: "LIMIT_EXCEEDED", message: "Imported site creation failed: the request is over the 8 KiB limit for this step." } });
+});
