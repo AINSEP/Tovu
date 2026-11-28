@@ -378,3 +378,29 @@ test("set-enabled: with no principal, a malformed body is still 400 and a valid 
   assert.deepEqual((pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls, []);
   assert.equal(await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "word-count" }), null);
 });
+
+test("set-enabled: turning a provider OFF lowers tool access for the provider and every assistant face the provider-faces port links", async (t) => {
+  const lowered: unknown[] = [];
+  const asked: unknown[] = [];
+  const { app, pluginDeps } = buildTestApp({
+    notifyRosterChanged: async (change) => { lowered.push(change); },
+    providerFaces: { affectedPluginIds: async (input) => { asked.push(input); return ["word-count", "word-count-assistant-face"]; } },
+  });
+  await pluginDeps.pluginActivationRepo.save({
+    pluginId: "word-count",
+    workspaceId: WORKSPACE_ID,
+    version: "1.0.0",
+    enabled: true,
+    updatedAt: new Date(pluginDeps.clock.nowMs()).toISOString(),
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/plugins/word-count`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ enabled: false }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(asked, [{ pluginId: "word-count" }]);
+  assert.deepEqual(lowered, [{ lowered: { pluginIds: ["word-count", "word-count-assistant-face"] } }]);
+});
