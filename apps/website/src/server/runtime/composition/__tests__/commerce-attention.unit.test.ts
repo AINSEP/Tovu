@@ -243,3 +243,50 @@ test('retry after a publish acknowledgement fault keeps one quarantine record', 
   assert.deepEqual(await f.ledger.transaction({ fn: tx => tx.listPendingOutbox({ limit: 10 }) }), []);
   assert.equal((await f.ledger.transaction({ fn: tx => tx.listQuarantine({ workspaceId: 'workspace', mode: 'test' }) })).length, 1);
 });
+
+test('an active shop with payment storage but no payment configuration offers no origin, receiver, catalog or checkout', async t => {
+  const f = await fixture(t, { configured: false });
+  await f.stop();
+  const { migrateCommercePayments } = await import('@jini-ai/commerce/payments/ledger/sql');
+  const { runMigrations } = await import('@jini-ai/db/migrate');
+  const { migrateCommerceDatabase } = await import('#src/platform/db/migrations/index');
+  await migrateCommercePayments({ kernel: f.kernel, runMigrations });
+  await migrateCommerceDatabase({ kernel: f.kernel });
+  const runtime = f.boot();
+  const status = await runtime.commerce.status();
+  assert.deepEqual({ active: status.active, ready: status.ready }, { active: true, ready: false });
+  assert.equal(runtime.commerce.resolveReceiver(), null);
+  assert.equal(await runtime.commerce.checkoutOrigin(), null);
+  const request = runtime.commerce.forRequest();
+  assert.equal(await request.checkoutOrigin(), null);
+  await assert.rejects(request.createOrder({ memberId: 'buyer', priceId: 'price' }), /configure a payment account and deployed HTTPS site/);
+  await assert.rejects(runtime.commerce.createOrder({ memberId: 'buyer', priceId: 'price' }), /configure a payment account and deployed HTTPS site/);
+  assert.equal(await runtime.commerceCatalog.findProduct({ idOrSlug: 'book' }), null);
+  assert.deepEqual(await runtime.commerceCatalog.listProducts({}), []);
+  assert.deepEqual(await f.kernel.query(sql`SELECT id FROM commerce_orders`), []);
+});
+
+test('a per-request checkout pays the order it created on the same merchant binding', async t => {
+  const f = await fixture(t);
+  await f.order();
+  const request = f.runtime().commerce.forRequest();
+  const created = await request.createOrder({ memberId: 'buyer', priceId: 'price' });
+  assert.equal(created.order.status, 'pending');
+  const paid = await request.pay({ memberId: 'buyer', orderId: created.order.id });
+  assert.equal(paid.order.id, created.order.id);
+  assert.equal(paid.order.status, 'paid');
+  assert.equal(paid.payment?.captured.minorUnits, 1200);
+});
+
+test('an aged unknown payment whose merchant configuration was removed stays unknown and alerts once with a restore hint', async t => {
+  const removed = await fixture(t);
+  const orphan = await removed.order();
+  await removed.kernel.execute(sql`UPDATE commerce_payments SET intent_status='unknown',status='unknown',updated_at=0`);
+  await removed.activation(false); await removed.stop(); await removed.write({});
+  await removed.boot({ workerOwner: true }).close();
+  const aged = removed.warnings.filter(message => message.includes('"kind":"unknown-aged"'));
+  assert.equal(aged.length, 1);
+  assert.ok(aged[0]!.includes(`"paymentId":"${orphan.payment!.id}"`));
+  assert.ok(aged[0]!.includes('Restore the original payment configuration to resume provider reconciliation.'));
+  assert.deepEqual(await removed.kernel.query(sql`SELECT status FROM commerce_payments`), [{ status: 'unknown' }]);
+});
