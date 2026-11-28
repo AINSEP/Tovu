@@ -24,7 +24,7 @@ function scope() {
     env: { TOVU_SITE_CALLBACK_ORIGIN: "http://127.0.0.1:9" }, siteToolToken: "tok-a",
     routeDeps: { toolAttemptAuditSink: createInMemoryToolAttemptAuditSink(), workspaceId: "ws-bind" },
     surfaceExchanges,
-    readSnapshot: async () => { throw new Error("chat settings are not read by a bind"); },
+    readSnapshot: () => { throw new Error("chat settings are not read by a bind"); },
     contextFor: () => { throw new Error("site context is not read by a bind"); },
     execute: async () => { throw new Error("page approval is not executed by a bind"); },
   });
@@ -64,5 +64,5 @@ test("a contextRef that is not JSON binds no tab and reports no bind error", asy
   const result = await executor.execute({ principal: { id: "owner" }, run: { id: run.id }, toolId: "page.scroll_to", input: { handle: "top" } });
   // An unbound run gets the recoverable "no tab connected" error, never the restart reload message.
   assert.equal(result.status, "failed");
-  assert.match(result.status === "failed" ? result.error : "", /^frontend_disconnected \(retryable\): no admin tab is connected to this run/);
+  assert.match(result.status === "failed" ? result.error ?? "" : "", /^frontend_disconnected \(retryable\): no admin tab is connected to this run/);
 });
