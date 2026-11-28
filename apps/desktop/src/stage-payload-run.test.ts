@@ -460,3 +460,39 @@ test("a staging run with already executable PTY helpers does not report repairs"
   assert.match(h.out.join(""), /stage-payload: staged \d+ packages/);
   assert.doesNotMatch(h.out.join(""), /set the execute bits/);
 });
+
+test("a root's nested scoped packages are roots too; dot folders and folders without a package.json are not", (t) => {
+  const fx = fixture();
+  t.after(fx.cleanup);
+  const nestedModules = path.join(fx.repo, "node_modules", "dep-a", "node_modules");
+  write(path.join(nestedModules, "@scope", "inner", "package.json"), "{}");
+  write(path.join(nestedModules, ".bin", "package.json"), "{}");
+  mkdirSync(path.join(nestedModules, "not-a-package"), { recursive: true });
+  const { run, calls } = harness(fx);
+  run();
+  const roots = (calls.transitive?.[0] ?? []) as string[];
+  assert.deepEqual(roots.filter((root) => root.startsWith(nestedModules)).sort(), [
+    path.join(nestedModules, "@scope", "inner"), path.join(nestedModules, "nested"),
+  ]);
+});
+
+test("a shell missing a required file with no stated consequence is refused with just the build command", (t) => {
+  const fx = fixture();
+  t.after(fx.cleanup);
+  write(path.join(fx.repo, "apps", "extra", "dist", "x.js"));
+  const extra: ShellEntry = { relative: path.join("apps", "extra", "dist"), marker: "x.js", buildWith: "build extra", requiredFiles: ["x.js", "y.js"] };
+  const { run } = harness(fx, { ports: { shells: [...STAGED_SHELLS, extra] } });
+  refusal(run, `the built shell at ${path.join(fx.repo, "apps", "extra", "dist")} is incomplete: y.js is missing. Run \`build extra\` at ${fx.repo} first.`);
+});
+
+test("a declared dependency already staged as a workspace package is not copied over it again", (t) => {
+  const fx = fixture();
+  t.after(fx.cleanup);
+  const manifest = JSON.parse(readFileSync(path.join(fx.repo, "package.json"), "utf8"));
+  manifest.dependencies = { ...manifest.dependencies, "@tovu/sdk": "1" };
+  write(path.join(fx.repo, "package.json"), JSON.stringify(manifest));
+  write(path.join(fx.repo, "node_modules", "@tovu", "sdk", "package.json"), JSON.stringify({ name: "@tovu/sdk", version: "installed-copy" }));
+  harness(fx).run();
+  const staged = JSON.parse(readFileSync(path.join(fx.outDir, "node_modules", "@tovu", "sdk", "package.json"), "utf8"));
+  assert.deepEqual(staged, { name: "@tovu/sdk" }, "the workspace package staged first wins");
+});
