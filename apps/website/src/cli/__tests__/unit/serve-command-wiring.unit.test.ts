@@ -108,12 +108,22 @@ test("runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw
   );
 });
 
+// The bind moved out of serve.ts into serve-listen.ts's `listenOnce` (serve.ts split for size): the
+// resolved host now travels as `serveListening({ ..., listen: { host, port } })`, then into
+// `serving.app.listen(port, host)`. Both hops are checked; the SIGTERM/SIGINT scenario test below
+// also asserts the actual listen arguments per --host/TOVU_HOST combination.
 test("runServeCommand's body passes the resolved host into app.listen(port, host)", () => {
-  const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
-  const body = readRunServeCommandBody(source);
+  const body = readRunServeCommandBody(fs.readFileSync(SERVE_TS_PATH, "utf8"));
   assert.ok(
-    body.includes("app.listen(port, host)"),
-    "runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts " +
+    body.includes("await serveListening({ input, target, owned, optional, deps, listen: { host, port } })"),
+    "runServeCommand no longer hands the resolved host to serveListening -- the listener would bind " +
+      "without it and silently revert to Node's own all-interfaces default, undoing the loopback default."
+  );
+  const listenSource = fs.readFileSync(path.resolve(import.meta.dirname, "../../commands/serve-listen.ts"), "utf8");
+  const listenOnce = listenSource.slice(listenSource.indexOf("function listenOnce("));
+  assert.ok(
+    listenOnce.includes("serving.app.listen(port, host)"),
+    "serve-listen.ts's listenOnce no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts " +
       "to Node's own all-interfaces default, undoing the loopback default."
   );
 });
