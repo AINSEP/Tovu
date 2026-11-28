@@ -198,7 +198,8 @@ function rewriteExactBareAttributeValue({ html, attr, fileName, replacementValue
   /** Escapes every regex metacharacter in `value` so it can be embedded literally inside a `RegExp` source
    * string — filenames are build output, not attacker input, but a `.` in `styles.css` must still match
    * only a literal dot, not "any character", or `stylesXcss` would wrongly match too. */
-  const pattern = new RegExp(`(${attr}=)(["'])${RegExp.escape(fileName)}\\2`, "g");
+  // The lookbehind keeps `data-src`-style names from matching as `src`/`href`.
+  const pattern = new RegExp(`(?<![\\w-])(${attr}=)(["'])${RegExp.escape(fileName)}\\2`, "g");
   return html.replace(pattern, (_match, attrEquals: string, quote: string) => `${attrEquals}${quote}${replacementValue}${quote}`);
 }
 
