@@ -2,7 +2,9 @@ import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer, get as httpGet } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
@@ -65,4 +67,41 @@ test("a stored path that cannot be streamed (a directory, not a missing file) fa
   assert.equal(body.details.failure.step, "Export download");
   assert.equal(headers["content-type"], "application/json; charset=utf-8");
   assert.equal(headers["content-disposition"], undefined);
+});
+
+test("a client that drops the connection mid-stream gets its socket destroyed, with no JSON rewrite and no incident", async t => {
+  const root = await mkdtemp(path.join(tmpdir(), "share-download-abort-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "share-big.tovu.zip"), Buffer.alloc(32 * 1024 * 1024, 7));
+  const incidents = createRouteIncidentReporter();
+  const registry = { directory: root, get: async () => ({ shareId: "share-big", file: "site.tovu.zip", status: "ready", needsAcknowledgement: false }) };
+  const app = express();
+  const events: string[] = [];
+  let closed!: () => void;
+  const serverClosed = new Promise<void>(resolve => { closed = resolve; });
+  app.use((_req, res, next) => {
+    res.locals.principal = { id: "owner" };
+    const destroy = res.destroy.bind(res);
+    res.destroy = (error?: Error) => { events.push(`destroy:headersSent=${res.headersSent}:disposition=${String(res.getHeader("content-disposition"))}`); return destroy(error); };
+    res.on("close", () => { setTimeout(closed, 50); });
+    next();
+  });
+  registerAdminSiteShareRoutes({ errors: incidents.errors, app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true }), siteShareBackend: { registry } } as unknown as RouteDeps });
+  const server = createServer(app);
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+  const address = server.address() as AddressInfo;
+  const status = await new Promise<number>((resolve, reject) => {
+    const request = httpGet({ host: "127.0.0.1", port: address.port, path: "/api/admin/v1/workspaces/ws/site-shares/share-big/download" }, response => {
+      resolve(response.statusCode ?? 0);
+      request.destroy();
+    });
+    request.on("error", error => { if ((error as NodeJS.ErrnoException).code !== "ECONNRESET") reject(error); });
+  });
+  await serverClosed;
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(status, 200, "the stream had started (head sent) before the client dropped");
+  assert.deepEqual(events, ['destroy:headersSent=true:disposition=attachment; filename="site.tovu.zip"']);
+  assert.deepEqual(incidents.entries, []);
+  assert.deepEqual(incidents.reports, []);
 });
