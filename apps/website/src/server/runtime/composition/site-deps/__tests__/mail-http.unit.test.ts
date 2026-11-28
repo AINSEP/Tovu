@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/external-mcp-roster-change.js";
+import { EgressRefusedError } from "#src/platform/http/index";
 
 /**
  * @file `composeMailHttp`'s mailer ports and the publish peer client: the sender reads go through
@@ -39,6 +40,9 @@ const settingsRepo = { repo: "settings" };
 const lifecycle = { loadPluginContributions: async () => [] };
 
 function compose(overrides: Required["overrides"]) {
+  // Cleared so an earlier test's recording cannot stand in for this composition's.
+  delete handed.required;
+  delete handed.optional;
   return composeMailHttp({
     workspaceId: "site-7", customCredentialSetRepo: {}, siteAssistantSecretSealer: {}, observability: undefined,
     agentPluginLifecycle: lifecycle, externalMcpServerRepo: {}, runtimeMode: "production", settingsRepo,
@@ -68,10 +72,11 @@ test("the mailer's outbox readiness and plugin enable forward to the forms outbo
   assert.deepEqual(enables, [[{ pluginId: "resend", enabled: true }, { lifecycle, notifyRosterChanged: notifyExternalMcpRosterChanged }]]);
 });
 
-test("an injected publish peer client is used as-is; without one a guarded client is built", () => {
+test("an injected publish peer client is used as-is; without one a guarded client is built", async () => {
   const injected = { send: async () => ({ status: 204 }) };
   assert.equal(compose({ publishContentPeerHttpClient: injected } as unknown as Required["overrides"]).publishContentPeerHttpClient, injected);
   const built = compose({}).publishContentPeerHttpClient;
-  assert.notEqual(built, injected);
-  assert.equal(typeof built.send, "function", "the built client can send");
+  // The built client applies the peer egress policy: a private address is refused before any connection.
+  await assert.rejects(built.send({ method: "GET", url: "https://10.0.0.1/api/peer", headers: {}, timeoutMs: 1000 }),
+    { constructor: EgressRefusedError, message: "egress to '10.0.0.1' (10.0.0.1) rejected: resolved address is private" });
 });

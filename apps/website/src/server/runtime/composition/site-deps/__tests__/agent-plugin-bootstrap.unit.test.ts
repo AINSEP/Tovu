@@ -41,6 +41,9 @@ function compose(t: TestContext, routeDeps: () => unknown) {
   const tracker = { capture: () => undefined };
   const lifecycleTracker = counted(() => tracker);
   const routeDepsGetter = counted(routeDeps);
+  // Cleared so a composition that never builds the lifecycle cannot pass on an earlier test's recording.
+  delete handed.lifecycle;
+  delete handed.resolveDeps;
   const result = composeAgentPluginBootstrap({
     dbPath: join(dir, "content.db"),
     onStoreClose: ({ registration }: { registration: () => unknown }) => { closers.push(registration); },

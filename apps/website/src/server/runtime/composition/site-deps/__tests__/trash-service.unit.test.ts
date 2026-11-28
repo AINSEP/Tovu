@@ -18,11 +18,11 @@ import { composeTrashService } from "../trash-service.js";
 type Required = Parameters<typeof composeTrashService>[0];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function adapter(entityType: string, hide: TrashAdapter["hide"]): TrashAdapter {
+function adapter(entityType: string, hide: TrashAdapter["hide"], unhides: unknown[]): TrashAdapter {
   return {
     entityType,
     hide,
-    unhide: async () => ({ ok: true, version: 1 }),
+    unhide: async (required, optional) => { unhides.push([required, optional]); return { ok: true, version: 1 }; },
     purge: async () => "purged",
   };
 }
@@ -35,19 +35,20 @@ function rig(options: { hide?: TrashAdapter["hide"] } = {}) {
   const kernel = contentKernel({ store: db });
   const trashRepo = new SqliteTrashRepo({ store: kernel });
   const invalidations: unknown[] = [];
+  const unhides: unknown[] = [];
   const posts = { name: "post-repo-late" };
   let postRepoReads = 0;
   const hide = options.hide ?? (async () => ({ ok: true as const, version: 4, priorMarker: "published" }));
   const deps = composeTrashService({
     kernel,
     trashRepo,
-    trashAdapters: new Map([["widget", adapter("widget", hide)]]),
+    trashAdapters: new Map([["widget", adapter("widget", hide, unhides)]]),
     postRepo: () => { postRepoReads += 1; return posts; },
     pluginTrashAdapter: {},
     workspaceId: "site-7",
     mediaAccessEvidence: { invalidate: (input: unknown) => { invalidations.push(input); } },
   } as unknown as Required);
-  return { deps, trashRepo, invalidations, posts, postRepoReads: () => postRepoReads };
+  return { deps, trashRepo, invalidations, unhides, posts, postRepoReads: () => postRepoReads };
 }
 
 const trashInput = (entityId: string, entityType = "widget") => ({
@@ -91,12 +92,14 @@ test("an entity type with no registered adapter is refused before any transactio
 });
 
 test("restore() consults the entity policy for the item's type and unhides through its adapter", async () => {
-  const { deps, trashRepo } = rig();
+  const { deps, trashRepo, unhides } = rig();
   await deps.trash.trash(trashInput("w-3"));
   const row = await trashRepo.findByEntity({ workspaceId: "site-7", entityType: "widget", entityId: "w-3" });
   assert.ok(row, "trashed row is indexed");
   const outcome = await deps.trash.restore({ workspaceId: "site-7", entityType: "widget", entityId: "w-3", at: "2031-02-04T00:00:00.000Z" });
   assert.equal(outcome, "restored");
+  // The adapter unhides at the version and marker the hide recorded, not the caller's trash input.
+  assert.deepEqual(unhides, [[{ workspaceId: "site-7", entityId: "w-3", at: "2031-02-04T00:00:00.000Z", expectedVersion: 4 }, { priorMarker: "published" }]]);
   assert.equal(await trashRepo.findByEntity({ workspaceId: "site-7", entityType: "widget", entityId: "w-3" }), null);
 });
 

@@ -20,6 +20,7 @@ type Required = Parameters<typeof composePreAssembly>[0];
 const pending = new Promise<never>(() => {});
 
 function compose(refresh: () => Promise<unknown>, routeDeps: () => unknown) {
+  handed = undefined; // so an earlier test's recording cannot stand in for this composition's
   return composePreAssembly({
     kernel: {}, agentPluginConnections: { adminSurfaceHost: { refresh } }, postRepo: {}, settingsRepo: {}, mediaRepo: {},
     mediaContentTypeStore: {}, transformDefinitionRepo: { listByName: async () => [] }, originRegistry: {},
