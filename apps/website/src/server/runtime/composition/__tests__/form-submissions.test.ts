@@ -405,3 +405,102 @@ test("security: a pull that one receiver's lease refused while another ran repor
   assert.equal(second.ran, true);
   assert.match(second.message, /https:\/\/a\.example: a pull from this site is already running/);
 });
+
+// ---- Round 3: the form-less key reads, the no-receiver line, the minted key, and the pull's fallbacks. ----
+
+test("a form-less site previews hosting only once this host's key is saved, and prepare hands back that saved key", async () => {
+  const s = setup({ hosts: {} });
+  s.deps = { ...s.deps, formDefinitionRepo: { ...s.deps.formDefinitionRepo, list: async () => [] } };
+  const destination = composeFormSubmissions(s.deps).destination;
+  const input = { workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit };
+
+  assert.deepEqual([await destination.previewInput(input), await destination.prepare(input)], [{}, { hosting: { forms: [] } }]);
+  await s.save("host-b", "https://b.example");
+  assert.deepEqual(await destination.previewInput(input), {}, "another host's key is not this host's");
+  await s.save("host-a", "https://a.example");
+
+  assert.deepEqual(await destination.previewInput(input), { hosting: { forms: [] } });
+  assert.deepEqual(await destination.prepare(input), { hosting: { forms: [], secret: "k".repeat(43) } });
+});
+
+test("a site with forms and no receiver for this host previews off, naming the reason and the next step", async () => {
+  const s = setup({ hosts: {} });
+  s.deps = { ...s.deps, loadFormDestinations: async () => ({ list: () => [], get: () => undefined, resolve: () => undefined, refusals: [] }) };
+
+  const preview = await composeFormSubmissions(s.deps).destination.previewInput({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
+
+  assert.equal(preview.formSubmissions?.status, "off");
+  assert.equal(preview.formSubmissions?.message, "Form submissions: off, because no installed form destination receives submissions on hosting target host-a. Submissions on the published site will not reach Tovu. Install or turn on a form destination, or set the site's form receiver (core.forms receiver), then preview again.");
+});
+
+test("a co-hosted publish reuses this site's saved receiver key from its own credentials", async () => {
+  const s = setup({ hosts: {} });
+  const cohosted = { descriptor: { id: "dest", label: "Dest", module: "d.mjs", receive: "co-hosted" as const, hosts: ["host-a"] }, pluginId: "p", module: {} };
+  s.deps = { ...s.deps, loadFormDestinations: async () => ({ list: () => [cohosted], get: () => cohosted, resolve: () => cohosted, refusals: [] }) };
+  await s.save("host-a", "https://a.example");
+
+  const plan = await composeFormSubmissions(s.deps).destination.prepare({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
+
+  assert.deepEqual(plan.hosting?.forms.map((form) => form.slug), ["waitlist"]);
+  assert.equal(plan.hosting?.secret, "k".repeat(43));
+});
+
+test("an external receiver's saved connection without a username reaches its preview without a username field", async () => {
+  const s = setup({ hosts: {} });
+  const credentials: unknown[] = [];
+  const entry: NonNullable<ReturnType<FormDestinationRegistry["get"]>> = {
+    descriptor: { id: "external-inbox", label: "External inbox", module: "receiver.mjs", receive: "external", credentialLabel: "Inbox key" },
+    pluginId: "external",
+    module: { preview: async (input) => { credentials.push(input.credential); return { status: "on", forms: 1, message: "on", changes: [] }; } },
+  };
+  const repo = new InMemorySettingsRepo();
+  const settings = { repo, clock: s.deps.clock, ids: s.deps.idGen, principals: { findActiveById: async () => null },
+    authorize: async () => ({ allowed: true, reason: "test" }) };
+  await ensureFormDestinationSetting({ deps: { ...settings, settingsRepo: repo, ensureSettingDefinitions }, systemPrincipalId: "system" });
+  await set({ deps: settings, input: { namespace: "core.forms", key: "receiver", scope: "workspace", workspaceId: W, value: "external-inbox", callerPrincipalId: "owner" } });
+  s.deps = { ...s.deps, settingsRepo: repo, loadFormDestinations: async () => ({ list: () => [entry], get: () => entry, resolve: () => undefined, refusals: [] }) };
+  await createCustomCredential(s.deps.credentials, { workspaceId: W, label: "Inbox key", category: "hosting", baseUrl: "https://inbox.example", connection: { token: "inbox-token" } });
+
+  await composeFormSubmissions(s.deps).destination.previewInput({ workspaceId: W, hostingTargetId: "host-a", projectName: "demo", kit: {} as DeployHostKit });
+
+  assert.deepEqual(credentials, [{ token: "inbox-token", baseUrl: "https://inbox.example" }]);
+});
+
+test("a pull given no kit hands the destination a deploy host kit of its own", async () => {
+  const s = setup({ hosts: {} });
+  const kits: unknown[] = [];
+  const module = { pull: async ({ kit }: { kit: unknown }) => { kits.push(kit); return { items: [], nextAfter: 0, hasMore: false }; }, ack: async () => ({ acknowledged: 0 }) };
+  s.deps = { ...s.deps, loadFormDestinations: async () => ({ resolve: () => ({ module }), get: () => undefined, list: () => [], refusals: [] }) as unknown as FormDestinationRegistry };
+  await s.save("h", "https://h.example");
+
+  const result = await composeFormSubmissions(s.deps).pull.pull({ workspaceId: W });
+
+  assert.equal(result.destinations[0]?.error, undefined);
+  assert.equal(kits.length, 1);
+  // The default deploy host kit's timeout classes reach the destination through the pull's bounded kit.
+  assert.equal(typeof (kits[0] as { timeouts?: { QUICK?: unknown } }).timeouts?.QUICK, "number");
+});
+
+test("a receiver that throws a non-Error is reported and logged by its string form, to console.error when no logError is given", async (t) => {
+  const s = setup({ hosts: { h: { pull: async () => { throw "host is down"; } } } });
+  await s.save("h", "https://h.example");
+  const logged: string[] = [];
+  t.mock.method(console, "error", (line: string) => { logged.push(line); });
+
+  const result = await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit }).pull.pull({ workspaceId: W });
+
+  assert.match(result.destinations[0]?.error ?? "", /^pulling form submissions from https:\/\/h\.example stopped: host is down\. .* If it fails again, report reference \S+: the site's server log has the details\.$/);
+  assert.equal(logged.length, 1);
+  assert.match(logged[0]!, /^\[form-submissions\] pull from https:\/\/h\.example \(h\) failed, reference \S+: host is down$/);
+});
+
+test("a failure whose Error has no stack is logged by its message, with the key still redacted", async () => {
+  const s = setup({ hosts: { h: { pull: async () => { const error = new Error(`refused ${"k".repeat(43)}`); error.stack = undefined; throw error; } } } });
+  await s.save("h", "https://h.example");
+  const logged: string[] = [];
+
+  await composeFormSubmissions(s.deps, { kit: {} as DeployHostKit, logError: (line) => logged.push(line) }).pull.pull({ workspaceId: W });
+
+  assert.equal(logged.length, 1);
+  assert.match(logged[0]!, /failed, reference \S+: refused \[redacted\]$/);
+});
