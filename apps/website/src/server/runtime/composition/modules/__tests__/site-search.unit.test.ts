@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ensureSettingDefinitions, InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { createSearchProviderRegistry, searchIndexName, type SearchDocument, type SearchDocumentSource, type SearchProviderContext, type SearchSourceRecord, type SearchStatus } from "@jini-ai/search";
+import { createSearchProviderRegistry, encodeSearchKey, searchIndexName, type SearchDocument, type SearchDocumentSource, type SearchProviderContext, type SearchSourceRecord, type SearchStatus } from "@jini-ai/search";
 import type { SearchProvider } from "@jini-ai/core/contracts/site/search";
 import { createInMemorySearchProvider, createInMemorySearchState, createStaticAccessPort } from "@jini-ai/search/testkit";
 
@@ -15,6 +15,10 @@ import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import type { MediaRecord } from "@jini-ai/cms/media";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
+import { SqlitePostRepo } from "#src/features/post/index";
+import { createPost } from "@jini-ai/cms/posts/post-create";
+import { RESERVED_SEGMENTS } from "@jini-ai/cms/routing/site/reserved-paths";
+import { createMediaAccessEvidence } from "@jini-ai/cms/media/site/access-evidence";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import {
@@ -614,4 +618,45 @@ test("bound media search pages use stable ids and give raster and SVG hits their
   assert.deepEqual(last.records.map((row) => [row.key.documentId, row.document?.url]), [
     ["z-svg", "/m/map-overlay/original.svg?v=f6f6f6f6f6f6"],
   ]);
+});
+
+test("bound sources load one published post's text and one stored image by id; access shows only the public image key", async (t) => {
+  const kernel = freshSqliteContentKernel();
+  t.after(() => kernel.close());
+  const at = new Date(NOW - 60_000).toISOString();
+  const postRepo = new SqlitePostRepo({ store: kernel, mediaAccessEvidence: createMediaAccessEvidence() });
+  await createPost({ deps: { reservedSegments: RESERVED_SEGMENTS, repo: postRepo, clock: { nowMs: () => NOW - 60_000, nowIso: () => at } },
+    input: { workspaceId: WS, id: "harbor", title: "Harbor walk at dawn", status: "published", actorId: "owner-1" } });
+  const media = new SqliteMediaRepo({ store: kernel });
+  for (const [id, contentType] of [["photo", "image/png"], ["brochure", "application/pdf"]] as const) {
+    await media.save({ kind: "media", originalFilename: null, id, workspaceId: WS, title: id, slug: id, alt: "", caption: "", credit: "",
+      source: { sha256: (id === "photo" ? "ab" : "cd").repeat(32), contentType }, status: "active", createdAt: at, updatedAt: at, version: 1,
+      width: null, height: null, cssClass: null, htmlAttributes: null });
+  }
+  const settingsRepo = new InMemorySettingsRepo();
+  const refuse = async () => assert.fail("loading local documents must not reach the vault, members, network or plugins");
+  const ports = bindSiteSearchPorts({
+    workspaceId: WS, kernel, now: () => NOW, settingsRepo,
+    settingsWriteDeps: {
+      repo: settingsRepo, clock: { nowMs: () => NOW }, ids: { newId: () => "setting-id" },
+      authorize: async () => ({ allowed: true, reason: "test" }), principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
+    },
+    keyring: { activeKey: refuse, deriveSigningSecret: refuse, derive: refuse },
+    resolveCredentialByLabel: refuse, resolveMemberContext: refuse, httpClient: { send: refuse }, loadContributions: refuse, isPluginActive: refuse,
+  });
+  const source = (collection: string) => {
+    const found = ports.sources.find(item => item.collection === collection);
+    assert.ok(found, `${collection} source is bound`);
+    return found;
+  };
+  const scope = { siteId: WS, workspaceId: WS, occurredAtMs: NOW };
+  const post = await source("post").load({ ...scope, documentId: "harbor" });
+  assert.equal(post.key.documentId, "harbor");
+  assert.match(JSON.stringify(post.document), /Harbor walk at dawn/);
+  const photo = await source("media_image").load({ ...scope, documentId: "photo" });
+  assert.equal(photo.document?.url, "/m/photo/public.v1/image.webp?v=abababababab");
+  const brochure = await source("media_image").load({ ...scope, documentId: "brochure" });
+  assert.equal(brochure.document, null, "a non-image row is not a search document");
+  const visible = await ports.access.visibleKeys({ siteId: WS, keys: [photo.key, brochure.key], audiences: [] });
+  assert.deepEqual([...visible], [encodeSearchKey({ key: photo.key })]);
 });
