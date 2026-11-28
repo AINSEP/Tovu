@@ -131,3 +131,14 @@ function assertBusyBody(body: unknown): true {
   assert.deepEqual(body, { code: "BUSY", error: "Screenshots are being saved right now. Try again in a moment." });
   return true;
 }
+
+test("screenshot cleanup maps the confirm wording to a 400, passes an existing refusal through, and never matches a non-Error rejection", () => {
+  assert.throws(() => refusalForCleanupError({ error: new Error("Confirm the screenshot preview first.") }), (thrown: unknown) => {
+    assert.ok(thrown instanceof RouteRefusalError);
+    assert.deepEqual([thrown.response.status, thrown.response.body], [400, { code: "INVALID_INPUT", error: "Confirm the screenshot preview first." }]);
+    return true;
+  });
+  const already = new RouteRefusalError({ status: 403, body: { code: "OWNER_ONLY", error: "Only the site owner can delete screenshots." } });
+  assert.throws(() => refusalForCleanupError({ error: already }), (thrown: unknown) => thrown === already);
+  assert.throws(() => refusalForCleanupError({ error: "This preview is out of date" }), (thrown: unknown) => thrown === "This preview is out of date");
+});

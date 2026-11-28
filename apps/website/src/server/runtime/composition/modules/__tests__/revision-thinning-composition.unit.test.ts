@@ -14,7 +14,7 @@ import type { OperatorPrincipalRecord } from "#src/server/inbound/admin-http/dev
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { adminSameOriginWrites, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
-import { composeRevisionThinning, mountRevisionThinning } from "../revision-thinning-routes.js";
+import { composeRevisionThinning, mountRevisionThinning, refusalForThinningError } from "../revision-thinning-routes.js";
 
 /**
  * @file The (uncalled, DISABLED until STOP 6) composition helper for revision thinning: the binding
@@ -124,4 +124,23 @@ test("revision thinning HTTP requires owner, same origin and a confirmed fresh t
   assert.deepEqual([reused.status, reused.body.code], [410, "PREVIEW_EXPIRED"]);
   assert.deepEqual(await savedIds(), ids.slice(2));
   assert.deepEqual(incidents.entries, []);
+});
+
+test("thinning engine errors map to the panel's refusals by their fixed wording; refusals and unknown failures pass through unchanged", () => {
+  const refusal = (status: number, code: string, error: string) => (thrown: unknown) => {
+    assert.ok(thrown instanceof RouteRefusalError, `expected a refusal, got ${String(thrown)}`);
+    assert.deepEqual([thrown.response.status, thrown.response.body], [status, { code, error }]);
+    return true;
+  };
+  const expired = "The revision preview expired. Preview again.";
+  assert.throws(() => refusalForThinningError({ error: new Error(expired) }), refusal(410, "PREVIEW_EXPIRED", expired));
+  assert.throws(() => refusalForThinningError({ error: new Error("Choose a post or page.") }), refusal(400, "INVALID_INPUT", "Choose a post or page."));
+  assert.throws(() => refusalForThinningError({ error: new Error("Confirm the revision preview first.") }), refusal(400, "INVALID_INPUT", "Confirm the revision preview first."));
+  assert.throws(() => refusalForThinningError({ error: new Error("Only the site owner can thin revisions.") }), refusal(403, "OWNER_ONLY", "Only the site owner can thin revisions."));
+  const already = new RouteRefusalError({ status: 409, body: { code: "BUSY", error: "busy" } });
+  assert.throws(() => refusalForThinningError({ error: already }), (thrown: unknown) => thrown === already);
+  const unknown = new Error("disk I/O error");
+  assert.throws(() => refusalForThinningError({ error: unknown }), (thrown: unknown) => thrown === unknown);
+  // A non-Error rejection has no wording to match, so it is never mistaken for a refusal.
+  assert.throws(() => refusalForThinningError({ error: "The revision preview expired" }), (thrown: unknown) => thrown === "The revision preview expired");
 });
