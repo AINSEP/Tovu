@@ -213,6 +213,29 @@ for (const override of [{ iss: "https://attacker.example" }, { aud: "wrong" }, {
   });
 }
 
+test("an OIDC start the provider cannot serve redirects to sign-in and reports one bounded failure, never a request", { timeout: 5000 }, async t => {
+  const f = fixture();
+  const events: ProductEvent[] = [];
+  const failed = Promise.withResolvers<void>();
+  f.members.visitorTracker = createTracker({ productAnalytics: {
+    capture(event) { events.push(event); if (event.name === "member_sign_in_failed") failed.resolve(); },
+    identify() {},
+  } });
+  f.members.visitorAnalyticsProof = async () => ({ receiptId: "start-receipt", policyVersion: "1" });
+  f.members.visitorAnalyticsDeliveryAllowed = async ({ proof }) => proof.receiptId === "start-receipt";
+  const base = await startTestServer(f.app, t);
+  f.disable();
+
+  const response = await fetch(`${base}${OIDC}/start`, { redirect: "manual" });
+  refusedTo(response, "LOGIN_UNAVAILABLE");
+  assert.equal(cookie(response, MEMBER_OIDC_BINDING_COOKIE), "", "no callback binding is issued");
+  await failed.promise;
+  assert.deepEqual(events.map(({ name, properties }) => ({ name, properties })), [
+    { name: "member_sign_in_failed", properties: { method: "oidc", realm: "member", reasonClass: "authentication_failed" } },
+  ]);
+  assert.equal(f.exchanges(), 0);
+});
+
 test("S3 invalid signature fails closed", async t => {
   const f = fixture(), base = await startTestServer(f.app, t), start = await f.start(base); f.badSignature();
   refusedTo(await callback(base, start.params, start.binding));

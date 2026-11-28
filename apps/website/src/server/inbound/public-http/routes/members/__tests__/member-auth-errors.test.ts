@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { createCapturingResponse, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { respondToSignInError, reportMemberDeliveryFailure } from "../sign-in.js";
-import { sendMemberAuthError, setMemberSessionCookie } from "../complete-sign-in.js";
+import { clearedMemberSessionCookie, memberSessionCookie, sendMemberAuthError, setMemberSessionCookie } from "../complete-sign-in.js";
 import { MemberAuthError } from "@jini-ai/user-management/members/types";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 
@@ -72,4 +72,19 @@ test("the member cookie writer appends a scoped session without replacing earlie
   assert.deepEqual(new Set(attributes), new Set([
     "Max-Age=90", "Path=/", "Expires=Sat, 24 Oct 2026 12:01:30 GMT", "HttpOnly", "Secure", "SameSite=Lax",
   ]));
+});
+
+test("the member sign-out cookie empties the session under the same name and scope it was set with", () => {
+  const parse = (header: string) => {
+    const [value, ...attributes] = header.split("; ");
+    return { value, attributes: new Set(attributes) };
+  };
+  const cleared = parse(clearedMemberSessionCookie());
+  assert.equal(cleared.value, "tovu_member_session=");
+  assert.deepEqual(cleared.attributes, new Set([
+    "Path=/", "Expires=Thu, 01 Jan 1970 00:00:00 GMT", "HttpOnly", "Secure", "SameSite=Lax",
+  ]));
+  const issued = parse(memberSessionCookie({ rawToken: "issued-token", expiresAtIso: "2099-01-01T00:00:00.000Z" }));
+  const scope = (attributes: Set<string>) => [...attributes].filter(attribute => !/^(?:Expires|Max-Age)=/.test(attribute)).sort();
+  assert.deepEqual(scope(cleared.attributes), scope(issued.attributes), "the browser matches the clear to the issued cookie");
 });
