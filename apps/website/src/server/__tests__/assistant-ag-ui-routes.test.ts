@@ -51,7 +51,7 @@ let recorded: RecordedRequest[] = [];
  *  to point a later test at a differently-configured daemon instance. These two flags are how tests
  *  steer that one daemon's behavior instead: each test sets what it needs right after `bootAgUi`
  *  (which resets both to their defaults), the daemon handler below reads them per-request. */
-type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary" | "refusal-plain-text" | "refusal-prose-code";
+type StartRunBehavior = "ok" | "http-failure" | "delayed-ok" | "refusal-with-canary" | "refusal-plain-text" | "refusal-prose-code" | "refusal-body-cut";
 type EventsBehavior =
   | "normal"
   | "http-failure"
@@ -246,6 +246,13 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         if (startRunBehavior === "refusal-plain-text") {
           res.writeHead(503, { "content-type": "text/plain" });
           res.end(`daemon restarting, see ${PRIVATE_CANARY}`);
+          return;
+        }
+        if (startRunBehavior === "refusal-body-cut") {
+          // Headers promise a longer body than ever arrives: reading the refusal body fails mid-way.
+          res.writeHead(503, { "content-type": "application/json", "content-length": "200" });
+          res.write('{"code":"CHAT_RUN_BUSY","detail":"');
+          setImmediate(() => res.socket?.destroy());
           return;
         }
         if (startRunBehavior === "refusal-prose-code") {
@@ -1233,4 +1240,22 @@ test("a daemon refusal without a bare refusal code keeps its status and report r
     assert.equal(reported.at(-1), refusal.reportId, `${behavior}: the host reporter holds the same reference`);
   }
   startRunBehavior = "ok";
+});
+
+test("a daemon refusal whose body cannot be read still answers with the daemon's status and a report reference, naming no reason", { timeout: 60_000 }, async (t) => {
+  const reported: Array<{ message: string; reportId: unknown }> = [];
+  const session = await bootAgUi(t, undefined, (deps) => {
+    const base = deps.tracker;
+    deps.tracker = { ...base, error: (input, options) => { reported.push({ message: input.error.message, reportId: options?.context?.attributes?.["tovu.report_id"] }); base.error(input, options); } };
+  });
+  startRunBehavior = "refusal-body-cut";
+  t.after(() => { startRunBehavior = "ok"; });
+  const response = await fetch(`${session.baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST", headers: { "content-type": "application/json", cookie: session.cookie }, body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
+  });
+  assert.equal(response.status, 503);
+  const refusal = await response.json() as Record<string, unknown>;
+  assert.deepEqual(Object.keys(refusal).sort(), ["code", "error", "reportId"], "a partial body never yields a refusal reason");
+  assert.equal(refusal.code, "DAEMON_START_FAILED");
+  assert.deepEqual(reported, [{ message: "AG-UI daemon start refused: HTTP 503; ", reportId: refusal.reportId }]);
 });
