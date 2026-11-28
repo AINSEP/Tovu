@@ -321,3 +321,99 @@ test("the routines route refuses a missing id and pages persisted runs without e
     assert.deepEqual(next.runs.map(({ runId, status }) => [runId, status]), [[saved[1]!.id, "succeeded"]]);
   } finally { await h.close(); }
 });
+
+test("update, run-now and delete reach the owner command gate; a missing routine answers the factory's own 404", async (t) => {
+  const h = harness(t);
+  try {
+    await h.compose();
+    const created = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: { name: "Daily", prompt: "Summarize", schedule: { kind: "hourly", minute: 5 } } });
+    if (!created.ok) assert.fail(JSON.stringify(created.error));
+    const routine = (created.value as { routine: { id: string; revision: number } }).routine;
+
+    const updated = await h.call(`patch ${ROUTINE_ROUTE_BASE}/:id`, { params: { id: routine.id }, body: { name: "Renamed", expectedRevision: routine.revision } });
+    if (!updated.ok) assert.fail(JSON.stringify(updated.error));
+    const renamed = (updated.value as { routine: { id: string; name: string; revision: number } }).routine;
+    assert.deepEqual([renamed.id, renamed.name], [routine.id, "Renamed"]);
+    assert.ok(renamed.revision > routine.revision, "the update committed a new revision");
+    const missingUpdate = await h.call(`patch ${ROUTINE_ROUTE_BASE}/:id`, { params: { id: "missing-routine" }, body: { name: "Other" } });
+    if (missingUpdate.ok) assert.fail("updating a missing routine must refuse");
+    assert.equal(missingUpdate.error.code, "NOT_FOUND");
+
+    const ran = await h.call(`post ${ROUTINE_ROUTE_BASE}/:id/run`, { params: { id: routine.id } });
+    if (!ran.ok) assert.fail(JSON.stringify(ran.error));
+    const started = ran.value as { projectId: string; conversationId: string; agentRunId: string; run: { trigger: string } | null; routine: { name: string } | null };
+    assert.deepEqual([started.projectId, started.conversationId, started.agentRunId], ["p-1", "c-1", "a-1"], "the starter's own run ids come back");
+    assert.deepEqual(h.starts, [{ trigger: "manual", routineId: routine.id }]);
+    assert.deepEqual([started.run?.trigger, started.routine?.name], ["manual", "Renamed"], "the latest persisted run and the routine are read back");
+
+    const removed = await h.call(`delete ${ROUTINE_ROUTE_BASE}/:id`, { params: { id: routine.id } });
+    if (!removed.ok) assert.fail(JSON.stringify(removed.error));
+    assert.deepEqual(removed.value, { ok: true });
+    const listed = await h.call(`get ${ROUTINE_ROUTE_BASE}`);
+    if (!listed.ok) assert.fail(JSON.stringify(listed.error));
+    assert.deepEqual((listed.value as { routines: unknown[] }).routines, [], "the deleted routine is gone from the list");
+    const missingDelete = await h.call(`delete ${ROUTINE_ROUTE_BASE}/:id`, { params: { id: routine.id } });
+    if (missingDelete.ok) assert.fail("deleting a missing routine must refuse");
+    assert.equal(missingDelete.error.code, "NOT_FOUND");
+  } finally { await h.close(); }
+});
+
+test("turning the assistant off drains, disarms every timer and releases the lease; the beacon then counts no live routine", async (t) => {
+  const contentDbPath = tempSite(t);
+  await seedRoutine(contentDbPath);
+  const beacons: number[] = [];
+  const h = harness(t, { contentDbPath, writeBeacon: async ({ enabled }) => { beacons.push(enabled); return { ok: true }; } });
+  try {
+    const host = await h.compose();
+    assert.equal(host.availability(), "ready");
+    assert.equal(host.bootInterruption.isLeaseOwner(), true);
+    assert.ok(h.clock.pending.size > 0, "timers are armed while the assistant is on");
+    assert.deepEqual(beacons, [1]);
+    h.toggle(false);
+    await h.clock.advance(5_000);
+    assert.equal(host.availability(), "assistant-off");
+    assert.equal(h.clock.pending.size, 0, "the stop fences every scheduler and lease timer");
+    assert.deepEqual(beacons, [1, 0]);
+    // A second window can now take the lease the first one released.
+    const other = harness(t, { contentDbPath, now: h.clock.now, timers: h.clock.timers });
+    const otherHost = await composeAssistantRoutines(other.required, { monotonicNow: h.clock.now, holderId: "window-2" });
+    assert.equal(otherHost.availability(), "ready");
+    await other.close();
+  } finally { await h.close(); }
+});
+
+test("a failing beacon write is logged and never fails boot or a command", async (t) => {
+  const logged: Array<{ event: string; error: unknown }> = [];
+  const failure = new Error("beacon disk full");
+  const h = harness(t, { writeBeacon: async () => { throw failure; }, log: (entry) => { logged.push(entry); } });
+  try {
+    const host = await h.compose();
+    assert.equal(host.availability(), "ready");
+    const created = await h.call(`post ${ROUTINE_ROUTE_BASE}`, { body: { name: "Daily", prompt: "Summarize", schedule: { kind: "hourly", minute: 5 } } });
+    assert.equal(created.ok, true);
+    await flush();
+    const beaconFailures = logged.filter(({ event }) => event === "routine-beacon-failed");
+    assert.equal(beaconFailures.length, 2, "boot and the committed create each tried the beacon once");
+    assert.ok(beaconFailures.every(({ error }) => error === failure));
+  } finally { await h.close(); }
+});
+
+test("the refusal host and a closed host expose inert boot, wake and approval ports", async (t) => {
+  const refused = harness(t, { launch: { desktopEligible: false } });
+  const refusalHost = await refused.compose();
+  assert.equal(refusalHost.bootInterruption.isLeaseOwner(), false);
+  assert.equal(await refusalHost.bootInterruption.whenInterrupted(), undefined);
+  assert.equal(await refusalHost.reconcile({ reason: "wake" }), undefined);
+  assert.equal(refusalHost.approvalBindingFor({ runId: "run-1" } as never), undefined);
+
+  const h = harness(t);
+  const host = await h.compose();
+  assert.equal(host.bootInterruption.isLeaseOwner(), true);
+  assert.equal(await host.bootInterruption.whenInterrupted(), undefined, "boot repair finished");
+  // From the first synchronous step of the drain, before the lease is released, the host stops claiming it.
+  const closing = h.close();
+  assert.equal(host.availability(), "error");
+  assert.equal(host.bootInterruption.isLeaseOwner(), false, "a closing host never claims the lease");
+  await closing;
+  assert.equal(await host.reconcile({ reason: "wake" }), undefined);
+});
