@@ -305,3 +305,64 @@ test("a source site that cannot be read while listing becomes one locked row and
     assert.deepEqual(choices.map(row => row.siteName).sort(), ["site-a", "site-b"]);
   } finally { await f.close(); }
 });
+
+test("a key id without the saved-on-site prefix, or without a site before its separator, is refused in plain words", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Deploy");
+    for (const keyId of ["vercel-a", "saved-on-site:site-a", "saved-on-site::vercel-a", "saved-on-site:site-gone:vercel-a"]) {
+      await assert.rejects(f.siteKeys.find({ keyId }), (error: Error) => {
+        assert.equal(error.name, "ToolInputError", keyId);
+        assert.equal(error.message, "This saved key is no longer on any site here. Open Use a saved key again.", keyId);
+        return true;
+      });
+    }
+  } finally { await f.close(); }
+});
+
+test("a site whose database has no vault table offers no keys and no locked row", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.b, "vercel-b", "Preview");
+    const c = await f.c();
+    await c.kernel.execute(sql`DROP TABLE secrets_vault`);
+    const choices = await f.siteKeys.list({});
+    assert.deepEqual(choices.map(row => row.name), ["Vercel, Preview, this site"]);
+  } finally { await f.close(); }
+});
+
+test("a saved key whose sealed value was damaged on its site is refused with the unlock help and adds nothing", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Deploy");
+    await f.a.kernel.execute(sql`UPDATE secrets_vault SET sealed_ciphertext = 'AAAA' WHERE id = 'vercel-a'`);
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, Deploy, site-a");
+    assert.equal(row.locked, undefined, "metadata alone cannot tell the value is damaged");
+    await assert.rejects(f.keysOnB.use({ keyId: row.keyId, use: true }), (error: Error) => {
+      assert.equal(error.message, "site-a's keys can't be unlocked on this computer. Open site-a in Tovu and recover its key, then try again. Details: P25_SITE_KEY_LOCKED.");
+      assert.doesNotMatch(error.message, /AAAA|cipher|decrypt/i);
+      return true;
+    });
+    assert.deepEqual(await f.projectRows(), []);
+  } finally { await f.close(); }
+});
+
+test("a key whose label and site-qualified label are both taken in Shared Keys gets the site label plus a site suffix", async () => {
+  const f = await fixture();
+  try {
+    const c = await f.c();
+    await f.save(f.a, "deploy-a", "Deploy", "fake-deploy-one-1111");
+    await f.save(f.a, "deploy-a2", "Deploy (site-c)", "fake-deploy-two-2222");
+    await f.save(c, "deploy-c", "Deploy", "fake-deploy-three-3333");
+    const ids = [];
+    for (const keyId of ["saved-on-site:site-a:deploy-a", "saved-on-site:site-a:deploy-a2", "saved-on-site:site-c:deploy-c"]) {
+      ids.push((await f.siteKeys.adopt({ keyId })).keyId);
+    }
+    assert.deepEqual(ids, ["deploy-a", "deploy-a2", "deploy-c"], "free source ids are kept");
+    const labels = new Map((await f.projectRows()).map(({ id, label }) => [id, label]));
+    assert.equal(labels.get("deploy-a"), "Deploy");
+    assert.equal(labels.get("deploy-a2"), "Deploy (site-c)");
+    assert.match(labels.get("deploy-c") ?? "", /^Deploy \(site-c\) [a-f0-9]{8}$/);
+    assert.equal(await projectToken(f, "deploy-c"), "fake-deploy-three-3333");
+  } finally { await f.close(); }
+});
