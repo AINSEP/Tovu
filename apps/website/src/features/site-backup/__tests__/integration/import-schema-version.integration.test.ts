@@ -11,6 +11,7 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { sanitizeShareDatabase, rebuildImportDatabase } from "#src/server/runtime/composition/site-portability";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
+import { SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { buildShareZip } from "../../share-zip.js";
 import { verifySiteImport } from "../../import-verifier.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
@@ -170,4 +171,19 @@ for (const [label, dml] of [
   ["a menu location bound to a missing menu", "INSERT INTO nav_location_bindings(workspace_id,location_key,menu_id,bound_at) VALUES ('ws','primary','menu-gone','2026-10-31T00:00:00Z')"],
 ] as const) test(`a schema-identical database with ${label} is refused as invalid data, not version drift`, async t => {
   await assert.rejects(rebuildImportDatabase({ snapshot: await snapshot(t, dml) }), unusableData);
+});
+
+// SQLite structural damage in a table the share projection never copies would otherwise be
+// silently dropped with that table; the worker's source integrity check must refuse it first.
+test("a schema-identical database with a damaged page in an unshared table is refused before projection", async t => {
+  const bytes = await snapshot(t);
+  const shared = new Set<string>(SHARE_TABLES);
+  const inspect = new Database(bytes);
+  const pageSize = inspect.pragma("page_size", { simple: true }) as number;
+  const tables = inspect.prepare("SELECT name, rootpage FROM sqlite_schema WHERE type='table' AND rootpage > 1 ORDER BY name").all() as { name: string; rootpage: number }[];
+  inspect.close();
+  const unshared = tables.find(table => !shared.has(table.name) && !table.name.startsWith("sqlite_"));
+  assert.ok(unshared, "the trusted schema has a table outside the share set");
+  bytes[(unshared.rootpage - 1) * pageSize] = 0xff; // not a valid b-tree page type
+  await assert.rejects(rebuildImportDatabase({ snapshot: bytes }), unusableData);
 });
