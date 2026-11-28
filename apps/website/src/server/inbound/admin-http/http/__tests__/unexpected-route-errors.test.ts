@@ -234,3 +234,44 @@ test("class guard: admin route error mappings send unexpected 500s through the s
   }
   assert.deepEqual(violations, [], "Unexpected failures must use the shared handler (typed refusals remain local).\n" + violations.join("\n"));
 });
+
+/** A peer action's response for one request to a registered push template, signed in or not. */
+function peerActionResponse({ principal, method = "POST", route = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push" }: { principal: boolean; method?: string; route?: string }) {
+  const { res, capture } = createCapturingResponse();
+  const { reporter } = recordingComposedReporter();
+  res.locals.failureReporter = reporter;
+  if (principal) res.locals.principal = { id: "owner" };
+  Object.assign(res, { req: { method, route: { path: route } } });
+  return { res, capture };
+}
+
+// Mutation: `discloseDetails: !res.req || !!res.locals?.principal` to `true` in respondWithError.
+test("peers: an unexpected failure on a request with no signed-in person keeps the details out and asks only for the error ID", () => {
+  const { res, capture } = peerActionResponse({ principal: false });
+  respondWithError({ res, err: new Error("private peer cause") });
+  const body = capture.jsonBody as Record<string, unknown>;
+  assert.equal(capture.statusCode, 500);
+  assert.equal("details" in body, false);
+  assert.match(String(body.error), /Report this error ID\. \(error ERR-/);
+  assert.doesNotMatch(JSON.stringify(body), /Copy details|private peer cause/);
+});
+
+// Mutation: `!!res.locals?.principal` to `false` (a signed-in person would lose the copyable details).
+test("peers: the same failure for a signed-in person carries the copyable failure details with its error ID", () => {
+  const { res, capture } = peerActionResponse({ principal: true });
+  respondWithError({ res, err: new Error("private peer cause") });
+  const body = capture.jsonBody as { errorId: string; error: string; details: { failure: { errorId: string } } };
+  assert.equal(capture.statusCode, 500);
+  assert.equal(body.details.failure.errorId, body.errorId);
+  assert.match(body.error, /Copy details and report this problem\. \(error ERR-/);
+  assert.doesNotMatch(JSON.stringify(body), /private peer cause/);
+});
+
+// Mutations: drop the request method or the registered route template from respondWithError's facts
+// (the copy would then name a generic publishing operation, or the publishing information, instead).
+test("peers: the failure copy names what the registered route reads, from its method and template", () => {
+  const { res, capture } = peerActionResponse({ principal: true, method: "GET", route: "/api/admin/v1/workspaces/:workspaceId/publish-content/peers" });
+  respondWithError({ res, err: new Error("private peer cause") });
+  assert.equal(capture.statusCode, 500);
+  assert.match(String((capture.jsonBody as { error: string }).error), /^The publishing destinations could not be loaded\. /);
+});
