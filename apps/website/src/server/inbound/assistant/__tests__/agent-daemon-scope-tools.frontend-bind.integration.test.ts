@@ -23,10 +23,10 @@ import { startTestServer } from "../../../__tests__/helpers/http-test-server.js"
  * that is not JSON is not a second error (onStarted already fails that run for being malformed).
  */
 
-function scope() {
+function scope(env: NodeJS.ProcessEnv = { TOVU_SITE_CALLBACK_ORIGIN: "http://127.0.0.1:9" }) {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const assembled = createScopeToolRegistry({
-    env: { TOVU_SITE_CALLBACK_ORIGIN: "http://127.0.0.1:9" }, siteToolToken: "tok-a",
+    env, siteToolToken: "tok-a",
     routeDeps: { toolAttemptAuditSink: createInMemoryToolAttemptAuditSink(), workspaceId: "ws-bind" },
     surfaceExchanges,
     readSnapshot: () => { throw new Error("chat settings are not read by a bind"); },
@@ -104,4 +104,19 @@ test("a tab's frontend stream is owned by the forwarded admin principal and tab;
   const owner = await answer("admin-a");
   assert.equal(owner.status, 200, "the owning admin passes the owner gate");
   assert.deepEqual(await owner.json(), { settled: false }, "no invocation is pending, so nothing settles");
+});
+
+// Mutations: drop the listener-origin fallback; replace the empty fallback with a default host.
+test("site discovery uses the listener origin when no callback origin is set, and with neither the assembly fails fast on the empty site URL", async t => {
+  const seen: string[] = [];
+  const site = express();
+  site.get("/internal/tool-catalog", (req, res) => { seen.push(`${req.headers.authorization} ${req.url}`); res.json({ tools: [] }); });
+  const base = await startTestServer(site, t);
+  const viaListener = scope({ TOVU_SITE_LISTENER_ORIGIN: base });
+  await viaListener.siteTools.start({ runId: "run-listener", principalId: "owner" });
+  assert.deepEqual(seen, ["Bearer tok-a /internal/tool-catalog?runId=run-listener&principalId=owner"]);
+
+  // The empty fallback is not a usable origin: the site tool executor rejects it while the scope is assembled.
+  assert.throws(() => scope({}), { name: "TypeError", code: "ERR_INVALID_URL", input: "/internal/tool-executions", base: "" });
+  assert.equal(seen.length, 1);
 });
