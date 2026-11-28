@@ -13,12 +13,12 @@ const declaredCard = { target: 'owner-key', label: 'Owner API key', ownedApiLabe
 const source = ({ pluginId, cards }: { pluginId: string; cards: readonly unknown[] }, _options = {}) => ({ pluginId, raw: JSON.stringify({ extensions: { tovu: { credentialCards: cards } } }) });
 
 /** Fake only trusted discovery/I/O; exercise the supplied real parser, ownership gate and merge. */
-async function loadDeclaredCards({ sources, mailCards = [] }: { sources: readonly { pluginId: string; raw: string }[]; mailCards?: readonly PluginCredentialCard[] }, _options = {}) {
+async function loadDeclaredCards({ sources, mailCards = [], descriptorFiles = {} }: { sources: readonly { pluginId: string; raw: string }[]; mailCards?: readonly PluginCredentialCard[]; descriptorFiles?: Record<string, Record<string, string>> }, _options = {}) {
   const refusals: string[] = [];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => mailCards }, {
     readFile: async ({ plugin, filename }) => {
       assert.ok(['plugin.json', 'jini-deploy-targets.json', 'jini-source-control.json', 'jini-mail-adapters.json'].includes(filename));
-      return filename === 'plugin.json' ? sources.find(entry => entry.pluginId === plugin.pluginId)?.raw ?? '{}' : '{}';
+      return filename === 'plugin.json' ? sources.find(entry => entry.pluginId === plugin.pluginId)?.raw ?? '{}' : descriptorFiles[plugin.pluginId]?.[filename] ?? '{}';
     },
     onRefusal: message => refusals.push(message),
     loadContributions: async ({ definition }, options) => {
@@ -55,6 +55,17 @@ test('declaring an API label does not authorize another plugin saveTarget', asyn
   assert.deepEqual(result.cards, []);
   assert.equal(result.refusals.length, 1);
   assert.match(result.refusals[0]!, /destination is not owned/);
+});
+
+test('a mail adapter descriptor grants its plugin the declared credential label; a plugin without it is refused', async () => {
+  const mailAdapters = JSON.stringify({ schemaVersion: 1, adapters: [{ id: 'relay', label: 'Relay', module: 'mail.mjs', credentialLabel: 'Relay key' }] });
+  const relayCard = { ...declaredCard, target: 'relay-card', label: 'Relay key', ownedApiLabel: undefined };
+  const result = await loadDeclaredCards({
+    sources: [source({ pluginId: 'mailer', cards: [relayCard] }), source({ pluginId: 'other', cards: [{ ...relayCard, target: 'other-card' }] })],
+    descriptorFiles: { mailer: { 'jini-mail-adapters.json': mailAdapters } },
+  });
+  assert.deepEqual(result.cards.map(card => [card.providerId, card.pluginId, card.label]), [['relay-card', 'mailer', 'Relay key']]);
+  assert.deepEqual(result.refusals, ["credential card 'other-card' from 'other' was refused: destination is not owned by this plugin"]);
 });
 
 const providerCard = { target: 'metrics', label: 'Metrics', category: 'ops', title: 'Connect metrics', intro: 'Send metrics.', keyHint: 'Paste the project key.', saveKind: 'provider-settings', saveTarget: 'metrics-provider' };
