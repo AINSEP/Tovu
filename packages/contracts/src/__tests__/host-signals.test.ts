@@ -77,6 +77,14 @@ test("per-agent capability choices do not leak to other agents or bypass the hos
     { enabled: false, capabilities: { ...defaults, userMcp: false } });
 });
 
+test("a granted projection without per-agent choices adds no byAgent key, only the projected capabilities", () => {
+  const defaults = { shell: false, fileWrite: false, userMcp: false, subagents: false, userSettings: false, web: true, workflows: false, loginEnvironment: false };
+  const settings = assistantCliPermissions({ enabled: false, capabilities: { web: true } });
+  const resolved = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings, agentId: "reviewer" });
+  assert.deepEqual(resolved, { enabled: false, capabilities: defaults });
+  assert.deepEqual(Object.keys(resolved).sort(), ["capabilities", "enabled"]);
+});
+
 test("only an explicit native grant removes tool denies, and protected read paths remain denied", () => {
   const paths = ["Read(//**/.tovu/**)", "Read(~/.tovu/**)", "Read(//**/*-key*.hex)", "Read(//proc/**)"];
   assert.deepEqual(resolveAssistantDisallowedTools({ nativeToolAccess: true }), paths);
