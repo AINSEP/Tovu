@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act } from 'react';
 import { renderHookWithView as renderHook, settle } from './app-hooks.test-support.js';
-import { createOpenImportPage, importPageError, useImportWebsite } from './use-import-website.hooks.js';
+import { createOpenImported, createOpenImportPage, importPageError, useImportWebsite } from './use-import-website.hooks.js';
 import { copyableDetails } from '@jini-ai/ui/app-shell';
 import { site } from './app-render-harness.js';
 import type { SiteAdminPage } from './import-site-entry.js';
@@ -192,4 +192,18 @@ test('opening Import clears stale folder and live errors before opening the tab'
   assert.deepEqual(opened, []);
   open();
   assert.deepEqual(opened, [{ folder: '', live: '' }]);
+});
+
+test('opening an imported site opens its tab (with any admin page) and only then closes the Import tab', () => {
+  const calls: unknown[] = [];
+  const openImported = createOpenImported({
+    openProjectTab: ({ id }, { adminPage } = {}) => { calls.push(['open', id, adminPage]); },
+    stopImporting: () => { calls.push(['stop']); },
+  });
+  openImported({ id: 'imported' }, { adminPage: { page: 'import', liveAddress: 'https://www.example.com/' } });
+  openImported({ id: 'plain' });
+  assert.deepEqual(calls, [
+    ['open', 'imported', { page: 'import', liveAddress: 'https://www.example.com/' }], ['stop'],
+    ['open', 'plain', undefined], ['stop'],
+  ]);
 });
