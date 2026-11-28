@@ -12,7 +12,7 @@ export function deriveContentConversationTitle(
   // The generic text policy belongs to Jini; this adapter still owns only CMS-specific naming.
   // Later lines often list example pages. Keep naming anchored to the request's subject before
   // markup removal collapses those line boundaries into spaces; generic fallback keeps all text.
-  const subject = stripConversationTitleMarkdown({ text: required.prompt.trimStart().split(/\r?\n/, 1)[0] ?? '' });
+  const subject = stripConversationTitleMarkdown({ text: required.prompt.trimStart().split(/\r?\n/, 1)[0]! });
   const prompt = stripConversationTitleMarkdown({ text: required.prompt });
   // Standalone resource/skill slugs are already meaningful titles; retain the existing behavior.
   if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(prompt) && prompt.length <= 64) return prompt;
@@ -45,8 +45,6 @@ function readNamedContentName({ tail }: { tail: string }, _optional = {}): strin
   const prefix = /^\s*(?::\s*)?/.exec(suffix)![0];
   let start = prefix.length;
   if (start === suffix.length) {
-    // Greedy introducer whitespace can give its final non-newline character back to the name.
-    while (start > 0 && suffix[start - 1] === "\n") start -= 1;
     start -= 1;
   }
   if (start < 0) return undefined;

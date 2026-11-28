@@ -63,9 +63,7 @@ function providerContexts(required: ComposeCommerceRequired & { config: Commerce
 
 /** Keeps the alert de-duplication cache bounded: drops the entry that has been there longest. */
 function evictOldestAlert({ alerted }: { alerted: Set<string> }, _optional = {}): void {
-  const oldest = alerted.values().next();
-  if (oldest.done) throw new Error('payment alert cache has no oldest entry');
-  alerted.delete(oldest.value);
+  alerted.delete(alerted.values().next().value!);
 }
 
 /** Compose lazily: commerce-off boot neither migrates nor queries catalog or payment tables.

@@ -31,9 +31,7 @@ export function createSiteChatAssetReadiness({ exists }: { exists: (args: { dire
     const widget = variant === 'vanilla' ? 'site-assistant-vanilla' : 'site-assistant';
     if (!['site-assistant-loader.js', `${widget}.js`, `${widget}.css`].every(name => exists({ directory, name }))) return false;
     if (ready.size === 16) {
-      const oldest = ready.values().next();
-      if (oldest.done) throw new Error('site chat asset cache has no oldest entry');
-      ready.delete(oldest.value);
+      ready.delete(ready.values().next().value!);
     }
     ready.add(key);
     return true;

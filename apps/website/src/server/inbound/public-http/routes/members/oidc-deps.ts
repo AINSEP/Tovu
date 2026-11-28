@@ -93,12 +93,6 @@ export function memberOidcRefusal({ error }: { error: unknown }, _options = {}):
   return { status: code === "LOGIN_UNAVAILABLE" ? 503 : 401, body: { error: "member login failed", code } };
 }
 
-/** Write `memberOidcRefusal`'s answer. O(1). */
-export function sendMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
-  const refusal = memberOidcRefusal({ error });
-  res.status(refusal.status).json(refusal.body);
-}
-
 /** The person pressed Cancel at the provider (`error=access_denied`): its own page message. */
 export class MemberOidcCancelled extends Error {}
 

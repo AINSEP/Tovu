@@ -27,7 +27,7 @@ export function createVisitorPageTargets({ deps }: { deps: RouteDeps }, _options
       const theme = resolveActiveTheme({ deps, activeThemeId: await resolveActiveThemeId(deps) });
       const themePages = !theme || theme === 'none' || theme.manifest.tier !== 'static' ? [] : Object.keys(theme.pages)
         .filter(id => isStandaloneThemePage({ theme, pageId: id }) && !occupied.has(id) && !['signin', 'signup'].includes(id))
-        .map(id => ({ id: `theme:${id}`, label: id === 'index' ? 'Home' : id, path: id === 'index' ? '/' : `/${id}` }));
+        .map(id => ({ id: `theme:${id}`, label: id, path: `/${id}` }));
       return [...publicPosts.map(post => ({ id: post.id, label: post.title, path: postPublicPath({ slug: post.slug }) })), ...themePages]
         .filter(page => checkSiteRelativeTarget({ raw: page.path }).kind === 'ok' && !/[?#]/.test(page.path));
     },

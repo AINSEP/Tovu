@@ -398,7 +398,7 @@ export function createSqliteIdentityRouteDeps(
     /** Peer hosts inject a refusal port instead of constructing a credential repository. */
     apiKeyRepo?: ApiKeyRepoPort;
   } = {},
-): IdentityRouteDepsSlice {
+): IdentityRouteDepsSlice & { recoveryCodes: RecoveryCodeStore } {
   const { db, ...seedRequired } = required;
   const repos: IdentityRepos = {
     transactions: createIdentityTransactions({ kernel: db }),

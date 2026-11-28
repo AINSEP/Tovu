@@ -420,8 +420,7 @@ async function prepareSitePlugins(ports: RunPorts, { agentId }: { agentId: strin
     return { ...prepared, pluginIds: prepared.prefix === null ? [] : [...new Set([...prepared.pluginIds, ...pluginRefIds])] };
   }
   catch (err) {
-    let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    const errorDiagnostic = describeErrorForLog({ err });
     console.warn('[agent-plugins] automatic preflight unavailable', errorDiagnostic);
     return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
   }

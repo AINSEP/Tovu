@@ -20,7 +20,6 @@ export async function runPublicSiteGuide({ input }: { input: unknown }, options:
   });
   const caller = { principalId: "anonymous-visitor" };
   if (parsed.operation === "search") {
-    if (parsed.topic === undefined) throw new Error("public site guide search has no topic");
     return searchGuide({ guide: service, caller, topic: parsed.topic });
   }
   return service.run({ caller, operation: parsed.operation, topic: parsed.topic });

@@ -182,7 +182,7 @@ function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }
 function applyAdminPasswordResetFromEnvIfConfigured(required: {
   beforeReset: () => Promise<unknown>;
   workspaceId: string;
-  identity: IdentityRouteDepsSlice;
+  identity: ReturnType<typeof createSqliteIdentityRouteDeps>;
   clock: ClockPort;
   idGen: IdGeneratorPort;
   overrides?: Partial<CreateSiteRouteDepsOverrides>;
@@ -194,11 +194,10 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
   const username = process.env.TOVU_ADMIN_RESET_USERNAME;
   const { workspaceId, identity, clock, idGen } = required;
   return identity.identityReady.then(async () => {
-    if (!identity.recoveryCodes) throw new Error("Owner recovery storage is unavailable");
     // A secret left set after recovery must not re-salt the same credential, revoke sessions,
     // or copy the whole database on every boot. Capture a backup only before an actual write.
     return applyOwnerPasswordReset({ workspaceId, password, ...(username === undefined ? {} : { username }),
-      deps: { auth: identityServiceDepsFrom({ ...identity, clock: { nowMs: () => clock.nowMs(), nowIso: () => new Date(clock.nowMs()).toISOString() }, idGen }),
+      deps: { auth: identityServiceDepsFrom({ ...identity, clock: { nowIso: () => new Date(clock.nowMs()).toISOString() }, idGen }),
         codes: identity.recoveryCodes, seededOwnerPrincipalId: await identity.ownerPrincipalId } }, { beforeReset: required.beforeReset });
   }).then((resolvedUsername) => {
     console.error(`[admin-password-reset] SUCCESS — username='${resolvedUsername}' configured password self-verified at boot. Unset TOVU_ADMIN_RESET_PASSWORD now.`);

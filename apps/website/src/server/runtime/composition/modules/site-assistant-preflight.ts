@@ -236,9 +236,8 @@ export function respondPublicError(
 }
 
 /**
- * The mode/config gates: refuses demo `cli` mode (no daemon bridge yet), then resolves WHICH
- * provider this turn runs against and the key, endpoint, and model it runs with. Returns the
- * resolved config, or `null` after already writing the response.
+ * Resolves the provider for this turn and its key, endpoint, and model. Returns the resolved
+ * config, or `null` after already writing the response.
  *
  * Every refusal here happens BEFORE `beginStream`, so it reaches the visitor as a normal JSON error
  * body with a status code rather than an SSE `error` frame — which is what lets the widget's
@@ -249,25 +248,14 @@ export function respondPublicError(
  *   read only on the fallback path, where the row is the sole record of which provider was chosen.
  */
 async function resolveProviderConfigOrRespond(
-  { res, deps, env, resolution, reportError }: {
+  { res, deps, env, reportError }: {
     res: Response;
     deps: RouteDeps;
     env: NodeJS.ProcessEnv;
-    resolution: SiteAssistantModeResolution;
     reportError: SiteAssistantErrorReporter;
   },
   _optional = {},
 ): Promise<SiteAssistantProviderConfig | null> {
-  if (resolution.mode === "cli") {
-    // Demo only. Reaching the daemon means matching its run-start contract, which this route
-    // does not yet do — declared unavailable rather than half-wired, so a demo operator gets a
-    // clear answer instead of a confusing failure deeper in the stack.
-    respondPublicError({ res, status: 501, reportError, code: "NOT_IMPLEMENTED",
-      diagnostic: "cli demo mode is enabled but its daemon bridge is not implemented yet",
-    });
-    return null;
-  }
-
   // Historical ADR-058 behavior, superseded by the owner's visitorai requirement below:
   // the SITE credential store (admin's "Visitor's AI Assistant" tab) was tried FIRST,
   // `env.GEMINI_API_KEY` second — additive over the pre-existing env-only path, never a
@@ -399,7 +387,7 @@ export function resolveProviderFromCredential(
 /**
  * Every gate `handleChat` must clear before it is allowed to call the model, run once and in a
  * fixed order, each one still able to end the request on its own (a disabled workspace, a bad
- * message, an over-budget IP, demo mode, or no configured key). Consolidated into one function so
+ * message, an over-budget IP, or no configured key). Consolidated into one function so
  * `handleChat` itself is a single `if (!preflight.ok) return;` rather than one `if` per gate —
  * the gates themselves are unchanged, only where they live.
  */
@@ -408,14 +396,14 @@ export async function runSiteAssistantPreflight(
   res: Response,
   deps: RouteDeps,
   env: NodeJS.ProcessEnv,
-  resolution: SiteAssistantModeResolution,
+  _resolution: SiteAssistantModeResolution,
   reportError: SiteAssistantErrorReporter,
   wire: VisitorChatWire,
 ): Promise<SiteAssistantPreflight> {
   const guard = await guardMessageAndRateLimit(req, res, deps, reportError, wire);
   if (!guard.ok) return { ok: false };
 
-  const provider = await resolveProviderConfigOrRespond({ res, deps, env, resolution, reportError });
+  const provider = await resolveProviderConfigOrRespond({ res, deps, env, reportError });
   if (!provider) return { ok: false };
 
   return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider, turnId: guard.turnId, wireIds: guard.wireIds };

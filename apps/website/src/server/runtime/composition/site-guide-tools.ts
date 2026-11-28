@@ -41,7 +41,7 @@ export const catalog = indexCatalogById({ catalog: [{
 export const siteGuideDerivedRisk: DerivedRiskByToolId = new Map([["site_guide", "none"]]);
 
 /** Validate tool modes, preserving the generic service's hidden-topic error contract. */
-export function readSiteGuideInput({ input }: { input: unknown }, _options: Record<string, never> = {}): { operation: "overview" | "explain" | "search"; topic?: string } {
+export function readSiteGuideInput({ input }: { input: unknown }, _options: Record<string, never> = {}): { operation: "overview"; topic?: never } | { operation: "search" | "explain"; topic: string } {
   const record = requireInputRecord({ input });
   if (Object.keys(record).some(key => key !== "operation" && key !== "topic")) throw new ToolInputError({ message: "site_guide accepts only operation and topic." });
   if (record.operation !== "overview" && record.operation !== "explain" && record.operation !== "search") throw new ToolInputError({ message: "site_guide: operation must be overview, explain or search." });
@@ -116,7 +116,6 @@ export function buildSiteGuideRegistrations({ deps }: { deps: TovuSiteGuideDeps 
         const guide = createTovuSiteGuide({ deps }, options);
         const caller = { principalId: ctx.principal.id };
         if (parsed.operation === "search") {
-          if (parsed.topic === undefined) throw new Error("site guide search has no topic");
           return await searchGuide({ guide, caller, topic: parsed.topic });
         }
         return await guide.run({ caller, operation: parsed.operation, topic: parsed.topic });
