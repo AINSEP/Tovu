@@ -41,6 +41,7 @@ import { EventEmitter } from "node:events";
 import { createSitePresence } from "@jini-ai/desktop-host/shell/site-presence";
 import { SITE_PRESENCE_CHANNEL } from "./contracts/project.ts";
 import { IDLE_SITE_SLEEP_CHANNELS } from "./contracts/site-view-preference.ts";
+import { writeIdleSiteSleepMinutes } from "./site-view-preference.ts";
 
 test('presence replaces each sender list and releases only that sender on destroy or renderer loss', () => {
   class Sender extends EventEmitter { isDestroyed() { return false; } }
@@ -2977,4 +2978,24 @@ test("an explicit rename replaces the collision alias both now and on the next i
   assert.equal(handleList(deps).find(({ id }) => id === dir)?.displayName, "New catalog");
   assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).find((row) => row.siteDir === dir)?.displayNameAlias, undefined);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")), { name: "New catalog" });
+});
+
+test('without an injected sleepMinutes, idle sleep follows the saved desktop preference', async t => {
+  const siteDir = '/sites/idle-pref';
+  let requests = 0;
+  let now = 0;
+  const deps = baseDeps({ ipcMain: { handle() {} } });
+  writeIdleSiteSleepMinutes({ preferencePath: path.join(path.dirname(deps.statePath), 'desktop-preferences.json'), idleSiteSleepMinutes: 30 });
+  trackSite({ beforeAddedRows: () => {}, projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  deps.openSites.set(siteDir, { server: { pid: 7, port: 4007, stopIfIdle: async () => { requests++; return true; } } });
+  const lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, { now: () => now, schedule: () => () => {} });
+  t.after(() => { lifecycle.dispose(); fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }); });
+  const metrics = { rssBytes: 0, cpuPercent: null, memoryWarning: false, cpuWarning: false };
+  const snapshot = (): ResourcesSnapshot => ({ status: 'unavailable', sampledAt: now, pollIntervalMs: 5000, totalMemoryBytes: 8e9,
+    approximate: true, total: metrics, app: { ...metrics, siteId: null, processes: [] }, sites: [] });
+  await lifecycle.maintain({ snapshot: snapshot() }, {});
+  now = 10 * 60_000; await lifecycle.maintain({ snapshot: snapshot() }, {});
+  assert.equal(requests, 0, 'the ten-minute fallback must not apply when thirty minutes are saved');
+  now = 30 * 60_000; await lifecycle.maintain({ snapshot: snapshot() }, {});
+  assert.equal(requests, 1);
 });
