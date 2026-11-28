@@ -161,3 +161,20 @@ test("an unwritable site log still leaves each diagnostic in the serving host's 
     ["[local-site gamma] supervisor note"],
   ]);
 });
+
+test("an exit from a child the OS gave no pid is still recorded, naming the missing pid", (t) => {
+  const siteDir = mkdtempSync(path.join(os.tmpdir(), "tovu-child-exit-no-pid-"));
+  t.after(() => rmSync(siteDir, { recursive: true, force: true }));
+  const events = new EventEmitter();
+  const child: SpawnedDaemonProcess = { on(input) { events.on(input.event, input.listener); }, kill() { return false; } };
+  const diagnostics = localSiteProcessLog({ name: "delta", siteDir });
+  t.after(() => diagnostics.stderr.destroy());
+  diagnostics.observe({ child });
+  events.emit("exit", { code: 3, signal: null });
+  const entries = readFileSync(path.join(siteDir, "ops/logs/local-site.log"), "utf8").trim().split("\n")
+    .map(line => JSON.parse(line) as { level: string; message: string });
+  assert.deepEqual(entries.map(entry => [entry.level, entry.message]), [
+    ["info", "[local-site delta] spawned pid=none"],
+    ["error", "[local-site delta] pid=none exited code=3 signal=none; stderr tail="],
+  ]);
+});
