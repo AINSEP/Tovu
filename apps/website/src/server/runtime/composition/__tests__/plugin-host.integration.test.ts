@@ -556,7 +556,7 @@ test('inactivePluginIds lists exactly the agent plugins whose activation record 
   const agentPlugins = createTovuPluginHost({ deps: ctx.deps }, { warn: () => {} }).getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
   await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'github', enabled: false, actor: 'pin' });
   await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'notes', enabled: true, actor: 'pin' });
-  assert.deepEqual([...await agentPlugins.inactivePluginIds()], ['github']);
+  assert.deepEqual([...await agentPlugins.inactivePluginIds!({})], ['github']);
 });
 
 test('an injected toggle that turns a plugin off lowers it in the MCP roster; turning one on does not', async t => {
