@@ -65,3 +65,15 @@ for (const [code, status, message] of [
   assert.equal(incidents.reports.length, 1);
   assert.equal(tracked.length, 0);
 });
+
+test("an import history failure with a status other than 503/507 is answered as an internal error, never written verbatim", async () => {
+  const incidents = createRouteIncidentReporter();
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
+  const error = new ImportHistoryUnavailable({ code: "IMPORT_HISTORY_CONFLICT", status: 409, message: "Import history changed while it was read." }, { cause: new Error("PRIVATE_HISTORY_PATH") });
+  registerAdminSiteImportRoutes({ errors: incidents.errors, app, deps: portFake<RouteDeps>({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), tracker: { error: () => {} }, siteImportBackend: { listPage: async () => { throw error; } } }) });
+  const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws/site-imports");
+  assert.equal(response.status, 500);
+  assert.equal(JSON.stringify(response.body).includes("PRIVATE_HISTORY_PATH"), false);
+  assert.equal(incidents.entries.length, 1);
+});

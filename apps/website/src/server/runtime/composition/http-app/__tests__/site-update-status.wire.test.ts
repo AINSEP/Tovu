@@ -18,7 +18,7 @@ function writePortTrap(touched: string[]) {
   return new Proxy({}, { get: (_target, key) => { touched.push(String(key)); throw new Error(`write port ${String(key)} reached`); } });
 }
 
-async function serve(t: test.TestContext, { allowed = true, credential = "session" }: { allowed?: boolean; credential?: string } = {}) {
+async function serve(t: test.TestContext, { allowed = true, credential = "session", bound = true, readLastAttempt }: { allowed?: boolean; credential?: string; bound?: boolean; readLastAttempt?: (...args: unknown[]) => Promise<unknown> } = {}) {
   const routeErrors = createRouteIncidentReporter().errors;
   const reads: string[] = [];
   const touched: string[] = [];
@@ -28,6 +28,7 @@ async function serve(t: test.TestContext, { allowed = true, credential = "sessio
     feed: { latestRelease: async () => { reads.push("feed"); return { version: "1.3.0", notes: "Faster pages." }; } },
     ids: { next: () => "id" },
     site: writePortTrap(touched), backup: writePortTrap(touched), readiness: writePortTrap(touched), lock: writePortTrap(touched),
+    ...(readLastAttempt ? { readLastAttempt } : {}),
   };
   const deps = {
     workspaceId: "ws",
@@ -38,7 +39,7 @@ async function serve(t: test.TestContext, { allowed = true, credential = "sessio
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credential; next(); });
   registerAdminSiteUpdateStatusRoute({ errors: routeErrors, app, deps, reporter: { record: () => ({ errorId: "ERR-0000-0000-0000-0000" }) } });
   // Bound after registration, as the composition assigns it: the route must read it per request.
-  deps.siteUpdateRuntime = runtime as unknown as RouteDeps["siteUpdateRuntime"];
+  if (bound) deps.siteUpdateRuntime = runtime as unknown as RouteDeps["siteUpdateRuntime"];
   const base = await startTestServer(app, t);
   const call = async (workspaceId: string, method = "GET") => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/${workspaceId}${PATH}`, { method });
@@ -73,5 +74,31 @@ test("the status route is GET only no-store and never reaches update write ports
   assert.equal(ok.cache, "no-store");
   for (const method of ["POST", "PUT", "PATCH", "DELETE"]) assert.equal((await served.call("ws", method)).status, 404, method);
   assert.deepEqual(served.reads, ["running", "feed"]);
+  assert.deepEqual(served.touched, []);
+});
+
+test("before the composition binds the update runtime the status is unavailable and no release feed is read", async (t) => {
+  const served = await serve(t, { bound: false });
+  const reply = await served.call("ws");
+  assert.equal(reply.status, 200);
+  assert.deepEqual(JSON.parse(reply.text), { availability: { kind: "unavailable" } });
+  assert.deepEqual(served.reads, []);
+});
+
+test("a bound runtime's last-attempt journal reaches the status reply through the read-only reader", async (t) => {
+  const journalCalls: unknown[][] = [];
+  const served = await serve(t, { readLastAttempt: async (...args: unknown[]) => {
+    journalCalls.push(args);
+    return { status: "rolled-back", toVersion: "1.3.0", summary: "Restored the previous version." };
+  } });
+  const reply = await served.call("ws");
+  assert.equal(reply.status, 200);
+  assert.deepEqual(JSON.parse(reply.text), {
+    availability: { kind: "available", runningVersion: "1.2.0", latest: "1.3.0", notes: "Faster pages." },
+    lastAttempt: { status: "rolled-back", toVersion: "1.3.0", summary: "Restored the previous version." },
+  });
+  assert.equal(journalCalls.length, 1);
+  assert.deepEqual(journalCalls[0]![0], {});
+  assert.ok((journalCalls[0]![1] as { signal?: unknown }).signal instanceof AbortSignal);
   assert.deepEqual(served.touched, []);
 });
