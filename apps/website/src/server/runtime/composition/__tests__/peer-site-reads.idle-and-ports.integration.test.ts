@@ -183,3 +183,31 @@ test("a registry entry whose folder is gone is never the current site, and the r
   assert.equal(f.peer.isCurrentSite({ siteName: 'A' }), true);
   assert.equal(f.peer.isCurrentSite({ siteName: 'B' }), false);
 });
+
+test("a peer whose schema stamp names a different migration line is refused as unsupported, not read", async t => {
+  const f = await peerFixture(t);
+  const stampPath = path.join(path.dirname(f.b.paths.contentDbPath), '.site-meta.json');
+  const existing = fs.existsSync(stampPath) ? JSON.parse(fs.readFileSync(stampPath, 'utf8')) as Record<string, unknown> : {};
+  fs.writeFileSync(stampPath, JSON.stringify({ ...existing, schemaVersion: 1, schemaTag: 'a-migration-line-this-build-never-shipped' }));
+  let built = false;
+  await assert.rejects(f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
+    buildRegistrations: () => { built = true; return inspection(async () => 'b'); } }), error => {
+    assert.ok(error instanceof ToolInputError);
+    assert.equal(error.message, 'This site has an unsupported database schema. Open it in Tovu first.');
+    return true;
+  });
+  assert.equal(built, false, 'no tools are built over a database this build does not understand');
+});
+
+test("the peer's page HTML store reads the peer's own page body, not the current site's", async t => {
+  const { f, deps } = await resolveDeps(t);
+  const html = await deps.pagesHtmlStore({ workspaceId: f.b.workspaceId, postId: 'page', actorId: f.a.ownerId }).read();
+  assert.match(html, /<main>B page<\/main>/);
+  assert.doesNotMatch(html, /A page/);
+});
+
+test("a peer's tool deps turn the site switcher off and carry no peer reads of their own", async t => {
+  const { deps } = await resolveDeps(t);
+  assert.equal(deps.isSiteSwitcherEnabled?.(), false);
+  assert.equal(deps.peerSiteReads, undefined);
+});
