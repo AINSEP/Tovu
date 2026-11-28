@@ -37,17 +37,14 @@ import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from ".
 
 const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
 
-/** Everything from `onStarted`'s own declaration through the end of the file — scopes every
- * assertion below to the handler these bugs actually live in, so a coincidental match elsewhere in
- * the file (a comment, an unrelated helper) could never make a stripped-out wiring pass by
- * accident. */
-const onStartedSource = daemonFunction("onStarted").body!.getText();
+/** Each body is one named function in the run-start modules — scopes every assertion below to the
+ * helper these bugs actually live in, so a coincidental match elsewhere in the file (a comment, an
+ * unrelated helper) could never make a stripped-out wiring pass by accident. */
 const bindingSource = daemonFunction("resolveSessionBinding").body!.getText();
 const priorSource = daemonFunction("readPriorSessionId").body!.getText();
 const persistenceSource = daemonFunction("persistRunSession").body!.getText();
 const refusalSource = daemonFunction("refuseConcurrentMemoryRun").body!.getText();
 const clearingSource = daemonFunction("clearFailedRunResume").body!.getText();
-const registerSource = daemonFunction("registerLiveRun").body!.getText();
 const preparationSource = daemonFunction("prepareRun").body!.getText();
 const executionSource = daemonFunction("executeRun").body!.getText();
 const runModuleSource = ["agent-daemon-run-start.ts", "agent-daemon-run-session.ts"].map(file => readFileSync(path.join(import.meta.dirname, "../", file), "utf8")).join("\n");
@@ -98,20 +95,24 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     );
   });
 
-  test("a run registers itself in the tracker before any await in onStarted's synchronous prefix", () => {
-    assert.ok(registerSource.includes("liveRunTracker.register("));
-    const registerIndex = onStartedSource.indexOf("registerLiveRun(runPorts)");
-    assert.ok(registerIndex > -1, "onStarted must register this run in liveRunTracker — without this, a second concurrent run can never observe the first as live (H2)");
-
-    // The first `await` reachable in onStarted's own body lives inside the `.then(async () => ...)`
-    // callback much further down (attachment/plugin-prefix resolution) — everything before that
-    // point executes synchronously in one tick, which is what makes registration race-free across
-    // two near-simultaneous requests. Asserting register happens before the customInstructionsCache
-    // refresh call (the first genuinely async step in onStarted) proves it landed in that
-    // synchronous prefix rather than after some other await had already yielded the event loop.
-    const refreshIndex = onStartedSource.indexOf("customInstructionsCache");
-    assert.ok(refreshIndex > -1, "this test's own anchor (the customInstructionsCache refresh call) must still exist verbatim");
-    assert.ok(registerIndex < refreshIndex, "liveRunTracker.register must be called synchronously, before onStarted's first await (the custom-instructions refresh) — a register that runs after an await could lose the single-threaded-ordering guarantee two near-simultaneous requests rely on");
+  test("a run registers itself in the tracker before any await in onStarted's synchronous prefix", { timeout: 2000 }, async () => {
+    // Behavioural, through the real onStarted: the custom-instructions refresh is onStarted's first
+    // genuinely async step (everything after it runs in `.then`), so the run must already be
+    // visible in liveRunTracker at the moment refresh() is called. Registration in that
+    // synchronous prefix is what makes two near-simultaneous requests race-free (H2); a register
+    // moved behind the refresh (or any later await) leaves the tracker empty here.
+    const fixture = await sessionFixture();
+    const conversationId = "register-before-await-chat";
+    const trackedAtRefresh: Array<string | undefined> = [];
+    await captureDaemonRun({ prompt: "Answer", conversationId }, {
+      lifecycle: fixture.lifecycle,
+      bindings: {
+        ...fixture.bindings,
+        customInstructionsCache: { refresh: async () => { trackedAtRefresh.push(fixture.liveRunTracker.conversationIdForRun({ runId: "daemon-test-run" }, {})); } },
+      },
+    });
+    assert.deepEqual(trackedAtRefresh, [conversationId], "liveRunTracker.register must be called synchronously, before onStarted's first await (the custom-instructions refresh) — a register that runs after an await could lose the single-threaded-ordering guarantee two near-simultaneous requests rely on");
+    assert.equal(fixture.liveRunTracker.hasConcurrentLiveRun({ conversationId, runId: "next-run" }, {}), true, "a second run on the same conversation must observe this one as live (H2)");
   });
 
   test("a run unregisters itself from the tracker on its own terminal event", { timeout: 2000 }, async () => {
