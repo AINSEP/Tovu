@@ -124,3 +124,32 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
+
+test("the repairs get a watermark stamp over the real content store and the site's registered trash types", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-boot-data-repairs-stamp-"));
+  try {
+    const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
+    try {
+      const content = contentKernel({ store: db });
+      const watermark = async () => Number((await content.run((db) =>
+        db.selectFrom("database_write_watermark").select("value").where("id", "=", 1).executeTakeFirstOrThrow())).value);
+      const before = await watermark();
+      const types: string[] = [];
+      await runBootDataRepairs({ kernel: content }, {
+        migrateFooterPageLinks: async ({ stampWatermark }) => { await stampWatermark?.(); return { converted: 1 }; },
+        removeUnreadableOwnerEntries: async ({ stampWatermark, registeredTypes }) => {
+          for (const entry of registeredTypes()) types.push(entry.entityType);
+          await stampWatermark?.();
+          return { ran: true, removed: [] };
+        },
+        logError: (line) => assert.fail(line),
+      });
+      assert.equal(await watermark(), before + 2, "each repair's stamp bumps the store's write watermark");
+      assert.ok(types.includes("form") && types.includes("form_submission"), `registered types: ${types.join(",")}`);
+    } finally {
+      closeSqliteConnection({ source: db });
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
