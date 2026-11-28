@@ -43,7 +43,7 @@ function compose(t: TestContext, routeDeps: () => unknown) {
   const routeDepsGetter = counted(routeDeps);
   const result = composeAgentPluginBootstrap({
     dbPath: join(dir, "content.db"),
-    onStoreClose: ({ registration }) => { closers.push(registration); },
+    onStoreClose: ({ registration }: { registration: () => unknown }) => { closers.push(registration); },
     overrides: { siteBinding: { dir, name: "bakery" } },
     lifecycleTracker,
     routeDeps: routeDepsGetter,

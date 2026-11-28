@@ -70,7 +70,7 @@ test("the mailer's outbox readiness and plugin enable forward to the forms outbo
 
 test("an injected publish peer client is used as-is; without one a guarded client is built", () => {
   const injected = { send: async () => ({ status: 204 }) };
-  assert.equal(compose({ publishContentPeerHttpClient: injected } as Required["overrides"]).publishContentPeerHttpClient, injected);
+  assert.equal(compose({ publishContentPeerHttpClient: injected } as unknown as Required["overrides"]).publishContentPeerHttpClient, injected);
   const built = compose({}).publishContentPeerHttpClient;
   assert.notEqual(built, injected);
   assert.equal(typeof built.send, "function", "the built client can send");

@@ -121,7 +121,7 @@ test("a tool-attempt audit write that fails is reported as a tool_audit error an
     tracker: { capture: (event: unknown) => { captured.push(event); } },
   } as unknown as Parameters<typeof routeDepsTaxonomyComments>[0]);
   db.$client.close();
-  await deps.toolAttemptAuditSink?.append({ attemptId: "att-1", executionId: null, workspaceId: "site-7", runId: "run-1", toolId: "content.list", principalId: "owner-1", phase: "started", at: "2031-02-03T04:05:06.000Z" });
+  await deps.toolAttemptAuditSink?.append({ attemptId: "att-1", executionId: null, workspaceId: "site-7", runId: "run-1", toolId: "content.list", principalId: "owner-1", phase: "requested", at: "2031-02-03T04:05:06.000Z" });
   assert.equal(reports.length, 1);
   const [report] = reports as Array<{ code: string; diagnostic: unknown }>;
   assert.equal(report?.code, "tool_audit");
