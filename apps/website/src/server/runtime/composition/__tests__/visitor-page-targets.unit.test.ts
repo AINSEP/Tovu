@@ -67,3 +67,17 @@ test('assertPath refuses reserved routes and any redirected path, and accepts a 
   await assert.rejects(targets.assertPath({ path: '/legacy-page' }), { message: 'Redirect navigation refused' }, 'a refused redirect is not read as no redirect');
   assert.equal(await targets.assertPath({ path: '/new-page' }), undefined);
 });
+
+test('theme pages on a reserved route or carrying a query or fragment are never offered as visitor targets', async () => {
+  const deps = createRouteDeps();
+  await deps.siteTitleReady;
+  const active = resolveActiveTheme({ deps, activeThemeId: await resolveActiveThemeId(deps) });
+  assert.ok(active && active !== 'none' && active.manifest.tier === 'static', 'fixture: the composition renders a static theme');
+  // `%61dmin` passes the theme's own literal reserved-name check but decodes to the admin surface.
+  const extra = ['%61dmin', 'faq#top', 'menu?day=1', 'about-us'];
+  const clone: DiscoveredTheme = { ...active, pages: { ...active.pages, ...Object.fromEntries(extra.map(id => [id, `<p>${id}</p>`])) },
+    manifest: { ...active.manifest, publishedPages: extra } };
+  deps.themes = deps.themes.map(theme => theme.manifest.id === active.manifest.id ? clone : theme);
+  const pages = await createVisitorPageTargets({ deps }).list({});
+  assert.deepEqual(pages.filter(page => page.id.startsWith('theme:')), [{ id: 'theme:about-us', label: 'about-us', path: '/about-us' }]);
+});
