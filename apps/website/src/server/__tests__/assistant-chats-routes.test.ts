@@ -10,6 +10,8 @@ import { createAssistantChatsModule } from "../runtime/composition/modules/assis
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";
+import { openChatDb } from "../../platform/db/sqlite/chat-db.js";
+import { createChatBulkDeletionFor, createChatStoreFactory } from "../../assistant/persistence/store-factory.js";
 
 /**
  * @file HTTP-level coverage for `/api/assistant/chats`.
@@ -362,4 +364,120 @@ test("renamed title with a token is stored redacted", async t => {
   assert.equal(renamed.conversation.title, 'Key [token removed] chat');
   const list = await (await api(baseUrl, cookie, '')).json();
   assert.equal(JSON.stringify(list).includes(secret), false, 'credential escaped into the stored title');
+});
+
+test("a client-chosen chat id is kept; an empty or non-string id, or a non-object body, gets a fresh one", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const create = async (body: unknown) => {
+    const response = await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify(body) });
+    assert.equal(response.status, 201);
+    return ((await response.json()) as { conversation: { id: string } }).conversation.id;
+  };
+  assert.equal(await create({ id: "chat-chosen-by-client" }), "chat-chosen-by-client");
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const fresh = [await create({ id: "" }), await create({ id: 42 }), await create(["chat-in-array"])];
+  for (const id of fresh) assert.match(id, uuid);
+  assert.equal(new Set(fresh).size, 3);
+});
+
+test("a rename whose title is not a string is refused and leaves the title alone", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ id: "c-title", firstMessage: "plan the launch" }) });
+  const response = await api(baseUrl, cookie, "/c-title", { method: "PATCH", body: JSON.stringify({ title: 5 }) });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "'title' must be a non-empty string", code: "VALIDATION_ERROR" });
+  const { conversations } = (await (await api(baseUrl, cookie, "")).json()) as { conversations: { id: string; title: string }[] };
+  assert.equal(conversations.find((c) => c.id === "c-title")?.title, "Plan the launch");
+});
+
+test("a saved message needs string content; a non-object body is refused on its role", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ id: "c-content" }) });
+  const noContent = await api(baseUrl, cookie, "/c-content/messages/m1", { method: "PUT", body: JSON.stringify({ role: "user", content: ["hi"] }) });
+  assert.equal(noContent.status, 400);
+  assert.deepEqual(await noContent.json(), { error: "'content' must be a string", code: "VALIDATION_ERROR" });
+  const arrayBody = await api(baseUrl, cookie, "/c-content/messages/m1", { method: "PUT", body: JSON.stringify([{ role: "user", content: "hi" }]) });
+  assert.equal(arrayBody.status, 400);
+  assert.deepEqual(await arrayBody.json(), { error: "'role' must be 'user' or 'assistant'", code: "VALIDATION_ERROR" });
+  const { messages } = (await (await api(baseUrl, cookie, "/c-content/messages")).json()) as { messages: unknown[] };
+  assert.deepEqual(messages, []);
+});
+
+/** Wraps the real per-principal store so one of its methods reads as absent or is replaced. */
+function withStoreOverride(deps: RouteDeps, override: Record<string, unknown>): RouteDeps {
+  const original = deps.chatHistory.bind(deps);
+  deps.chatHistory = ((owner: Parameters<RouteDeps["chatHistory"]>[0]) => {
+    const store = original(owner);
+    return new Proxy(store, { get(target, property) {
+      if (property in override) return override[property as string];
+      const value = Reflect.get(target, property, target) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    } });
+  }) as RouteDeps["chatHistory"];
+  return deps;
+}
+
+test("a store without the streamed JSON reader answers the messages as one JSON body", async (t) => {
+  const deps = withStoreOverride(createRouteDeps(), { messagesJson: undefined });
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(deps), t);
+  await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ id: "c-plain" }) });
+  await api(baseUrl, cookie, "/c-plain/messages/m1", { method: "PUT", body: JSON.stringify({ role: "user", content: "hello", createdAt: 5 }) });
+  const response = await api(baseUrl, cookie, "/c-plain/messages");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { messages: [{ id: "m1", role: "user", content: "hello", createdAt: 5 }] });
+});
+
+test("a failing streamed messages read tears the response down and reaches the error handler instead of hanging", async (t) => {
+  const deps = withStoreOverride(createRouteDeps(), {
+    messagesVersion: undefined,
+    messagesJson: async () => (async function* () { throw new Error("chat.db read failed"); })(),
+  });
+  const app = buildApp(deps);
+  const failures: unknown[] = [];
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => { failures.push(error); res.status(500).json({ error: "internal" }); });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ id: "c-broken" }) });
+  // The stream pipeline destroys the response on a read error, so the client sees the connection end.
+  await assert.rejects(api(baseUrl, cookie, "/c-broken/messages", { signal: AbortSignal.timeout(3000) }), (error: Error) => error.name !== "TimeoutError");
+  assert.equal(failures.length, 1);
+  assert.equal((failures[0] as Error).message, "chat.db read failed");
+});
+
+test("without a bulk-deletion store the module's cleanup preview and delete-selected answer 503 NOT_CONFIGURED", async (t) => {
+  const deps = createRouteDeps();
+  Object.assign(deps, { chatBulkDeletionFor: undefined });
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(deps), t);
+  await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ id: "c-kept" }) });
+  for (const [path, body] of [["/cleanup/preview", { before: Date.now() }], ["/delete-selected", { ids: ["c-kept"], confirm: true }]] as const) {
+    const response = await api(baseUrl, cookie, path, { method: "POST", body: JSON.stringify(body) });
+    assert.equal(response.status, 503, path);
+    assert.deepEqual(await response.json(), { error: "Chat cleanup is not available on this site.", code: "NOT_CONFIGURED" });
+  }
+  const { conversations } = (await (await api(baseUrl, cookie, "")).json()) as { conversations: Array<{ id: string }> };
+  assert.deepEqual(conversations.map((c) => c.id), ["c-kept"]);
+});
+
+test("with the site's bulk-deletion store, the module's own preview store issues a single-use token that apply redeems", async (t) => {
+  const deps = createRouteDeps();
+  const chat = openChatDb({ filePath: ":memory:" });
+  t.after(() => chat.close());
+  Object.assign(deps, { chatHistory: createChatStoreFactory({ store: chat }), chatBulkDeletionFor: createChatBulkDeletionFor({ store: chat, now: () => Date.now() }) });
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(deps), t);
+  await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ id: "c-stale" }) });
+
+  const preview = await api(baseUrl, cookie, "/cleanup/preview", { method: "POST", body: JSON.stringify({ before: Date.now() + 60_000 }) });
+  assert.equal(preview.status, 200);
+  const previewed = (await preview.json()) as { ids: string[]; previewToken: string };
+  assert.deepEqual(previewed.ids, ["c-stale"]);
+  assert.match(previewed.previewToken, /^[A-Za-z0-9_-]{16,}$/, "a random url-safe token from the module's default preview store");
+
+  const applied = await api(baseUrl, cookie, "/cleanup/apply", { method: "POST", body: JSON.stringify({ previewToken: previewed.previewToken, confirm: true }) });
+  assert.equal(applied.status, 200);
+  assert.deepEqual(((await applied.json()) as { deleted: string[] }).deleted, ["c-stale"]);
+  const { conversations } = (await (await api(baseUrl, cookie, "")).json()) as { conversations: unknown[] };
+  assert.deepEqual(conversations, []);
+
+  const replayed = await api(baseUrl, cookie, "/cleanup/apply", { method: "POST", body: JSON.stringify({ previewToken: previewed.previewToken, confirm: true }) });
+  assert.equal(replayed.status, 409);
+  assert.equal(((await replayed.json()) as { code: string }).code, "PREVIEW_EXPIRED");
 });
