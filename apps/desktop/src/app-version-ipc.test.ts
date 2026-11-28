@@ -136,3 +136,21 @@ test('the real Git port rejects when the executable is absent from PATH', async 
   process.env.AGENT_RUNTIME_HOME = cwd;
   await assert.rejects(describeDesktopTag({ cwd }), { message: 'git executable is unavailable.' });
 });
+
+test('dev launch with no injected git port reads the real repo root tag through describeDesktopTag', async (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), 'tovu-desktop-default-port-'));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args: string[]) => execFileSync('git', [
+    '-c', 'user.name=Desktop Test', '-c', 'user.email=desktop@example.test', '-c', 'commit.gpgSign=false',
+    '-c', 'tag.gpgSign=false', '-c', 'core.hooksPath=/dev/null', ...args,
+  ], { cwd, stdio: 'pipe' });
+  git('init', '--quiet');
+  git('commit', '--quiet', '--allow-empty', '-m', 'desktop release');
+  git('tag', 'desktop-v7.5.1');
+  const handlers = new Map<string, () => string | Promise<string>>();
+  registerAppVersionIpc({
+    ipcMain: { handle: (channel, handler) => { handlers.set(channel, handler); } },
+    app: { getVersion: () => '0.1.22', isPackaged: false },
+  }, { repoRoot: cwd });
+  assert.equal(await handlers.get(RUNNER_APP_VERSION_CHANNEL)!(), '7.5.1-dev');
+});
