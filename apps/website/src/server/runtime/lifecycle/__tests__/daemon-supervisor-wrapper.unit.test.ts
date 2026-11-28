@@ -10,7 +10,7 @@ import test from "node:test";
 import { currentToolExecToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { delegatedAssistantDaemonConnection } from "../assistant-daemon-connection.js";
-import { clearAssistantDaemonFailure, getReadinessSnapshot, setReadinessSnapshot } from "../readiness-state.js";
+import { clearAssistantDaemonFailure, getAssistantDaemonFailureReasonCode, getReadinessSnapshot, setReadinessSnapshot } from "../readiness-state.js";
 import {
   createDaemonSupervisor,
   createRealDaemonProcessPorts,
@@ -364,4 +364,24 @@ test("a local-site-owned API passes its own pid to the production daemon's argv"
   createRealDaemonProcessPorts({ workspaceId: "ws-owner", siteDir, daemonPortOverride: undefined }, { spawn }).spawnDaemonProcess();
   assert.deepEqual(spawnArgs[0].slice(-4), tail);
   assert.deepEqual(spawnArgs[1].slice(-5), [...tail, `--local-site-api-pid=${process.pid}`]);
+});
+
+test("in site-local mode a failed boot prerequisite behind restart or ensureStarted is latched as the daemon's failure, and nothing spawns", async () => {
+  let spawns = 0;
+  let prerequisite: Error | undefined = new Error("seeders unavailable");
+  startAssistantDaemon(SITE, { parentIpc: false, registerProcessSignalHandlers: false, refreshPort: async () => {},
+    beforeStart: async () => { if (prerequisite) throw prerequisite; },
+    readDiscovery: async () => ({ pid: FAKE_PID, url: "http://127.0.0.1:4319" }),
+    spawnDaemonProcess: () => { spawns++; return fakeChild().handle; } });
+
+  assert.deepEqual(restartAssistantDaemon(), { ok: true }, "restart answers at once; the failure arrives later");
+  await tick();
+  assert.equal(getAssistantDaemonFailureReasonCode(), "Error: seeders unavailable");
+
+  clearAssistantDaemonFailure();
+  prerequisite = new Error("eligibility refused");
+  assert.deepEqual(ensureAssistantDaemonStarted(), { ok: true });
+  await tick();
+  assert.equal(getAssistantDaemonFailureReasonCode(), "Error: eligibility refused", "a failed preparation is retried, not cached");
+  assert.equal(spawns, 0);
 });

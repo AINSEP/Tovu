@@ -234,7 +234,7 @@ test("a child process error counts as an exit: readiness refuses without probing
   const launched = await local.launch({ name: "slow", port: 4771, daemonPort: DAEMON_PORT });
   const heard: string[] = [];
   launched.onExit({ listener: () => heard.push("early") });
-  assert.deepEqual(heard, [], "a running child has not exited");
+  assert.equal(heard.length, 0, "a running child has not exited");
 
   child.emit("error", new Error("spawn EACCES"));
   launched.onExit({ listener: () => heard.push("late") });
