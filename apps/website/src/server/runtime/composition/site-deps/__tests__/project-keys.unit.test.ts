@@ -15,7 +15,7 @@ import { compositionProjectKeys } from "../project-keys.js";
 type Required = Parameters<typeof compositionProjectKeys>[0];
 type Row = { id: string; kind: string; label: string; meta: Record<string, unknown> };
 
-function rig(options: { inventory?: Row[]; vaultRows?: Row[]; bind?: () => ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined } = {}) {
+function rig(options: { siteId?: string; inventory?: Row[]; vaultRows?: Row[]; bind?: () => ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined } = {}) {
   const calls: string[] = [];
   const vaultRows = options.vaultRows ?? [];
   const projectStore: Record<string, unknown> = {
@@ -40,7 +40,7 @@ function rig(options: { inventory?: Row[]; vaultRows?: Row[]; bind?: () => ((inp
     kernel: contentKernel({ store: openContentDb(":memory:") }),
     clock: { nowIso: () => "2031-02-03T04:05:06.000Z" },
     projectKeyReferences: { set: async ({ credentialId }: { credentialId: string }) => { calls.push(`ref:${credentialId}`); } },
-    projectSiteId: "site-7",
+    projectSiteId: options.siteId ?? "site-7",
     projectStore,
     providerConfigSource: { usage: async () => { throw new Error("no provider key in these fixtures"); } },
     providerPlugins: { reapply: async () => "now" },
@@ -87,4 +87,10 @@ test("choosing a shared OAuth key before shared connections exist is refused and
   const { keys, calls } = rig({ vaultRows: [OAUTH] });
   await assert.rejects(keys.use({ keyId: "oauth-crm-1", use: true }), { message: "Shared connections are not available yet. Reopen this saved connection and try again." });
   assert.deepEqual(calls.filter(call => /^(ref|attach)/.test(call)), []);
+});
+
+test("with no site id there is no other-site key source: a saved-on-site id is looked up as a project key", async () => {
+  const { keys, calls } = rig({ siteId: "" });
+  await assert.rejects(keys.permissionFor({ keyId: "saved-on-site:bakery-old-1" }), (error: Error) => error.name === "ToolInputError");
+  assert.deepEqual(calls, ["find:project:saved-on-site:bakery-old-1"], "the project vault, not a site registry, answered");
 });
