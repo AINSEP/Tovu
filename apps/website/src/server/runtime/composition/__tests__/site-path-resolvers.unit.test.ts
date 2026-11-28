@@ -1,15 +1,20 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import {
+  assertContentDbFileName,
   builtInContentSeedDbPath,
+  defaultChatDbPath,
   builtInSeedUploadsDir,
   mediaUploadsDir,
   pluginsInstallDir,
   resolveExportOutputRootDir,
   resolvePublishOutputRootDir,
+  resolveShareDirectory,
   resolveSiteStoragePaths,
   resolveSourceControlExportRootDir,
   siteDir,
@@ -111,4 +116,60 @@ test("resolveSiteStoragePaths: an in-memory content DB anchors chat attachments 
     resolveSiteStoragePaths({ contentDbPath: ":memory:", siteDir: SITE, uploadsDir: path.join(SITE, "uploads") }, { env: NO_ENV }).chatAttachmentsDir,
     path.join(SITE, "uploads", "chat-attachments"),
   );
+});
+
+test("assertContentDbFileName: both driver in-memory names pass through untouched", () => {
+  assert.equal(assertContentDbFileName({ dbPath: ":memory:" }), ":memory:");
+  assert.equal(assertContentDbFileName({ dbPath: "" }), "");
+});
+
+test("assertContentDbFileName: a disk path must be a file named content.db, and a file: URI is never exempt", () => {
+  assert.equal(assertContentDbFileName({ dbPath: path.join(SITE, "content.db") }), path.join(SITE, "content.db"));
+  assert.throws(() => assertContentDbFileName({ dbPath: path.join(SITE, "site.db") }), {
+    message: `Give each database its own folder, named content.db: move ${path.join(SITE, "site.db")} to <its own folder>/content.db and point TOVU_CONTENT_DB at that file.`,
+  });
+  assert.throws(() => assertContentDbFileName({ dbPath: "file:content.db" }), /move file:content\.db to <its own folder>\/content\.db/);
+});
+
+/** Run `body` with TOVU_CHAT_DB set to `value` (or removed), restoring the runner's own value after. */
+function withChatDbEnv<T>(value: string | undefined, body: () => T): T {
+  const saved = process.env.TOVU_CHAT_DB;
+  if (value === undefined) delete process.env.TOVU_CHAT_DB; else process.env.TOVU_CHAT_DB = value;
+  try { return body(); } finally {
+    if (saved === undefined) delete process.env.TOVU_CHAT_DB; else process.env.TOVU_CHAT_DB = saved;
+  }
+}
+
+test("defaultChatDbPath: TOVU_CHAT_DB wins verbatim over the content DB it is given", () => {
+  assert.equal(withChatDbEnv("/chat/override.db", () => defaultChatDbPath({}, { contentDbPath: path.join(SITE, "content.db") })), "/chat/override.db");
+});
+
+test("defaultChatDbPath: an in-memory content DB keeps chat.db beside its own (relative) name, never a site lookup", t => {
+  // The working directory holds unreadable site metadata: a site lookup for `:memory:` would read it and throw.
+  const cwd = mkdtempSync(path.join(tmpdir(), "chat-db-cwd-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  writeFileSync(path.join(cwd, ".site-meta.json"), "{ not json");
+  const previous = process.cwd();
+  process.chdir(cwd);
+  try {
+    assert.equal(withChatDbEnv(undefined, () => defaultChatDbPath({}, { contentDbPath: ":memory:" })), "chat.db");
+  } finally { process.chdir(previous); }
+  assert.equal(withChatDbEnv(undefined, () => defaultChatDbPath({}, { contentDbPath: "file:/srv/mem/content.db?mode=memory" })), path.join("file:/srv/mem", "chat.db"));
+});
+
+test("resolveShareDirectory: an in-memory database puts ops/shares under the served site dir, created private", t => {
+  const site = mkdtempSync(path.join(tmpdir(), "share-dir-"));
+  t.after(() => rmSync(site, { recursive: true, force: true }));
+  const shares = resolveShareDirectory({ siteDir: site, dbPath: ":memory:", contentRoots: [path.join(site, "public")] });
+  assert.equal(shares, path.join(realpathSync(site), "ops", "shares"));
+  assert.equal(statSync(shares).mode & 0o777, 0o700);
+});
+
+test("resolveShareDirectory: refuses a share folder inside a served content root before creating it", t => {
+  const site = mkdtempSync(path.join(tmpdir(), "share-dir-"));
+  t.after(() => rmSync(site, { recursive: true, force: true }));
+  assert.throws(() => resolveShareDirectory({ siteDir: site, dbPath: ":memory:", contentRoots: [site] }), {
+    message: "A site's ops/shares must not be inside a served content folder; give its database its own folder.",
+  });
+  assert.equal(existsSync(path.join(site, "ops")), false);
 });
