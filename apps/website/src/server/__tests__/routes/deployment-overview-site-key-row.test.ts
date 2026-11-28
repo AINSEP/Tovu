@@ -1,3 +1,4 @@
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -52,4 +53,16 @@ test("deployment-overview snapshot: dbPath/uploadsDir are the injected booted-si
   });
   assert.equal(snapshot.dbPath, "/booted/site-b/content.db");
   assert.equal(snapshot.uploadsDir, "/booted/site-b/uploads");
+});
+
+test("deployment-overview site key: with no status handed in, the row inspects this process's own TOVU_SITE_KEY", () => {
+  const previous = process.env.TOVU_SITE_KEY;
+  try {
+    process.env.TOVU_SITE_KEY = "short";
+    const snapshot = buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: false, storagePaths: BOOTED_STORAGE_PATHS });
+    assert.deepEqual(snapshot.envVars.find((row) => row.name === "TOVU_SITE_KEY"), { name: "TOVU_SITE_KEY", set: false, source: "env", invalid: true });
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_SITE_KEY;
+    else process.env.TOVU_SITE_KEY = previous;
+  }
 });
