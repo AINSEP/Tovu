@@ -5,7 +5,10 @@ import { InMemoryCustomCredentialSetRepo, CustomCredentialSecretStoreUnconfigure
 import type { MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { SecretSealerPort } from "@jini-ai/integrations/secrets";
-import { loadMailProviderCatalog, SMTP_PROVIDER_SETUP, credentialFailureReason } from "../mail-provider-catalog.js";
+import { loadMailProviderCatalog, SMTP_PROVIDER_SETUP, credentialFailureReason, resolveMailCredential, type MailProviderCatalogDeps } from "../mail-provider-catalog.js";
+import { createCustomCredential } from "#src/features/custom-credentials/index";
+import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.env";
 
 /**
  * @file `MailProviderCatalog.setupFor`: SMTP's protocol form is core, a plugin's comes from its
@@ -63,4 +66,21 @@ test("credential failures disclose fixed text while preserving detail only in se
     assert.deepEqual(diagnostics, [["[mail] credential lookup failed", err]]);
     assert.equal(credentialFailureReason({ label: "Mail key", err }, { log: () => { throw new Error("logger unavailable"); } }), reason);
   }
+});
+
+test("resolveMailCredential: the first saved label wins; SMTP needs a username, an API provider does not", async () => {
+  const workspaceId = "00000000-0000-4000-8000-000000000001" as MailProviderCatalogDeps["workspaceId"];
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer({ keyring });
+  const repo = new InMemoryCustomCredentialSetRepo();
+  let n = 0;
+  const vault = { repo, sealer, keyring, clock: { nowMs: () => 0 }, idGen: { newId: () => `cred-${++n}` } };
+  await createCustomCredential(vault, { workspaceId, label: "Mail API", category: "general", baseUrl: "https://mail.example.test", connection: { token: "api-tok" } });
+  await createCustomCredential(vault, { workspaceId, label: "SMTP login", category: "general", baseUrl: "https://smtp.example.test", connection: { token: "smtp-pass", username: "mailer" } });
+  const deps = { workspaceId, customCredentialRepo: repo, sealer } as unknown as MailProviderCatalogDeps;
+
+  assert.deepEqual(await resolveMailCredential({ deps, labels: ["Missing", "Mail API"], id: "acme-mail" }), { token: "api-tok", baseUrl: "https://mail.example.test" });
+  assert.equal(await resolveMailCredential({ deps, labels: ["Mail API"], id: "smtp" }), null, "SMTP without a username is not usable");
+  assert.deepEqual(await resolveMailCredential({ deps, labels: ["SMTP login", "Mail API"], id: "smtp" }), { token: "smtp-pass", baseUrl: "https://smtp.example.test", username: "mailer" });
+  assert.equal(await resolveMailCredential({ deps, labels: ["Missing"], id: "acme-mail" }), null);
 });
