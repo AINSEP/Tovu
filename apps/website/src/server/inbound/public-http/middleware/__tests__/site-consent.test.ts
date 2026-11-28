@@ -250,6 +250,8 @@ for (const scenario of [
   { configured: 'http://127.0.0.1:3000', host: '[::1]:4000', expected: 'http://[::1]:4000' },
   { configured: 'http://localhost:3000', host: 'attacker.example', expected: 'http://localhost:3000' },
   { configured: 'https://site.example', host: 'attacker.example', expected: 'https://site.example' },
+  // A malformed Host (a space is not a valid host code point) must not throw out of the consent route.
+  { configured: 'http://localhost:3000', host: 'local host:4000', expected: 'http://localhost:3000' },
 ]) test(`consent Origin remains pinned for ${scenario.configured} and Host ${scenario.host}`, t => {
   const previous = process.env.TOVU_PUBLIC_URL;
   t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });

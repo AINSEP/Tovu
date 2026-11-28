@@ -30,7 +30,11 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 
 const WORKSPACE_ID = "workspace-1";
 
-test("a stored comment emits only the entry and moderation state after the visitor's consent is verified", { timeout: 3000 }, async t => {
+// A status outside the public moderation vocabulary (e.g. "trash") is reported as "other", never verbatim.
+for (const { status, moderationState } of [
+  { status: "pending", moderationState: "pending" },
+  { status: "trash", moderationState: "other" },
+] as const) test(`a stored ${status} comment emits only the entry and moderation state "${moderationState}" after the visitor's consent is verified`, { timeout: 3000 }, async t => {
   const app = express();
   app.use(express.json());
   const events: ProductEvent[] = [];
@@ -47,7 +51,7 @@ test("a stored comment emits only the entry and moderation state after the visit
       submissions.push([submission.entryId, submission.bodyRaw]);
       return { ok: true, autoClassified: "pending", comment: {
         id: "comment-1", workspaceId: WORKSPACE_ID, entryId: submission.entryId, parentId: null,
-        threadRootId: "comment-1", depth: 0, status: "pending", authorPrincipalId: null,
+        threadRootId: "comment-1", depth: 0, status, authorPrincipalId: null,
         authorName: submission.authorName, authorEmail: submission.authorEmail ?? null, authorUrl: null,
         authorIpHash: null, bodyText: submission.bodyRaw, spamScore: null, spamProvider: null,
         createdAt: now, updatedAt: now, version: 1,
@@ -74,13 +78,13 @@ test("a stored comment emits only the entry and moderation state after the visit
     body: JSON.stringify({ entryId: "article-9", authorName: "Visitor", authorEmail: "private@example.test", body: "Private draft text" }),
   });
   assert.equal(response.status, 201);
-  assert.deepEqual(await response.json(), { id: "comment-1", status: "pending" });
+  assert.deepEqual(await response.json(), { id: "comment-1", status });
   await delivered.promise;
   assert.deepEqual(submissions, [["article-9", "Private draft text"]]);
   assert.deepEqual(requestPaths, ["/api/site/comments"]);
   assert.deepEqual(proofs, [{ receiptId: "receipt-comment", policyVersion: "policy-4" }]);
   assert.deepEqual(events, [{
-    name: "comment_submitted", userId: "visitor:comment-visitor", properties: { entryId: "article-9", moderationState: "pending" },
+    name: "comment_submitted", userId: "visitor:comment-visitor", properties: { entryId: "article-9", moderationState },
   }]);
 });
 

@@ -50,13 +50,14 @@ test('a native admission refusal keeps the retry header and delegates without re
   assert.equal(jsonCalls, 0);
 });
 
-test('JSON admission refusals retain their original wire response when native rendering is supplied', async () => {
+// A raw client that sends no Accept header at all gets the JSON wire response too, never the HTML renderer.
+for (const accept of ['application/json', undefined]) test(`admission refusals for Accept ${accept ?? '(absent)'} retain their original wire response when native rendering is supplied`, async () => {
   let nativeCalls = 0;
   const bodies: unknown[] = [], statuses: number[] = [];
   const middleware = createFormsAdmissionMiddleware({ workspaceId: 'w', clock: { nowMs: () => 0 } }, {
     onHtmlRefusal: async () => { nativeCalls++; },
   });
-  const request = { headers: { accept: 'application/json' }, socket: { remoteAddress: '203.0.113.9' } } as never;
+  const request = { headers: accept === undefined ? {} : { accept }, socket: { remoteAddress: '203.0.113.9' } } as never;
   const response = { set: () => response, status: (status: number) => { statuses.push(status); return response; },
     json: (body: unknown) => { bodies.push(body); return response; } } as never;
   for (let i = 0; i < 6; i++) await middleware(request, response, () => {});
