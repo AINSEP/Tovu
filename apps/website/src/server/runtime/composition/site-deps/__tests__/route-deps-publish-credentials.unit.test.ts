@@ -23,7 +23,7 @@ function need<T>(value: T | undefined, name: string): T {
 type Load = { workspaceId: string; contribution: string };
 type Verdict = "active" | "inactive" | "undetermined";
 
-function rig(options: { verdicts?: Verdict[]; posts?: Array<Record<string, unknown>> } = {}) {
+function rig(options: { verdicts?: Verdict[]; posts?: Array<Record<string, unknown>>; projectVault?: unknown } = {}) {
   const loads: Load[] = [];
   const activations: Array<{ workspaceRoot: string; pluginId: string }> = [];
   const enabled: unknown[] = [];
@@ -57,7 +57,7 @@ function rig(options: { verdicts?: Verdict[]; posts?: Array<Record<string, unkno
     idGen: { next: () => "id-1" },
     siteAssistantSecretKeyring: {},
     siteAssistantSecretSealer: {},
-    projectVault: undefined,
+    projectVault: options.projectVault,
     customCredentialSetRepo: {},
     observability: undefined,
     customCredentialsHttpClient: {},
@@ -115,4 +115,34 @@ test("installed deploy targets read each plugin's activation in its workspace: a
     { workspaceRoot: "/roots/ws-b", pluginId: "deploy-1" },
     { workspaceRoot: "/roots/ws-b", pluginId: "deploy-2" },
   ]);
+});
+
+/** A project vault half that records which store each listing reaches and with which credential kind. */
+function recordingVault(name: string, seen: string[]) {
+  return { list: async (input: { workspaceId: string; kind: string }) => { seen.push(`${name}:${input.workspaceId}:${input.kind}`); return []; } };
+}
+
+// Mutations: l.91 builds the source-control half with `kind: "vendor"`; l.102 wraps `projectVault.repo` for every half
+// (`repo: () => new VendorCredentialSetVaultRepo({ vault: projectVault!.repo, ... })`).
+test("with a project vault, the source-control and vendor stores each fall back to the project's own vault halves under their own kind", async () => {
+  const seen: string[] = [];
+  const projectVault = { workspaceId: "proj-1", repo: recordingVault("owner", seen), createRepo: recordingVault("create", seen), sealer: { id: "sealer-p" }, keyring: { id: "ring-p" } };
+  const { deps } = rig({ projectVault });
+  const sourceControl = deps.sourceControlCredentialSetRepo.project;
+  const vendor = deps.vendorCredentialSetRepo.project;
+  assert.deepEqual([sourceControl?.workspaceId, sourceControl?.sealer, sourceControl?.keyring, sourceControl?.replaceRepo], ["proj-1", projectVault.sealer, projectVault.keyring, undefined]);
+  await sourceControl!.repo.listByWorkspace({ workspaceId: "proj-1" });
+  await sourceControl!.createRepo!.listByWorkspace({ workspaceId: "proj-1" });
+  await vendor!.repo.listByWorkspace({ workspaceId: "proj-1" });
+  await vendor!.createRepo!.listByWorkspace({ workspaceId: "proj-1" });
+  assert.deepEqual(seen, ["owner:proj-1:source-control", "create:proj-1:source-control", "owner:proj-1:vendor", "create:proj-1:vendor"]);
+});
+
+// Mutation: l.93 `loadProviders` ignores the caller (`workspaceId: "ws-a"`) -> the providers load for the wrong workspace.
+test("a canonical source-control key save loads the providers of the saving workspace and refuses a host none of them declares", async () => {
+  const { deps, loads } = rig();
+  const canonical = need(deps.sourceControlCredentialSetRepo.canonical, "canonical");
+  await assert.rejects(need(canonical.create, "create")({ workspaceId: "ws-save", connection: { providerId: "github", token: "tok-a" } }),
+    { message: "The source control provider is unavailable. Turn it on and open its key card again." });
+  assert.deepEqual(loads, [{ workspaceId: "ws-save", contribution: "source-control providers" }, { workspaceId: "ws-save", contribution: "source-control providers" }]);
 });

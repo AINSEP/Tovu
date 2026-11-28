@@ -8,6 +8,7 @@ import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { importFixture } from "#src/features/site-backup/__tests__/import.fixture";
 import type { createSiteImportBackend } from "#src/features/site-backup/import-backend";
 import type { bindSiteImportBackfill } from "../site-import-backfill.js";
+import { IMPORT_INDEX_STATE_SCHEMA } from "@jini-ai/devops/backup/site/import-index/mode";
 
 /**
  * @file The composed site importer (`composeSiteImportBackend`): the optional host hooks reach the
@@ -96,4 +97,32 @@ test("a candidate DB that fails its integrity check refuses the backfill as dama
   bytes.fill(0x5a, (page - 1) * pageSize + 8, page * pageSize);
   fs.writeFileSync(file, bytes);
   assert.throws(() => compose("corrupt").captured.backfill({}), DAMAGED);
+});
+
+// Mutation: the composed `readJsonAt` (l.82) reads nothing (`({ kind: "missing" })`) -> a fresh backend cannot find the saved import.
+test("a freshly composed backend reads an earlier import's record back from disk through the durable-JSON port", async t => {
+  const { h, compose } = await composed(t);
+  const first = compose("reload").backend;
+  const pending = await first.importBackup({ principalId: "owner", source: await first.upload({ principalId: "owner", archive: h.archive }), requestId: "request-reload" });
+  const read = compose("reload").backend.get({ principalId: "owner", importId: pending.importId });
+  assert.deepEqual([read.importId, read.status, read.setupUrl], [pending.importId, "needs-owner", pending.setupUrl]);
+});
+
+// Mutation: the authority `log` (l.75) drops its message (`() => {}`) -> the rollback refusal is never reported.
+test("under the shipped rollback policy an already-indexed history stays in use and the refused rollback is logged", async t => {
+  const { h, compose } = await composed(t);
+  const { captured, directory } = compose("indexed");
+  const cutover = captured.backfill({});
+  assert.equal(cutover.state, "cutover");
+  if (cutover.state !== "cutover") return;
+  const now = Date.now();
+  fs.writeFileSync(path.join(directory, "import-index.state.json"), JSON.stringify({ schema: IMPORT_INDEX_STATE_SCHEMA, mode: "indexed", dbId: cutover.dbId, cutoverAt: cutover.cutoverAt, firstIndexedWriteAt: now, legacyRetiredAt: 0 }), { mode: 0o600 });
+  fs.writeFileSync(path.join(directory, ".history-indexed-v1"), "", { mode: 0o600 });
+  const warn = t.mock.method(console, "warn", () => {});
+  const backend = compose("indexed").backend;
+  const pending = await backend.importBackup({ principalId: "owner", source: await backend.upload({ principalId: "owner", archive: h.archive }), requestId: "request-indexed" });
+  assert.equal(pending.status, "needs-owner");
+  const logged = warn.mock.calls.map(call => call.arguments);
+  assert.ok(logged.length > 0);
+  assert.deepEqual(new Set(logged.map(args => JSON.stringify(args))), new Set([JSON.stringify(["[site-backup]", "Rollback is not possible after the first indexed import write; the index-aware store stays in use."])]));
 });
