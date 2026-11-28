@@ -49,6 +49,8 @@ const controls = {
   memory: true,
   /** The scope's real run-credential registry, so a test can mint the token a bridge would carry. */
   runCredentials: undefined as ReturnType<typeof access.createRunScopedCredentials> | undefined,
+  /** The bridge injection the scope hands its agent executor (whose launch mints each run's credential). */
+  injection: undefined as NonNullable<Parameters<typeof daemon.createAgentExecutor>[1]>["mcpJsonInjection"],
   deps: undefined as core.AgentDaemonCoreDeps | undefined,
   /** The real host deps the scope hands Jini's delegated route list (the route list itself is stubbed). */
   delegatedDeps: undefined as Parameters<typeof http.delegatedToolRoutes>[0]["deps"] | undefined,
@@ -182,6 +184,7 @@ mock.module("@jini-ai/daemon", { namedExports: { ...daemon,
   },
   createAgentExecutor: (_required: Parameters<typeof daemon.createAgentExecutor>[0], optional: Parameters<typeof daemon.createAgentExecutor>[1]) => {
     const augmenter: PromptAugmenter | undefined = optional?.promptAugmenter;
+    controls.injection = optional?.mcpJsonInjection;
     return { run: async (required: daemon.AgentExecutorRunInput, options: Partial<daemon.AgentExecutorRunInput> = {}) => {
       controls.launches.push({ ...required, ...options }); controls.note("dispatch");
       await controls.overlay?.promise;
@@ -478,6 +481,51 @@ test("a bridge credential minted for a live run admits its claim calls until the
     await h.flush();
     const ended = await claim();
     assert.deepEqual([ended.status, await ended.json()], [401, { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } }]);
+  } finally { await h.close(); }
+});
+
+// Mutations: drop the revoked-run check from principalOfLiveRun; mint through a fixed run id instead of the launch's.
+// (Lowering revokes the run's existing token itself, so only a credential minted after it isolates the check.)
+test("the bridge credential the executor mints for a run is admitted until tool access is lowered, then cannot be re-minted", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("bridge-revoked");
+    await until(() => controls.launches.length === 1);
+    const credential = controls.injection?.credential;
+    assert.equal(typeof credential, "function");
+    const token = credential!({ runId });
+    const claim = () => fetch(`${h.url}/api/runs/${runId}/messages/claim`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}" });
+    const live = await claim();
+    assert.deepEqual([live.status, await live.json()], [400, { error: { code: "BAD_REQUEST", message: "body must contain only via: tool-result or check_messages" } }]);
+    const lowered = fetch(`${h.url}/api/tool-access/lower`, { method: "POST", headers: { authorization: `Bearer ${h.token}`, "content-type": "application/json" }, body: JSON.stringify({ agentIds: ["claude"] }) });
+    // The run has not ended (its cleanup wait is pending), so only the revocation can refuse it.
+    await until(() => controls.events.includes(`cleanup-wait:${runId}`));
+    const revoked = await claim();
+    assert.deepEqual([revoked.status, await revoked.json()], [401, { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } }]);
+    assert.throws(() => credential!({ runId }), { message: `cannot mint a credential for run "${runId}": it is not live` });
+    await h.scope.lifecycle.finish({ runId, status: "cancelled", code: null, signal: null, resumable: false });
+    assert.equal((await lowered).status, 200);
+  } finally { await h.close(); }
+});
+
+// Mutation: drop the disposed-scope check from principalOfLiveRun. Disposal revokes only the tokens that exist
+// when it lists the runs, so a credential minted after the fence but before the run ends isolates the check.
+test("once the scope starts disposing, the executor can no longer mint a credential for a still-live run", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("bridge-disposed");
+    await until(() => controls.launches.length === 1);
+    const credential = controls.injection!.credential;
+    assert.equal(typeof credential!({ runId }), "string");
+    // Synchronously after the fence: the run cannot have ended yet, so its principal is still tracked.
+    const disposing = h.scope.dispose({}, {});
+    assert.throws(() => credential!({ runId }), { message: `cannot mint a credential for run "${runId}": it is not live` });
+    // Disposal drains accepted work, so let the held executor return before waiting on it.
+    controls.execution!.release();
+    await h.scope.lifecycle.finish({ runId, status: "cancelled", code: null, signal: null, resumable: false });
+    await disposing;
   } finally { await h.close(); }
 });
 
