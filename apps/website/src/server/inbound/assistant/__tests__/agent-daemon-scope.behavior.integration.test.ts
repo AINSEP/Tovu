@@ -571,6 +571,29 @@ test("a run naming an attachment the opened store never registered fails before 
   } finally { await h.close(); }
 });
 
+// Mutations: page approval reads the view through something other than the scope's own executor (the closure
+// answers directly, so no audited page.find_elements attempt exists); hasExchanges reports a parked exchange that is not there.
+test("an opaque click with no admin tab reads the view through the scope's audited executor, then refuses without parking", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("click-without-tab");
+    await until(() => controls.launches.length === 1);
+    const result = await controls.delegatedDeps!.toolExecutor.execute({ principal: { id: "owner" }, run: { id: runId }, toolId: "page.click", input: { handle: "btn-1" } });
+    assert.deepEqual([result.status, result.status === "failed" ? result.error : undefined],
+      ["failed", "The admin tab could not verify the current view for this click, so nothing was changed. Retry the action on the current view."]);
+    // The memory-mode sink keeps its rows readable; the view read is the click's own nested, audited attempt.
+    const sink = controls.deps!.toolAttemptAuditSink as { events?: readonly { runId: string; toolId: string; principalId: string; phase: string; detail: string | null }[] };
+    assert.deepEqual(sink.events?.filter(event => event.runId === runId).map(event => [event.toolId, event.principalId, event.phase, event.detail?.startsWith("errorId=") ? "errorId" : event.detail]), [
+      ["page.click", "owner", "requested", "keys: handle"],
+      ["page.find_elements", "owner", "requested", "keys: query"],
+      ["page.find_elements", "owner", "failed", "errorId"],
+      ["page.click", "owner", "failed", null],
+    ]);
+    assert.equal(h.scope.hasExchanges(), false);
+  } finally { await h.close(); }
+});
+
 // Mutations: fabricate a principal for an untracked run; ignore `requireReadOnly`; attenuate every call.
 test("delegated calls resolve the run's tracked principal, attenuated only for a read-only request", async () => {
   const h = await harness();
