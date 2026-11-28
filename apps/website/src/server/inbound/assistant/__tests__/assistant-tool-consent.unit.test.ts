@@ -113,3 +113,41 @@ test('SETUP rechecks run liveness after the human click', async () => {
     live = false; return { confirmed: true };
   } }), null);
 });
+
+test('unknown capability keys keep their raw label and Full CLI access shows the current enabled switch', () => {
+  const card = buildAssistantToolConsentSpec({ def: { id: 'claude', name: 'Claude' }, keys: ['enabled', 'futureTool'],
+    snapshot: { permissions: { enabled: true, capabilities: {} }, revisionSeq: 7, allowed: true }, scope, stale: false });
+  assert.deepEqual(card.access, { resources: [
+    { id: 'claude:enabled', label: 'Full CLI access', scope, revision: '7', previous: true, proposed: true },
+    { id: 'claude:futureTool', label: 'futureTool', scope, revision: '7', previous: false, proposed: true },
+  ] });
+});
+
+test('a consent card answered with an offered agent returns that agent instead of allowing', async () => {
+  const { requestAssistantToolConsent } = await import('../assistant-tool-consent.js');
+  const offered: unknown[] = [];
+  const result = await requestAssistantToolConsent({ def: { id: 'antigravity', name: 'Antigravity' }, keys: ['shell'], workspaceId: 'site-one',
+    ctx: { executionId: 'consent-exec', run: { id: 'run-one' }, principal: { id: 'owner' }, input: {}, signal: new AbortController().signal },
+    surfaces: {} as Parameters<typeof requestAssistantToolConsent>[0]['surfaces'], readFresh: async () => snapshot, isLive: () => true,
+    allowSelected: async () => { throw new Error('must not write'); },
+  }, { alternatives: [{ agentId: 'pi', name: 'pi' }], askHuman: async ({ spec }) => { offered.push(spec.alternatives); return { confirmed: true, choice: 'pi' }; } });
+  assert.deepEqual(offered, [[{ id: 'agent-0', label: 'Use pi', choice: 'pi' }]]);
+  assert.deepEqual(result, { status: 'alternative', agentId: 'pi' });
+});
+
+test('SETUP without an injected asker opens the real principal-bound card and returns the clicked agent', async t => {
+  const { createSurfaceExchangeStore } = await import('@jini-ai/daemon/surface-exchanges');
+  const { createTimeoutScheduler } = await import('@jini-ai/daemon/scheduler');
+  const controller = new AbortController(); t.after(() => controller.abort());
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: { nowMs: () => Date.now() },
+    idGenerator: { newId: () => 'setup-one' }, defaultChannel: 'mcp-ui' });
+  const pending = requestAssistantToolAlternative({ ...alternativeInput(),
+    ctx: { executionId: 'setup-exec', run: { id: 'run-one' }, principal: { id: 'owner' }, input: {}, signal: controller.signal },
+    surfaces: { surfaceExchanges: store, assertAccessApprover: async () => {} } as Parameters<typeof requestAssistantToolAlternative>[0]['surfaces'],
+  }, { emitSurface: async () => {} });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(store.size(), 1);
+  assert.deepEqual(store.deliver({ exchangeId: 'setup-one', principalId: 'owner', params: { decision: 'confirm', choice: 'pi' } },
+    { toolId: 'settings_set_value' }), { ok: true });
+  assert.equal(await pending, 'pi');
+});
