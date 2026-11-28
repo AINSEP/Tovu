@@ -523,3 +523,54 @@ test('an installed N-1 plugin keeps its identity, OAuth declaration, card and So
   assert.equal(ports.legacyIdentity?.namespace, 'tovu');
   assert.match(ports.legacyIdentity?.warning ?? '', /2027-05-06/);
 });
+
+test('an approved enable whose provisioning throws an unexpected error tells the owner to retry, naming only the error class', async t => {
+  const ctx = await fixture(t);
+  const host = createTovuPluginHost({ deps: ctx.deps }, {
+    warn: () => {}, resolveMcpServers: async () => ({}),
+    provisionMcpServers: async () => { throw new TypeError('connection store offline'); },
+  });
+  const agentPlugins = host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+  const preview = await agentPlugins.previewEnableAccess!({ pluginId: 'github' });
+  await assert.rejects(agentPlugins.provisionMcp({ pluginId: 'github', principalId: 'owner' }, { approvedEnable: true, approvedEnableKey: preview.key }), error => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'The plugin is on, but its approved connections could not be loaded. Request plugins_set_enabled again to retry. Details: TypeError');
+    return true;
+  });
+});
+
+test('without an injected warn, metadata warnings go to the console with the plugins prefix', async t => {
+  const ctx = await fixture(t);
+  const packageRoot = path.join(ctx.root, 'invalid-manifest');
+  await mkdir(packageRoot);
+  await writeFile(path.join(packageRoot, 'plugin.json'), '{');
+  const consoleWarn = t.mock.method(console, 'warn', () => {});
+  const host = createTovuPluginHost({ deps: { ...ctx.deps, listInstalledAgentPlugins: async () => [{ ...plugin, packageRoot }] } }, { resolveEnabled: async () => false });
+  assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
+  assert.deepEqual(consoleWarn.mock.calls.map(call => call.arguments), [["[plugins] Plugin 'github': installed identity manifest is unreadable or invalid; omitted from metadata lookup."]]);
+});
+
+test('inactivePluginIds lists exactly the agent plugins whose activation record is off', async t => {
+  const ctx = await fixture(t);
+  const workspaceRoot = ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root;
+  const agentPlugins = createTovuPluginHost({ deps: ctx.deps }, { warn: () => {} }).getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'github', enabled: false, actor: 'pin' });
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'notes', enabled: true, actor: 'pin' });
+  assert.deepEqual([...await agentPlugins.inactivePluginIds()], ['github']);
+});
+
+test('an injected toggle that turns a plugin off lowers it in the MCP roster; turning one on does not', async t => {
+  const ctx = await fixture(t);
+  const notices: unknown[] = [];
+  const toggles: unknown[] = [];
+  const deps: TovuPluginHostDeps = {
+    ...ctx.deps, mcp: { ...ctx.deps.mcp, notifyRosterChanged: async (input) => { notices.push(input); } },
+    setAgentPluginEnabled: async input => { toggles.push([input.pluginId, input.enabled, input.agentPluginLayout === ctx.deps.agentPluginLayout]); return { pluginId: input.pluginId, enabled: input.enabled, warnings: [] }; },
+  };
+  const agentPlugins = createTovuPluginHost({ deps }, { warn: () => {} }).getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
+  assert.deepEqual(await agentPlugins.setEnabled({ workspaceId: 'site', pluginId: 'github', enabled: true, actor: 'owner' }), { pluginId: 'github', enabled: true, warnings: [] });
+  assert.deepEqual(notices, []);
+  assert.deepEqual(await agentPlugins.setEnabled({ workspaceId: 'site', pluginId: 'github', enabled: false, actor: 'owner' }), { pluginId: 'github', enabled: false, warnings: [] });
+  assert.deepEqual(notices, [{ lowered: { pluginIds: ['github'] } }]);
+  assert.deepEqual(toggles, [['github', true, true], ['github', false, true]]);
+});
