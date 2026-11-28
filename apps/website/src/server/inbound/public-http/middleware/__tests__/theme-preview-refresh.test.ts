@@ -1,4 +1,5 @@
 import { createRouteIncidentReporter } from "#src/server/__tests__/helpers/route-incident-reporter";
+import { assertReporterDiagnostics, recordingComposedReporter } from "#src/server/__tests__/helpers/composed-reporter-probe";
 import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
@@ -367,8 +368,7 @@ test("an authenticated preview asset request remembers the revision, skips the r
 });
 
 test("preview reload writes a fresh refresh frame, and a themes path that cannot hold the marker answers 500", async (t) => {
-  const logs: unknown[][] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  const { reporter, records } = recordingComposedReporter();
   const { fs, path, themesDir, reload, deps } = await bootServerRoster(t);
   const ok = createCapturingResponse();
   ok.res.locals.principal = { id: "owner" };
@@ -382,14 +382,15 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   (deps as { themesDir: string }).themesDir = blocker;
   const failed = createCapturingResponse();
   failed.res.locals.principal = { id: "owner" };
+  failed.res.locals.failureReporter = reporter;
   await reload({ params: { workspaceId: "ws" } }, failed.res);
   assert.equal(failed.capture.statusCode, 500);
   const body = failed.capture.jsonBody as { error: string; errorId: string };
   assert.match(body.error, /The preview could not be reloaded/);
   assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
   assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET/);
-  const entry = logs.find(args => args[0] === "[theme-preview:refresh]"); assert.ok(entry, "the failure is logged");
-  const detail = entry[1] as { errorId: string; diagnostic: string };
+  assertReporterDiagnostics({ records, operation: "theme-preview:refresh", diagnostics: [/boom/] });
+  const detail = (records[0]![1] as { meta: { errorId: string; diagnostic: string } }).meta;
   assert.equal(detail.errorId, body.errorId);
   assert.match(detail.diagnostic, /boom/);
   // The native stack is kept. The handler resumes after an await, so no frame of this test file is on it any

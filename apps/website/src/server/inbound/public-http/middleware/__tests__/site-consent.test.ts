@@ -18,6 +18,7 @@ import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observabili
 import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
+import { assertReporterDiagnostics, recordingComposedReporter } from '#src/server/__tests__/helpers/composed-reporter-probe';
 import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, readSiteConsentPolicy, resolveSiteConsentOrigin } from '../site-consent.js';
 import { applySiteCookieConsent, readSiteVisitorConsent } from '../site-cookie-consent.js';
 
@@ -163,12 +164,13 @@ test('bound readiness counts site receipts and reports unavailable storage witho
 });
 
 test('a receipt write failure issues no cookie; foreign Origin is refused before storage work', async t => {
-  const errors = t.mock.method(console, 'error', () => undefined);
+  const { reporter, records } = recordingComposedReporter();
   const f = await policyFixture({ t });
   const blocker = path.join(f.directory, 'blocked-site');
   await fs.writeFile(blocker, 'not a directory');
   f.deps.siteBinding = { ...f.deps.siteBinding, dir: blocker };
   const app = express();
+  app.locals.failureReporter = reporter;
   const consent = f.deps.cookieConsent; assert.ok(consent, 'the fixture enables consent');
   applySiteCookieConsent({ app, deps: f.deps, consent }, { client: CLIENT });
   await consent.refresh?.();
@@ -185,9 +187,8 @@ test('a receipt write failure issues no cookie; foreign Origin is refused before
   const body = JSON.parse(failed.body) as { error: string; errorId: string };
   assert.equal(body.error, 'Your choice could not be saved. Try again.');
   assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
-  const report = errors.mock.calls.find(call => call.arguments[0] === '[consent:save]');
-  assert.ok(report, 'the save failure is reported');
-  assert.equal((report.arguments[1] as { errorId: string }).errorId, body.errorId);
+  assertReporterDiagnostics({ records, operation: 'consent:save', diagnostics: [/ENOTDIR|EEXIST|not a directory/] });
+  assert.equal((records[0]![1] as { meta: { errorId: string } }).meta.errorId, body.errorId, 'the reply carries the recorded incident id');
 });
 
 test('an explicit US grant without a valid durable receipt remains denied', async t => {

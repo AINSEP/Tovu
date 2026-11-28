@@ -67,8 +67,8 @@ test('the host chat bubble and loader are untagged necessary features', () => {
 
 test('successful asset probes are bounded to the sixteen newest deployments', () => {
   const expectedFiles = ['site-assistant-loader.js', 'site-assistant.js', 'site-assistant.css'];
-  const available = new Map(Array.from({ length: 17 }, (_, index) =>
-    [`/deploy/${index}`, new Set(expectedFiles)] as const));
+  const available = new Map<string, Set<string>>(Array.from({ length: 17 }, (_, index) =>
+    [`/deploy/${index}`, new Set(expectedFiles)]));
   const probes: string[] = [];
   const isReady = createSiteChatAssetReadiness({
     exists: ({ directory, name }) => {
