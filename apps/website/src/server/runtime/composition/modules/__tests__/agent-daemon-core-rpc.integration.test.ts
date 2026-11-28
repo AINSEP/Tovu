@@ -162,3 +162,30 @@ test("the next daemon run reads live provider capture policy from its site autho
   await f.core.chatRunLedger.durable.find({ runId: "daemon-test-run" }, {});
   assert.equal(f.core.aiTraceSink?.capture, "off");
 });
+
+test("a daemon settings read naming another workspace is refused at the site before any setting is resolved", async t => {
+  const { server, token } = await fixture(t);
+  let resolved = 0;
+  const deps = { ...server, getEffective: ((...args: Parameters<typeof server.getEffective>) => { resolved++; return server.getEffective(...args); }) as typeof server.getEffective };
+  const failures: unknown[] = [];
+  const app = express();
+  app.use(express.json());
+  registerAgentDaemonCoreRoutes({ router: app, deps });
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => { failures.push(error); res.status(503).json({ error: "refused" }); });
+  const url = `${await startTestServer(app, t)}/internal/agent-daemon-core`;
+  const read = (workspaceId: string) => fetch(url, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ operation: "getEffective", input: { namespace: "core.interface", key: "language", scopeContext: { workspaceId } } }) });
+
+  const foreign = await read("foreign-workspace");
+  assert.equal(foreign.status, 503);
+  assert.equal(failures.length, 1);
+  assert.ok(failures[0] instanceof Error);
+  assert.equal(failures[0].name, "DaemonCoreError");
+  assert.equal(failures[0].message, "foreign settings workspace");
+  assert.equal(resolved, 0);
+
+  const own = await read(server.workspaceId);
+  assert.equal(own.status, 200);
+  assert.equal(failures.length, 1);
+  assert.equal(resolved, 1);
+});
