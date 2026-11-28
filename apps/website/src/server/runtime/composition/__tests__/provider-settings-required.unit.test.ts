@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
+import type { PluginProviderDeclaration, PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
+import type { PluginDiscoveryRecord } from "@jini-ai/core/contracts/site/host-node";
+import type { Tracker } from "@jini-ai/core/contracts/site/diagnostics-observability";
+import { WORD_COUNT_MANIFEST } from "#src/features/plugin-runtime/built-ins/word-count/index";
 
 import { buildProviderSettingsForm } from "@jini-ai/integrations/custom-credentials/provider-settings-card";
 import type { ProviderConfigSource, ProviderPluginConfig } from "@jini-ai/core/contracts/site/composition-provider-config-source";
 import { tovuProviderSettingsCardIdentity } from "#src/features/custom-credentials/tovu-credential-card-identity";
 import { providerInputOf } from "../provider-plugins.js";
-import { providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
+import { ProviderConfigUnreadableError } from "../provider-config-source.js";
+import { bindProviderSettingsCardPorts, currentProviderConfig, declaredProviderSettingFields, listProviderStatuses, providerSettingsStatus, saveProviderSettings } from "../provider-settings-save.js";
 
 const pluginId = "observability-opentelemetry";
 const hint = 'Choose "No authentication" only for a local collector.';
@@ -156,4 +160,98 @@ test('save refuses non-auth headers before writing; declared auth headers allow 
       assert.deepEqual((await providerSettingsStatus({ config: f.config, pluginId, fields: declared })).missing, []);
     }
   }
+});
+
+// ---- Discovery, malformed input, unreadable rows, telemetry and the card/status ports ----
+
+const otherFields: readonly PluginProviderSettingField[] = [{ name: "endpoint", label: "Second endpoint", required: true }, { name: "region", label: "Region" }];
+const pluginRecord = (id: string, providers: PluginProviderDeclaration[] | undefined): PluginDiscoveryRecord => ({
+  id, name: id, version: "1.0.0", source: "site", status: "valid", errors: [],
+  ...(providers ? { manifest: { ...WORD_COUNT_MANIFEST, id, contributes: { providers } } } : {}),
+});
+const providerDecl = (contract: string, settings?: readonly PluginProviderSettingField[]): PluginProviderDeclaration =>
+  ({ contract, id: `${contract}-impl`, contractVersion: 1, ...(settings ? { settings } : {}) });
+
+test("declared fields: unknown or manifest-less plugins declare none; the first declaration of a name wins across providers", () => {
+  const records = [pluginRecord("bare", undefined), pluginRecord(pluginId, [providerDecl("traces"), providerDecl("observability", fields), providerDecl("metrics", otherFields)])];
+  assert.equal(declaredProviderSettingFields({ records, pluginId: "absent" }), undefined);
+  assert.equal(declaredProviderSettingFields({ records, pluginId: "bare" }), undefined);
+  assert.deepEqual(declaredProviderSettingFields({ records, pluginId }), [...fields, otherFields[1]]);
+});
+
+test("malformed or undeclared values are refused as invalid and nothing is written", async () => {
+  for (const values of [null, "endpoint=x", [endpoint], { endpoint, unknown: "x" }, { endpoint: 42 }]) {
+    const f = fixture();
+    assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields, values }), {
+      refusal: { code: "PROVIDER_SETTINGS_INVALID", error: "values must map declared setting names to text" },
+    });
+    assert.equal(f.writes(), 0);
+  }
+});
+
+test("a saved row this machine cannot open counts as nothing saved; any other read failure surfaces unchanged", async () => {
+  const f = fixture();
+  const unreadable: ProviderConfigSource = { ...f.config, read: async () => { throw new ProviderConfigUnreadableError({ pluginId, cause: new Error("bad key") }); } };
+  assert.equal(await currentProviderConfig({ config: unreadable, pluginId }), null);
+  const result = await saveProviderSettings({ config: unreadable, pluginId, fields, values: { endpoint, auth: "none" } });
+  assert.equal("saved" in result && result.saved, true);
+  assert.deepEqual(f.saved(), { settings: { endpoint, auth: "none" }, secrets: {} });
+  const boom = new Error("disk gone");
+  const failing: ProviderConfigSource = { ...f.config, read: async () => { throw boom; } };
+  await assert.rejects(saveProviderSettings({ config: failing, pluginId, fields, values: { endpoint } }), (error) => error === boom);
+  assert.equal(f.writes(), 1);
+});
+
+test("a save captures one provider_configured event per distinct contract with the exact user and plugin", async () => {
+  const captured: unknown[] = [];
+  const tracker = { capture: (input: unknown, options: unknown) => { captured.push([input, options]); } } as unknown as Tracker;
+  const f = fixture();
+  await saveProviderSettings({ config: f.config, pluginId, fields, values: { endpoint, auth: "none" }, telemetry: { tracker, userId: "owner-1", contracts: ["observability", "metrics", "observability"] } });
+  assert.deepEqual(captured, [
+    [{ name: "provider_configured", userId: "owner-1" }, { properties: { contract: "observability", pluginId, action: "save" } }],
+    [{ name: "provider_configured", userId: "owner-1" }, { properties: { contract: "metrics", pluginId, action: "save" } }],
+  ]);
+});
+
+test("status of an unreadable saved row reports it as unreadable without opening it", async () => {
+  const config: ProviderConfigSource = {
+    scope: "site",
+    usage: async () => ({ store: "site", usedByThisSite: true, usedBy: [] }),
+    read: async () => { throw new Error("status must not open an unreadable row"); },
+    readSettings: async () => ({ settings: {}, secretNames: [], unreadable: true }),
+    write: async () => { throw new Error("status never writes"); },
+  };
+  assert.deepEqual(await providerSettingsStatus({ config, pluginId, fields }), {
+    configured: false, store: "site", usedByThisSite: true, usedBy: [], appliesAt: "now", missing: ["OTLP endpoint", "Token"], unreadable: true,
+  });
+});
+
+test("card ports: no declared settings refuses; a save carries the plugin's contracts to telemetry; unreadable settings read as none", async () => {
+  const captured: unknown[] = [];
+  const tracker = { capture: (input: unknown, options: unknown) => { captured.push([input, options]); } } as unknown as Tracker;
+  const f = fixture();
+  const records = [pluginRecord(pluginId, [providerDecl("observability", fields), providerDecl("metrics")]), pluginRecord("plain", [providerDecl("traces")])];
+  const ports = bindProviderSettingsCardPorts({ config: f.config, discoverPlugins: async () => records, tracker, userId: "owner-2" });
+  assert.deepEqual(await ports.save({ pluginId: "plain", values: {} }), { refusal: "This plugin declares no provider settings." });
+  assert.deepEqual(await ports.save({ pluginId, values: { endpoint } }), { refusal: `Token is required. ${hint}` });
+  assert.equal(f.writes(), 0);
+  assert.deepEqual(await ports.save({ pluginId, values: { endpoint, auth: "none" } }), { saved: true, configured: true, store: "project", usedByThisSite: true, usedBy: [], appliesAt: "restart" });
+  assert.deepEqual(captured.map((entry) => (entry as [unknown, { properties: { contract: string } }])[1].properties.contract), ["observability", "metrics"]);
+  const unreadable = bindProviderSettingsCardPorts({ config: { ...f.config, readSettings: async () => ({ settings: { endpoint }, secretNames: [], unreadable: true }) }, discoverPlugins: async () => records });
+  assert.equal(await unreadable.readSettings({ pluginId }), null);
+  assert.deepEqual(await ports.readSettings({ pluginId }), { settings: { endpoint, auth: "none" }, secretNames: [] });
+  const silent = bindProviderSettingsCardPorts({ config: fixture().config, discoverPlugins: async () => records, tracker });
+  await silent.save({ pluginId, values: { endpoint, auth: "none" } });
+  assert.equal(captured.length, 2, "telemetry needs both a tracker and a user");
+});
+
+test("provider_status rows skip plugins without settings and carry appliesAt and the quarantine reason", async () => {
+  const records = [pluginRecord("plain", [providerDecl("traces")]), pluginRecord(pluginId, [providerDecl("observability", fields)]), pluginRecord("second", [providerDecl("metrics", otherFields)])];
+  const activations: Record<string, { enabled: boolean; quarantineReason?: string } | null> = { [pluginId]: { enabled: true, quarantineReason: "crashed on boot" }, second: null };
+  const rows = await listProviderStatuses({ config: fixture().config, discoverPlugins: async () => records, activation: async ({ pluginId: id }) => activations[id] ?? null,
+    appliesAt: ({ pluginId: id }) => (id === pluginId ? "failed" : "restart") });
+  assert.deepEqual(rows.map((row) => [row.pluginId, row.enabled, row.appliesAt, "quarantine" in row ? row.quarantine : undefined]), [
+    [pluginId, true, "failed", "crashed on boot"], ["second", false, "restart", undefined],
+  ]);
+  assert.deepEqual(rows[1]?.fields.map((field) => field.required), [true, false]);
 });
