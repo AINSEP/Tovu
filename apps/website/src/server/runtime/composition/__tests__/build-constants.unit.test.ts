@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
-import { resolveAppVersion, resolveJiniVersion, runningVersionFrom } from "../build-constants.js";
+import { processBuildConstants, resolveAppVersion, resolveJiniVersion, runningVersionFrom } from "../build-constants.js";
 
 /** A read port over an in-memory file map; a missing file throws like readFileSync. */
 function filesReader(files: Record<string, unknown>): (file: string, encoding: "utf8") => string {
@@ -46,4 +46,23 @@ test("jini version from the core package this host actually resolves", () => {
   while (!existsSync(path.join(dir, "package.json")) || !readFileSync(path.join(dir, "package.json"), "utf8").includes('"name": "@jini-ai/core"')) dir = path.dirname(dir);
   const installed = (JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as { version: string }).version;
   assert.equal(resolveJiniVersion({ coreEntry }, { read: readFileSync }), installed);
+});
+
+test("a non-object manifest level is skipped, and a core manifest with a non-string or oversized version reports unknown", () => {
+  const entry = "/srv/node_modules/@jini-ai/core/dist/errors/reporter.js";
+  const core = "/srv/node_modules/@jini-ai/core/package.json";
+  const skipping = filesReader({ "/srv/node_modules/@jini-ai/core/dist/errors/package.json": null, "/srv/node_modules/@jini-ai/core/dist/package.json": 7, [core]: { name: "@jini-ai/core", version: "0.8.0" } });
+  assert.equal(resolveJiniVersion({ coreEntry: entry }, { read: skipping }), "0.8.0");
+  assert.equal(resolveJiniVersion({ coreEntry: entry }, { read: filesReader({ [core]: { name: "@jini-ai/core", version: ["0.8.0"] } }) }), "unknown");
+  assert.equal(resolveJiniVersion({ coreEntry: entry }, { read: filesReader({ [core]: { name: "@jini-ai/core", version: "1".repeat(65) } }) }), "unknown");
+  assert.equal(resolveJiniVersion({ coreEntry: entry }, { read: filesReader({ [core]: { name: "@jini-ai/core", version: "1".repeat(64) } }) }), "1".repeat(64));
+});
+
+test("the process binding reports the env's running version and the resolved core package's version", t => {
+  const saved = { version: process.env.TOVU_VERSION };
+  t.after(() => { if (saved.version === undefined) delete process.env.TOVU_VERSION; else process.env.TOVU_VERSION = saved.version; });
+  process.env.TOVU_VERSION = "3.2.1-process";
+  const coreEntry = createRequire(import.meta.url).resolve("@jini-ai/core/errors/reporter");
+  assert.deepEqual(processBuildConstants(), { app: "3.2.1-process", jini: resolveJiniVersion({ coreEntry }, { read: readFileSync }) });
+  assert.notEqual(processBuildConstants().jini, "unknown");
 });
