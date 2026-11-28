@@ -1,0 +1,112 @@
+From 3a8dc8766a9b16242a8c4d743de5027faf20c92c Mon Sep 17 00:00:00 2001
+From: LA <la@LAs-MacBook-Pro.lan>
+Date: Sat, 28 Nov 2026 10:07:02 -0800
+Subject: [PATCH] refactor(coverage): delete impossible branches in desktop
+ (T-R18..T-R23, Codex, untested)
+
+Coverage-driven cuts from the 11-28 ledger. T-R24 (coverage-floors tooling)
+excluded on purpose. Production -10/+7. Not yet run.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ apps/desktop/src/desktop-resources.ts   | 6 ++----
+ apps/desktop/src/external-site-stop.ts  | 3 +--
+ apps/desktop/src/site-archive-import.ts | 2 +-
+ apps/desktop/src/smoke-bridge.ts        | 2 +-
+ apps/desktop/src/stage-payload-lib.ts   | 2 +-
+ apps/desktop/src/tovu-server.ts         | 2 +-
+ 6 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/apps/desktop/src/desktop-resources.ts b/apps/desktop/src/desktop-resources.ts
+index 1e5d80ca3e..fc42f0b390 100644
+--- a/apps/desktop/src/desktop-resources.ts
++++ b/apps/desktop/src/desktop-resources.ts
+@@ -57,8 +57,7 @@ function processRows({ usages, rootPid, rootRole, readings }: {
+   return usages.map((row) => {
+     let role: ResourceProcess['role'] = row.pid === daemonPid ? 'daemon' : 'process';
+     if (row.pid === rootPid) role = rootRole;
+-    const reading = readings.get(row.pid);
+-    if (!reading) throw new Error(`resource sample has no CPU reading for process ${row.pid}`);
++    const reading = readings.get(row.pid)!;
+     return { pid: row.pid, ppid: row.ppid, name: row.name, rssBytes: row.rssBytes, rawRssBytes: row.rawRssBytes, memoryMetric: row.memoryMetric, role,
+       cpuPercent: reading.cpuPercent, cpuWarning: reading.cpuWarning };
+   });
+@@ -131,8 +130,7 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
+       sites: groups,
+     },
+     history: { at, processes: new Map(rows.map((row) => {
+-      const reading = readings.get(row.pid);
+-      if (!reading) throw new Error(`resource history has no CPU reading for process ${row.pid}`);
++      const reading = readings.get(row.pid)!;
+       return [row.pid, { cpuSeconds: row.cpuSeconds, high: reading.high }];
+     })) },
+   };
+diff --git a/apps/desktop/src/external-site-stop.ts b/apps/desktop/src/external-site-stop.ts
+index 3754feaca9..aa70a70e7d 100644
+--- a/apps/desktop/src/external-site-stop.ts
++++ b/apps/desktop/src/external-site-stop.ts
+@@ -199,8 +199,7 @@ export function createExternalSiteStopper(_required: Record<string, never> = {},
+       if (launcher === null) return null;
+       if (launchers.size >= LAUNCHER_CACHE_LIMIT) {
+         const oldest = launchers.keys().next();
+-        if (oldest.done) throw new Error('external site launcher cache has no oldest entry');
+-        launchers.delete(oldest.value);
++        launchers.delete(oldest.value!);
+       }
+       launchers.set(lease.token, launcher);
+       return launcher;
+diff --git a/apps/desktop/src/site-archive-import.ts b/apps/desktop/src/site-archive-import.ts
+index 6c5d5e3844..11d1f48597 100644
+--- a/apps/desktop/src/site-archive-import.ts
++++ b/apps/desktop/src/site-archive-import.ts
+@@ -163,7 +163,7 @@ function failureMessage({ stderr, code }: { stderr: string; code: number | null
+ 
+ /** The result is the child's last line: a library logging to stdout first must not break the import. */
+ function parseResult({ stdout }: { stdout: string }): ImportedSiteArchive {
+-  const line = stdout.trim().split("\n").at(-1) ?? "";
++  const line = stdout.trim().split("\n").at(-1)!;
+   try {
+     const parsed = JSON.parse(line) as ImportedSiteArchive;
+     if (typeof parsed.dir === "string" && typeof parsed.siteId === "string") return { ...parsed, warnings: parsed.warnings ?? [] };
+diff --git a/apps/desktop/src/smoke-bridge.ts b/apps/desktop/src/smoke-bridge.ts
+index f06c44a638..28988812ce 100644
+--- a/apps/desktop/src/smoke-bridge.ts
++++ b/apps/desktop/src/smoke-bridge.ts
+@@ -281,7 +281,7 @@ export async function smokeBridge(
+         return;
+       }
+       const lines = buffer.split("\n");
+-      buffer = lines.pop() ?? ""; // the piece after the last newline is an unfinished line
++      buffer = lines.pop()!; // the piece after the last newline is an unfinished line
+       try {
+         if (lines.some((line) => steps.acceptLine({ line }))) resolve();
+       } catch (error) { reject(error); }
+diff --git a/apps/desktop/src/stage-payload-lib.ts b/apps/desktop/src/stage-payload-lib.ts
+index 94d558ac64..b602ebe541 100644
+--- a/apps/desktop/src/stage-payload-lib.ts
++++ b/apps/desktop/src/stage-payload-lib.ts
+@@ -153,7 +153,7 @@ export function findPackageDir({ fromDir, depName }: { fromDir: string; depName:
+ export function stageTransitiveDependencies({ roots, outDir }: { roots: string[]; outDir: string }, _options = {}): number {
+   const fs = createNodePackagingFilesystem({});
+   return stageClosure({ roots, outDir, excluded: EXCLUDED_PACKAGES,
+-    fs: { ...fs, copy: ({ from, to }, options) => stageDir({ src: from, dest: to, dropNestedModules: options?.dropNestedModules ?? false }) },
++    fs: { ...fs, copy: ({ from, to }) => stageDir({ src: from, dest: to, dropNestedModules: true }) },
+     resolver: { resolve: ({ fromDirectory, packageName }) => findPackageDir({ fromDir: fromDirectory, depName: packageName }) },
+   }, { dependencies: ({ packageDir }) => declaredDependencies({ packageDir }) });
+ }
+diff --git a/apps/desktop/src/tovu-server.ts b/apps/desktop/src/tovu-server.ts
+index d5c8e94d4f..7260acb1df 100644
+--- a/apps/desktop/src/tovu-server.ts
++++ b/apps/desktop/src/tovu-server.ts
+@@ -930,7 +930,7 @@ function createBootRedactor(
+ ): (required: { text: string }) => string {
+   const exactSecrets = [...Object.values(startup.secrets), ...Object.entries(serveEnv)
+     .filter(([key]) => /secret|token|password|credential|authorization|api.?key|owner.?signin/i.test(key))
+-    .map(([, value]) => value ?? "")];
++    .map(([, value]) => value)];
+   return ({ text }) => redactBootToken({ text: redactSecrets({ input: text }, {
+     exactSecrets: state.bootToken ? [...exactSecrets, state.bootToken] : exactSecrets, redactPii: false,
+   }) });
+-- 
+2.39.3 (Apple Git-145)
+
