@@ -258,3 +258,19 @@ test("without an injected persister, trashing the persisted site writes the serv
   assert.equal((await invokeOn(app, "post", "/:name/trash", { params: { workspaceId: "ws", name: "doomed" }, body: { confirmed: true } })).statusCode, 200);
   assert.equal(readPersistedActiveSiteForTest({ cwd: base }), "owner");
 });
+
+test("warm-sites dev mode lets a manageable listing switch now without a restart port, but not an unmanageable one", async () => {
+  const previous = process.env.TOVU_DEV_WARM_SITES;
+  process.env.TOVU_DEV_WARM_SITES = "1";
+  try {
+    const manageable = (await fixture({ devRestart: null }).request()).jsonBody as { localManagementEnabled: boolean; canSwitchNow: boolean };
+    assert.equal(manageable.localManagementEnabled, true);
+    assert.equal(manageable.canSwitchNow, true, "warm sites switch without restarting the server");
+    const disabled = (await fixture({ devRestart: null, isSiteSwitcherEnabled: () => false }).request()).jsonBody as { localManagementEnabled: boolean; canSwitchNow: boolean };
+    assert.equal(disabled.localManagementEnabled, false);
+    assert.equal(disabled.canSwitchNow, false);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_DEV_WARM_SITES;
+    else process.env.TOVU_DEV_WARM_SITES = previous;
+  }
+});
