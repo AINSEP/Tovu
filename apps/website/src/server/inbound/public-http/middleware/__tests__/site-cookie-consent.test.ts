@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import * as fs from 'node:fs/promises';
 import http from 'node:http';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
@@ -16,7 +17,7 @@ import { renderSiteConsentPreview, type SiteConsentSource } from '@jini-ai/cooki
 import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { bindCookieConsentAnalyticsGate } from '#src/server/runtime/composition/site-cookie-consent';
-import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent } from '../site-cookie-consent.js';
+import { applySiteCookieConsent, siteConsentDocumentAssets, siteConsentPlugins, readSiteVisitorConsent } from '../site-cookie-consent.js';
 import type { ConsentPluginHttp } from '@jini-ai/core/contracts/headless/site-cookie-consent';
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE } from '../site-consent.js';
 
@@ -164,6 +165,32 @@ test('cross-origin receipt writes are 403 and never reach storage', async t => {
   assert.equal(response.status, 403);
   assert.equal(response.headers.get('set-cookie'), null);
   assert.deepEqual(await fs.readdir(f.directory), []);
+});
+
+test('a bodyless receipt POST is refused and writes nothing', async t => {
+  const f = await publicFixture({ t });
+  const response = await fetch(f.base + '/_consent', { method: 'POST', headers: { origin: f.base } });
+  assert.equal(response.status, 415);
+  assert.equal(response.headers.get('set-cookie'), null);
+  // No body framing at all (no Content-Length, no Transfer-Encoding): the raw parser leaves no Buffer.
+  const url = new URL(f.base);
+  const head = await new Promise<string>((resolve, reject) => {
+    const socket = net.connect(Number(url.port), url.hostname, () => socket.end(
+      `POST /_consent HTTP/1.1\r\nHost: ${url.host}\r\nOrigin: ${f.base}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`));
+    let text = '';
+    socket.on('data', chunk => { text += chunk; }).on('end', () => resolve(text)).on('error', reject);
+  });
+  assert.match(head, /^HTTP\/1\.1 400 /);
+  assert.deepEqual(await fs.readdir(f.directory), []);
+});
+
+test('a site with no analytics plugin wiring contributes no plugin routes; wired adapters mount under the consent plugin base', () => {
+  assert.deepEqual(siteConsentPlugins({ deps: {} as RouteDeps }), []);
+  const bases: string[] = [];
+  const contribution = { id: 'one' } as unknown as ReturnType<typeof siteConsentPlugins>[number];
+  const deps = { consentAdapters: ({ base }: { base: string }) => { bases.push(base); return [contribution]; } } as unknown as RouteDeps;
+  assert.deepEqual(siteConsentPlugins({ deps }), [contribution]);
+  assert.deepEqual(bases, ['/_consent/p']);
 });
 
 test('receipt limit accepts max + burst, rejects the next request, and resets with the injected clock', async t => {

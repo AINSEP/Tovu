@@ -162,6 +162,17 @@ test("an approved-cause id the reporter accepts stays the one id", () => {
   assert.match(body.details!.failure.cause, new RegExp(causeId));
 });
 
+test("an approved failure keeps the caller's own timestamp and version metadata in the reply and Copy details", () => {
+  const { reporter } = fakeReporter({ errorId: "ERR-dddd-dddd-dddd-dddd" });
+  const time = "2026-01-02T03:04:05.000Z";
+  const failure = { action: "Export the site", step: "export:write", cause: "The export tool failed.", metadata: { time, appVersion: "9.8.7" } };
+  const { body } = adminFailureResponse({ error: new Error("export failed"), reporter }, { operation: "export:write", failure });
+  assert.equal(body.details?.failure.time, time, "the boundary's recorded time is not replaced by the formatting clock");
+  assert.equal(body.details?.failure.appVersion, "9.8.7");
+  assert.match(body.details!.failure.copyText, new RegExp(`Time: ${time.replaceAll(".", "\\.")}`));
+  assert.match(body.details!.failure.copyText, /App version: 9\.8\.7/);
+});
+
 test("an unbound admin request returns an unavailable reference and one wiring diagnostic", t => {
   const consoleLines = t.mock.method(console, "error", () => {});
   const { calls, tracker } = recordingTracker();
