@@ -9,7 +9,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
 import { installFirstPartyToolContributors } from '../tool-catalog-manifest.js';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -289,4 +289,57 @@ test('an aged unknown payment whose merchant configuration was removed stays unk
   assert.ok(aged[0]!.includes(`"paymentId":"${orphan.payment!.id}"`));
   assert.ok(aged[0]!.includes('Restore the original payment configuration to resume provider reconciliation.'));
   assert.deepEqual(await removed.kernel.query(sql`SELECT status FROM commerce_payments`), [{ status: 'unknown' }]);
+});
+
+test('a caller-supplied readiness decides catalog visibility over the live activation state', async t => {
+  const f = await fixture(t);
+  await f.order();
+  const catalog = f.runtime().commerceCatalog;
+  assert.deepEqual(await catalog.listProducts({}, { readiness: { active: false, ready: true } }), []);
+  assert.equal(await catalog.findProduct({ idOrSlug: 'book' }, { readiness: { active: true, ready: false } }), null);
+  assert.deepEqual((await catalog.listProducts({}, { readiness: { active: true, ready: true } })).map(product => product.slug), ['book']);
+  assert.equal((await catalog.findProduct({ idOrSlug: 'book' }, { readiness: { active: true, ready: true } }))?.id, 'product');
+});
+
+test('a catalog read that fails is warned once per read and served empty while the site stays online', async t => {
+  const f = await fixture(t, { active: false, configured: false });
+  const catalog = f.runtime().commerceCatalog;
+  const ready = { readiness: { active: true, ready: true } };
+  // The dormant shop never migrated commerce_products, so a reader that skips the activation gate hits a missing table.
+  assert.deepEqual(await catalog.listProducts({}, ready), []);
+  assert.equal(await catalog.findProduct({ idOrSlug: 'book' }, ready), null);
+  const failures = f.warnings.filter(message => message.startsWith('The catalog is unavailable; the rest of the site remains online. Cause: '));
+  assert.equal(failures.length, 2);
+  assert.ok(failures.every(message => message.includes('commerce_products')));
+});
+
+test('unreadable plugin activation pauses the storefront and warns once per outage', async t => {
+  const f = await fixture(t);
+  await f.stop();
+  const root = path.join(f.ports.workspaceRoot, 'activation-root');
+  // stat(<file>/activations.json) fails with ENOTDIR, which is not the "absent file" default.
+  await writeFile(root, 'not a directory');
+  const runtime = f.boot({ workspaceRoot: root });
+  const outageWarnings = () => f.warnings.filter(message => message.startsWith('Commerce activation cannot be confirmed. Checkout is paused;'));
+  assert.deepEqual(await runtime.commerce.storefrontStatus(), { active: false, ready: false, reason: null });
+  assert.deepEqual(await runtime.commerce.storefrontStatus(), { active: false, ready: false, reason: null });
+  assert.equal(outageWarnings().length, 1);
+  assert.match(outageWarnings()[0]!, /ENOTDIR/);
+  await rm(root);
+  await mkdir(root);
+  await writeFile(path.join(root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { commerce: { enabled: true, origin: 'bundled', updatedAt: '2026-11-05T19:00:00.000Z', updatedBy: 'fixture' } } }));
+  assert.equal((await runtime.commerce.storefrontStatus()).active, true);
+  await rm(root, { recursive: true });
+  await writeFile(root, 'not a directory');
+  assert.equal((await runtime.commerce.storefrontStatus()).active, false);
+  assert.equal(outageWarnings().length, 2);
+});
+
+test('a closed runtime stops handing out the webhook receiver', async t => {
+  const f = await fixture(t);
+  await f.order();
+  const runtime = f.runtime();
+  assert.equal(typeof runtime.commerce.resolveReceiver()?.receive, 'function');
+  await f.stop();
+  assert.equal(runtime.commerce.resolveReceiver(), null);
 });
