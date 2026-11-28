@@ -25,3 +25,8 @@ test('the picker refuses multiple valid archives before resolving any path', () 
   assert.deepEqual(classifyImportFiles({ files: selected, getPathForFile: () => assert.fail('must not pick either archive') }),
     { kind: 'refused', message: 'Drop one website at a time.' });
 });
+
+test('a drag that carries no files list is refused as the wrong type instead of crashing', () => {
+  const noFiles = (items: unknown[]) => ({ files: null, items }) as unknown as DataTransfer;
+  assert.deepEqual(classifyImportDrop({ dataTransfer: noFiles([]), getPathForFile }), { kind: 'refused', message: "Tovu can't import that. Drop a website folder or a .tovu.zip file." });
+});

@@ -3,6 +3,11 @@ import test from 'node:test';
 import { reportShellTelemetry, installShellErrorReporting } from './product-telemetry.js';
 import { installDom } from './dom-hook-harness.js';
 
+test('with no window and no injected bridge, reporting is a silent no-op (runs before any DOM is installed)', () => {
+  assert.equal(typeof globalThis.window, 'undefined', 'precondition: this test must run before installDom');
+  assert.doesNotThrow(() => reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }));
+});
+
 test('shell actions send only the explicit payload and a broken bridge cannot break the action', () => {
   const sent: unknown[] = [];
   reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }, { bridge: { report: ({ payload }, _options = {}) => { sent.push(payload); } } });
