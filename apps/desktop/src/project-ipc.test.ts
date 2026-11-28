@@ -414,6 +414,17 @@ test("handleAddSite tracks an existing site as `adopted` and returns its record"
   assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.origin, "adopted");
 });
 
+test("handleAddSite adds a dropped folder without opening the dialog, and refuses a drop with no local path", async () => {
+  const siteDir = siteFixture();
+  const { deps, shown } = addSiteDeps(null);
+  const record = await handleAddSite(deps, { folder: siteDir });
+  assert.equal(record?.id, siteDir);
+  assert.equal(shown.length, 0, "a drop carries its own location");
+  await assert.rejects(() => handleAddSite(deps, { folder: "relative/site" }), /did not include a location on this computer/);
+  await assert.rejects(() => handleAddSite(deps, { folder: 42 }), /did not include a location on this computer/);
+  assert.equal(shown.length, 0);
+});
+
 test("handleAddSite REFUSES an empty folder and never initializes a site in it", async () => {
   const siteDir = path.join(tempDir(), "fresh");
   fs.mkdirSync(siteDir);
