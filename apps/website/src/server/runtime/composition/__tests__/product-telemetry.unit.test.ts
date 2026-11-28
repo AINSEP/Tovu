@@ -350,6 +350,12 @@ async function standaloneFixture() {
         sdk.providers.register({ contract: ${JSON.stringify(entry.contract.id)}, id: 'fixture', contractVersion: 1,
           factory(input, options = {}) {
             if (input.fail) throw new Error('PRIVATE_INIT_FAILURE');
+            if (input.probeHost) {
+              let denied;
+              try { sdk.content.read(); } catch (error) { denied = error.message; }
+              options.info('fixture info');
+              write({ type: 'probe', id: ${JSON.stringify(entry.id)}, denied });
+            }
             write({ type: 'init', id: ${JSON.stringify(entry.id)}, input, exportEnabled: options.exportEnabled });
             return { port: ${entry.contract.id === 'observability' ? `{
               trackRequest() {}, trackDbQuery() {}, trackOutboundCall() {}, trackAgentRun() {}, trackOperation() {},
@@ -365,7 +371,7 @@ async function standaloneFixture() {
     await writeFile(entryPath, source);
     await writeFile(path.join(artifactRoot, 'jini.plugin.json'), JSON.stringify({
       id: entry.id, name: entry.id, version: '0.7.0', sdkRange: '^0.1.0 || ^1.0.0', engine: 1, tier: 'tier-3',
-      extensions: { tovu: { id: `fixture/${entry.id}` } }, capabilities: ['providers.register'], hooks: [], fields: [],
+      extensions: { tovu: { id: `fixture/${entry.id}` } }, capabilities: ['providers.register', 'content.read'], hooks: [], fields: [],
       contributes: { providers: [{ contract: entry.contract.id, id: 'fixture', contractVersion: 1 }] },
       integrity: { 'server/index.mjs': `sha256-${createHash('sha256').update(source).digest('hex')}` },
     }));
@@ -419,6 +425,19 @@ test('shared distribution resolves only configured artifacts; real provider port
     }
     await product.dispose();
     assert.deepEqual((await f.signals()).filter(signal => signal.type === 'dispose').map(signal => signal.id).sort(), ['fake-errors', 'fake-usage']);
+  } finally { await f.close(); }
+});
+
+test('a product provider has no site context to read and its info messages stay silent', async (t) => {
+  const info = t.mock.method(console, 'info', () => {});
+  const f = await standaloneFixture();
+  try {
+    await writeFile(f.required.configPath, JSON.stringify({ observability: { ...CONFIG.observability, input: { probeHost: true } } }));
+    const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: () => assert.fail('boot must succeed') });
+    assert.equal(product.active, true);
+    assert.deepEqual((await f.signals()).filter(signal => signal.type === 'probe'), [{ type: 'probe', id: 'fake-errors', denied: 'ProductProviderHasNoSiteContext' }]);
+    assert.equal(info.mock.callCount(), 0);
+    await product.dispose();
   } finally { await f.close(); }
 });
 
