@@ -138,3 +138,22 @@ test("renameThemeFileIfChanged: a destPath that resolves generated-readonly 409s
     code: "GENERATED_READONLY",
   });
 });
+
+test("renameThemeFileIfChanged: renaming a file to the name it already has is a no-op that writes no response", () => {
+  // `existingPaths` holds the file itself, so without the same-name short-circuit this would 409 NAME_TAKEN against itself.
+  const theme = { manifest: { id: "plain-theme" } } as unknown as DiscoveredTheme;
+  const deps = { themes: [] } as unknown as ContentRouteDeps;
+  const { res, capture } = createCapturingResponse();
+
+  const changed = renameThemeFileIfChanged({
+    deps,
+    theme,
+    paths: { sourcePath: "pages/about.html", destPath: "pages/about.html", name: "about.html" },
+    existingPaths: new Set(["pages/about.html"]),
+    res,
+  });
+
+  assert.equal(changed, true);
+  assert.equal(capture.statusCode, 200, "the capture's untouched default: no status was written");
+  assert.equal(capture.jsonBody, undefined);
+});

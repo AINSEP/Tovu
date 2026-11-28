@@ -2,13 +2,13 @@ import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { isolatedCatalogHome } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
-import test, { type TestContext } from "node:test";
+import test, { describe, type TestContext } from "node:test";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import express from "express";
-import { registerAdminSiteKeyRoutes, type AdminSiteKeyDeps, type SiteKeyKeyWriter, type SiteKeyEnsureOutcome, type SiteKeyKeyCheck, type SiteKeyInstallOutcome } from "../site-key.js";
+import { registerAdminSiteKeyRoutes, startFreshDetail, type AdminSiteKeyDeps, type SiteKeyKeyWriter, type SiteKeyEnsureOutcome, type SiteKeyKeyCheck, type SiteKeyInstallOutcome } from "../site-key.js";
 import { fingerprintSiteKeyHex, SiteKeyFileAlreadyExistsError } from "#src/features/webhooks/keyring.env";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/index";
@@ -318,4 +318,58 @@ test("generate answers a key file that appears mid-request with 409 ALREADY_EXIS
   assert.equal(result.status, 409);
   assert.equal(result.body.error, "ALREADY_EXISTS");
   assert.match(String(result.body.detail), /already exists at \/fixture\/key/);
+});
+
+describe("start fresh — refusals and the preview a confirm step shows", () => {
+  const get = async ({ base }: { base: string }) => {
+    const response = await fetch(`${base}/api/admin/v1/workspaces/ws/system/site-key/start-fresh`);
+    return { status: response.status, body: await response.json() };
+  };
+
+  test("a storage secret locked with the old key refuses both preview and confirm before any restore point or write", async t => {
+    const f = await fixture({ t });
+    const hex = "4c".repeat(32);
+    f.currentKey({ hex });
+    f.meta({ fingerprint: fingerprintSiteKeyHex({ hex }) });
+    f.setCheck({ value: { sealed: 2, opens: 2, storageSecret: "locked" } });
+    const locked = { error: "STORAGE_SECRET_LOCKED", detail: "This site's database connection is locked with the old site key, and starting fresh can't replace it. Paste your old site key instead. Nothing was changed.", runtimeMode: "local" };
+    assert.deepEqual(await get({ base: f.base }), { status: 409, body: locked });
+    const confirmed = await f.post({ verb: "start-fresh", body: { confirm: "START FRESH" } });
+    assert.deepEqual({ status: confirmed.status, body: confirmed.body }, { status: 409, body: locked });
+    assert.deepEqual(f.events, ["check", "check"]);
+    assert.deepEqual(f.recoveryWrites, []);
+    assert.deepEqual(f.savedPoints, []);
+  });
+
+  test("an unusable key in the environment refuses start fresh before the writer is asked anything", async t => {
+    const f = await fixture({ t });
+    process.env.TOVU_SITE_KEY = "not-a-site-key";
+    const envSet = { error: "ENV_KEY_SET", detail: "A different site key is set in this server's environment and overrides the key file, so nothing was changed. Change it there instead.", runtimeMode: "local" };
+    assert.deepEqual(await get({ base: f.base }), { status: 409, body: envSet });
+    const confirmed = await f.post({ verb: "start-fresh", body: { confirm: "START FRESH" } });
+    assert.deepEqual({ status: confirmed.status, body: confirmed.body }, { status: 409, body: envSet });
+    assert.deepEqual(f.events, []);
+    assert.deepEqual(f.recoveryWrites, []);
+  });
+
+  test("the preview counts what the working key cannot open, defaults a missing metadata-only count to zero, and changes nothing", async t => {
+    const f = await fixture({ t });
+    const hex = "5d".repeat(32);
+    f.currentKey({ hex });
+    f.meta({ fingerprint: fingerprintSiteKeyHex({ hex }) });
+    f.setCheck({ value: { sealed: 3, opens: 1, metadataOnly: 4, storageSecret: "absent" } });
+    assert.deepEqual(await get({ base: f.base }), { status: 200, body: { removes: 2, metadataOnly: 4, affectedWebhooks: [],
+      detail: "2 saved credentials can't be unlocked and will be removed.", runtimeMode: "local" } });
+    f.setCheck({ value: { sealed: 2, opens: 2, storageSecret: "absent" } });
+    assert.deepEqual(await get({ base: f.base }), { status: 200, body: { removes: 0, metadataOnly: 0, affectedWebhooks: [],
+      detail: "Every saved credential can be unlocked; nothing will be removed.", runtimeMode: "local" } });
+    assert.deepEqual(f.events, ["check", "check"]);
+    assert.deepEqual(f.recoveryWrites, []);
+    assert.deepEqual(f.savedPoints, []);
+  });
+
+  test("the confirm sentence names one credential in the singular and lists every webhook whose secret changes", () => {
+    assert.equal(startFreshDetail({ removes: 1, affectedWebhooks: [{ label: "Orders", targetUrl: "https://hooks.test/o" }, { label: "CRM", targetUrl: "https://crm.test/in" }] }),
+      "1 saved credential can't be unlocked and will be removed. These webhooks get a new signing secret, so update their receivers: Orders (https://hooks.test/o), CRM (https://crm.test/in).");
+  });
 });
