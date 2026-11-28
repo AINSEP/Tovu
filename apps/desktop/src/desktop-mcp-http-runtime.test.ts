@@ -168,3 +168,39 @@ test('a runtime factory rejection records redacted cause and preserves degraded 
   assert.match(warnings[0]!, /factory context/);
   assert.doesNotMatch(warnings[0]!, /MCP_BOOT_CANARY/);
 });
+
+test("the listener start receives the desktop context and its own warnings reach the desktop sink as messages", async () => {
+  const warnings: string[] = [];
+  const contexts: unknown[] = [];
+  const runtime = createDesktopMcpHttpRuntime({ context, warn: ({ message }) => { warnings.push(message); } }, { start: async (required, optional = {}) => {
+    contexts.push(required.context);
+    optional.warn?.('tovu-desktop: listener port busy, retrying');
+    return { url: env.TOVU_DESKTOP_MCP_URL, token: env.TOVU_DESKTOP_MCP_TOKEN, env, close: async () => {} };
+  } });
+  try {
+    assert.equal((await runtime.environment({})).TOVU_DESKTOP_MCP_URL, env.TOVU_DESKTOP_MCP_URL);
+    assert.deepEqual(warnings, ['tovu-desktop: listener port busy, retrying']);
+    assert.equal(contexts.length, 1);
+    assert.equal(contexts[0], context);
+  } finally { await runtime.close({}); }
+});
+
+test('a capability subscription the runtime cannot open warns with a fixed message and posts nothing', async t => {
+  const mcp = await import('@jini-ai/mcp');
+  t.mock.module('@jini-ai/mcp', { namedExports: { ...mcp, createMcpHttpToolServerRuntime: () => ({
+    capability: async () => ({ url: env.TOVU_DESKTOP_MCP_URL, token: env.TOVU_DESKTOP_MCP_TOKEN }),
+    subscribe: () => { throw new Error('subscriber at /Users/owner/projects password=MCP_SUBSCRIBE_CANARY'); },
+    close: async () => {},
+  }) } });
+  const modulePath = './desktop-mcp-http.ts?subscribe-failure';
+  const { createDesktopMcpHttpRuntime: create } = await import(modulePath);
+  const warnings: string[] = [];
+  const posts: string[] = [];
+  const runtime = create({ context, warn: ({ message }: { message: string }) => warnings.push(message) },
+    { fetch: async (url: URL) => { posts.push(String(url)); return new Response(null, { status: 204 }); } });
+  t.after(() => runtime.close({}));
+  runtime.connectSite({ adminUrl: 'http://127.0.0.1:4102/admin/', onExit: () => {} });
+  for (let turn = 0; turn < 50; turn++) await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(warnings, ['tovu-desktop: desktop capability recovery unavailable for this application release.']);
+  assert.deepEqual(posts, []);
+});
