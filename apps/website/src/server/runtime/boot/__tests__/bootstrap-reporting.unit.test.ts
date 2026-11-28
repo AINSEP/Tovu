@@ -66,6 +66,11 @@ const mcp: NewsletterRouteDeps["mcp"] = {
 const bundledDeps = { mcp, workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_required: { workspaceId: string }) => ({ root: "/workspace" }) } };
 const deps = bundledDeps as NewsletterRouteDeps;
 
+function forgetRosterCaptures(): void {
+  renamesInput = undefined;
+  grantsInput = undefined;
+}
+
 function resetWarningInputs(): void {
   selection.clear();
   activations = { schemaVersion: 1, plugins: {} };
@@ -293,7 +298,7 @@ test("face sync reads each provider switch from the activation repo and its port
     { workspaceId: "test-workspace", pluginId: "pay-missing" },
   ]);
   layoutReads.length = 0;
-  const links = await captured.ports.links();
+  const links = await captured.ports.links({});
   assert.deepEqual(layoutReads, [{ workspaceId: "test-workspace" }]);
   assert.equal(links.size, 0);
 });
@@ -302,7 +307,7 @@ test("tool renames and declared-tool grants each get a roster notifier that reac
   calls.length = 0;
   resetWarningInputs();
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
-  renamesInput = undefined; grantsInput = undefined;
+  forgetRosterCaptures();
   const notified: unknown[] = [];
   onExternalMcpRosterChanged({ key: "boot-roster-notifier", listener: change => { notified.push(change); } });
   t.after(() => resetExternalMcpRosterChangeListenersForTests());
