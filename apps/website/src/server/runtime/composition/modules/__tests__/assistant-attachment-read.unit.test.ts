@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { request as httpRequest } from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import express from "express";
@@ -101,4 +104,24 @@ test("attachment read: a HEAD answers with the GET's validators and no body, and
   assert.equal(cached.headers["content-type"], undefined);
   const stale = await rawGet(`${base}/png`, { "if-none-match": 'W/"other"' }, "HEAD");
   assert.equal(stale.status, 200);
+});
+
+test("attachment read: a wildcard If-None-Match is fresh for any finished 2xx body", async (t) => {
+  const base = await serve(t);
+  const cached = await rawGet(`${base}/png`, { "if-none-match": "*" });
+  assert.equal(cached.status, 304);
+  assert.equal(cached.headers.etag, PNG_ETAG);
+  assert.equal(cached.length, 0);
+});
+
+test("attachment read: with no injected reader the filesystem reader answers a missing attachment 404", async (t) => {
+  const uploadDirectory = mkdtempSync(path.join(tmpdir(), "attachment-read-"));
+  t.after(() => rmSync(uploadDirectory, { recursive: true, force: true }));
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
+  registerAdminChatAttachmentReadRoute({ app, deps: { uploadDirectory } });
+  const base = `${await startTestServer(app, t)}/api/attachments`;
+  const missing = await fetch(`${base}/${encodeURIComponent("attachment:11111111-2222-3333-4444-555555555555")}`);
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get("content-type")?.startsWith("application/json"), true);
 });
