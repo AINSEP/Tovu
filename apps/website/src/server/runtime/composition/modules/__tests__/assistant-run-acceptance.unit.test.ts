@@ -211,3 +211,35 @@ test("the production settlement back-off wakes as soon as the request is aborted
   assert.equal(result.status, "canceled");
   assert.ok(Date.now() - started < 800, `the 1 s back-off was cut short by the abort (took ${Date.now() - started} ms)`);
 });
+
+test("the production owner-chat acceptance captures the run's own principal and dispatches each queued run through the daemon client", async () => {
+  const captures: unknown[][] = [];
+  const readyCalls: string[] = [];
+  const runFor = (input: { runId: string; messageId: string; conversationId: string; request: unknown }, principalId: string | null) => ({
+    runId: input.runId, messageId: input.messageId, conversationId: input.conversationId, workspaceId: "ws", principalId,
+    request: input.request, recoveryCount: 0, cancelReason: null, message: { id: input.messageId, role: "assistant", content: "", runStatus: "queued" },
+  });
+  // The owner of each accepted row is decided by the store, not the caller: m-anon is a principal-less (legacy) row.
+  const store = {
+    accept: async (input: { runId: string; messageId: string; conversationId: string; request: unknown }) => runFor(input, input.messageId === "m-anon" ? null : "owner-9"),
+    poll: async () => null, cancel: async () => {},
+  };
+  const deps = {
+    ...productionDeps({ durable: store, captures }),
+    assistantDaemonDemand: { ensureReady: async () => { readyCalls.push("ensure"); throw new Error("daemon parked"); }, isReady: () => false },
+  } as unknown as AssistantAcceptanceRouteDeps;
+  const acceptance = ownerChatAcceptanceFor({ deps })!;
+
+  const anon = await acceptance.acceptOwnerChatRun({ principalId: "caller", workspaceId: "ws", conversationId: "c1", messageId: "m-anon", context: {} });
+  assert.equal(anon?.principalId, null);
+  assert.deepEqual(readyCalls, [], "a principal-less run is refused by the client before it wakes the daemon");
+  assert.deepEqual(captures, [[{ name: "assistant_run_started", userId: "" },
+    { properties: { chatSurface: "admin", logicalRunId: "m-anon", eventId: "assistant-start:m-anon" } }]]);
+
+  captures.length = 0;
+  const owned = await acceptance.acceptOwnerChatRun({ principalId: "caller", workspaceId: "ws", conversationId: "c1", messageId: "m-own", context: {} });
+  assert.equal(owned?.messageId, "m-own", "a lost launch leaves the committed run accepted");
+  assert.deepEqual(readyCalls, ["ensure"], "the queued owned run is launched through the HTTP daemon client, which wakes the daemon first");
+  assert.deepEqual(captures, [[{ name: "assistant_run_started", userId: "owner-9" },
+    { properties: { chatSurface: "admin", logicalRunId: "m-own", eventId: "assistant-start:m-own" } }]]);
+});
