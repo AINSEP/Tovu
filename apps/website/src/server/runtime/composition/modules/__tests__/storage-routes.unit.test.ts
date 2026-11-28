@@ -7,7 +7,7 @@ import express from "express";
 import { createCleanupPreviewStore, type RetentionPassResult } from "@jini-ai/platform/retention";
 import { adminSameOriginWrites, mountAdminJsonRoute } from "#src/server/inbound/admin-http/admin-json-route-ports";
 import type { SiteStorageReport } from "#src/features/storage/measure";
-import { STORAGE_ROUTE_PATHS, mountStorageRoutes, passView, servingStoragePaths, storageOwnerFrom, storageToolPorts, type SiteStoragePort } from "../storage-routes.js";
+import { STORAGE_ROUTE_PATHS, mountStorageRoutes, parseCleanupBody, passView, servingStoragePaths, storageOwnerFrom, storageToolPorts, type SiteStoragePort } from "../storage-routes.js";
 
 const OWNER = "owner-1";
 
@@ -212,4 +212,26 @@ test("serving storage paths omit roots and sibling paths, but keep nested databa
     { category: "shares", path: path.join(siteDir, "db", "ops", "shares") },
     { category: "logs", path: path.join(siteDir, "ops", "logs") },
   ]);
+});
+
+test("cleanup refuses an array body and class lists that are not words, in plain words, before the runner", async () => {
+  const h = await harness();
+  try {
+    const cases: Array<[unknown, string]> = [
+      [["old-copy"], "Send the cleanup options as a JSON object."],
+      [{ classes: "old-copy" }, "List the kinds of storage to clean up as words."],
+      [{ classes: ["old-copy", 7] }, "List the kinds of storage to clean up as words."],
+    ];
+    for (const [body, error] of cases) {
+      const answer = await h.call("POST", body);
+      assert.deepEqual([answer.status, answer.body?.code, answer.body?.error], [400, "INVALID_INPUT", error], JSON.stringify(body));
+    }
+    assert.deepEqual(h.storage?.calls, [], "no refused request reached the runner");
+  } finally { await h.close(); }
+});
+
+test("a cleanup body read with no body at all is a dry run, and a grant and word classes pass through unchanged", () => {
+  assert.deepEqual(parseCleanupBody({ body: undefined }), { dryRun: true });
+  assert.deepEqual(parseCleanupBody({ body: { dryRun: false, previewToken: "grant-1", classes: ["old-copy"] } }),
+    { dryRun: false, classes: ["old-copy"], previewToken: "grant-1" });
 });
