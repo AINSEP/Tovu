@@ -110,12 +110,6 @@ export function createSiteAssistantModule(
       if (resolution.refusedReason) {
         console.warn(`[site-assistant] ${resolution.refusedReason}`);
       }
-      if (resolution.mode === "cli") {
-        console.warn(
-          "[site-assistant] DEMO MODE: cli execution is enabled. Every visitor message spawns an OS " +
-            "process with filesystem access. Do not run this on a publicly reachable deployment.",
-        );
-      }
     },
 
     registerRoutes: ({ app }, _options = {}) => registerSiteAssistantRoutes(app, context),

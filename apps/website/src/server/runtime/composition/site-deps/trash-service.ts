@@ -42,7 +42,6 @@ export function composeTrashService(required: ComposeTrashServiceRequired, _opti
     entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
   }, {
     retentionDays: TRASH_RETENTION_DAYS,
-    onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
   });
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
   const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ onRollbackError: reportDirectoryRollbackFailure, adapter: pluginTrashAdapter, remove: bindRemoveEntity({

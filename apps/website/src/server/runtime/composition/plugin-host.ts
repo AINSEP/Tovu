@@ -58,7 +58,7 @@ async function readInactivePluginIds(required: { workspaceRoot: string }, _optio
 
 async function setTovuPluginEnabled(required: { deps: TovuPluginHostDeps; input: Omit<Parameters<typeof setAgentPluginEnabled>[0], 'agentPluginLayout'> }, _optional = {}) {
   const { deps, input } = required;
-  const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
+  const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options!) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
   if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
   return result;
 }

@@ -72,8 +72,8 @@ export type UsersRouteRegistrar = (required: { errors: RouteErrorPorts; app: Exp
 
 type IdentityServiceRouteDeps = Pick<UsersRouteDeps,
   "transactions" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" |
-  "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "mfaStore" | "passwordHasher" | "clock" | "idGen" | "tokens"
-> & { principalRepo: IdentityRepos["principals"] };
+  "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "mfaStore" | "passwordHasher" | "idGen" | "tokens"
+> & { principalRepo: IdentityRepos["principals"]; clock: Pick<UsersRouteDeps["clock"], "nowIso"> };
 
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
 export function identityReposFrom(deps: IdentityServiceRouteDeps): IdentityRepos {

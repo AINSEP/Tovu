@@ -64,7 +64,7 @@ export interface ListedCopy extends DatabaseCopy { readonly bytes: number }
  * @complexity O(n log n) in files beside the new copy. */
 // Listing: newest first with bytes (copy plus proven sidecars). A missing folder lists nothing; any other
 // read error propagates so a pass reports it instead of guessing.
-export async function listMigrationCopies({ opsDir, fs }: { opsDir: string; fs: DatabaseCopyFs }, _optional: Record<string, never> = {}): Promise<ListedCopy[]> {
+export async function listMigrationCopies({ opsDir, fs }: { opsDir: string; fs: Pick<DatabaseCopyFs, "readdir" | "lstat"> }, _optional: Record<string, never> = {}): Promise<ListedCopy[]> {
   const entries = await fs.readdir(opsDir).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return []; throw error; });
   const copies: ListedCopy[] = [];
   for (const name of entries) {
@@ -80,7 +80,7 @@ export async function listMigrationCopies({ opsDir, fs }: { opsDir: string; fs: 
   return copies.sort((a, b) => b.createdAt - a.createdAt || b.filePath.localeCompare(a.filePath));
 }
 
-async function sidecarBytes({ filePath, fs }: { filePath: string; fs: DatabaseCopyFs }, _optional: Record<string, never> = {}): Promise<number> {
+async function sidecarBytes({ filePath, fs }: { filePath: string; fs: Pick<DatabaseCopyFs, "readdir" | "lstat"> }, _optional: Record<string, never> = {}): Promise<number> {
   let bytes = 0;
   for (const suffix of COPY_SIDECARS) {
     const stat = await fs.lstat(`${filePath}${suffix}`).catch(() => undefined);

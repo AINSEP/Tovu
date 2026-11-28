@@ -133,7 +133,7 @@ export function startServingRoutines(required: ServingRoutinesRequired, optional
   const desktopEligible = required.desktopEligible && hooks !== undefined;
   let stopped = false;
   let removeReceiver = (): void => {};
-  let settle: () => void = () => {};
+  let settle!: () => void;
   const settled = new Promise<void>((resolve) => { settle = resolve; });
   // Registered first: a request that lands while the sidecar opens waits for the routes, not a 404.
   router.use(ROUTINE_ROUTE_BASE, (_req, _res, next) => { void settled.then(() => next()); });

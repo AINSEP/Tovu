@@ -62,7 +62,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     renderPage: async ({ path }) => {
       const localPath = resolveSitePath({ raw: path, base: 'http://127.0.0.1', reservedSegments: RESERVED_SEGMENTS });
       const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability, reservedSegments: RESERVED_SEGMENTS, trackFetch }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
-      return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
+      return { html: page.body!, ok: page.ok, truncated: page.truncated };
     },
   };
 }

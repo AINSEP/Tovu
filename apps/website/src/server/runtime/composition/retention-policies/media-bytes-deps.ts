@@ -92,7 +92,7 @@ export function servingRecoveryArtifacts(
 ): () => Promise<RecoveryArtifact[]> {
   const { restorePoints, contentDbPath } = required;
   return async () => {
-    const copies = contentDbPath === ":memory:" ? [] : await listMigrationCopies({ opsDir: path.join(path.dirname(path.resolve(contentDbPath)), "ops"), fs: { readdir, lstat, unlink: async () => { throw new Error("read only"); } } });
+    const copies = contentDbPath === ":memory:" ? [] : await listMigrationCopies({ opsDir: path.join(path.dirname(path.resolve(contentDbPath)), "ops"), fs: { readdir, lstat } });
     return [...await restorePoints.list(), ...copies];
   };
 }

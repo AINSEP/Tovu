@@ -148,8 +148,7 @@ export function createServingApp(
   const routinesReady = new Promise<ServingRoutines["ready"]>((resolve) => { bindRoutines = resolve; });
   const routinesCanRun = (optional.routines?.desktopEligible ?? false) && (optional.routines?.releaseEnabled ?? false);
   const assistantRoutineBoot = { isLeaseOwner: () => routinesCanRun, whenInterrupted: async () => {
-    const handle = await (await routinesReady);
-    if (handle.bootInterruption.isLeaseOwner()) await handle.bootInterruption.whenInterrupted();
+    await routinesReady;
   } };
   const errors = { reporter: siteFailureReporter({ routeDeps }, {}), observability: NO_OPERATION_TRACKING };
   const app = createApp(routeDeps, { errorReporter: errors.reporter, assistantRoutineBoot, stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn,

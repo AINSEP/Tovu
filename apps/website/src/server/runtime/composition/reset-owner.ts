@@ -40,7 +40,6 @@ export async function resetSelfHostedOwner(
       permissionGrants: createAppPermissionGrants({}), ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
       reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: owner.principal_id });
     await identity.identityReady;
-    if (!identity.recoveryCodes) throw new Error('Owner recovery storage is unavailable');
     return await applyOwnerPasswordReset({ workspaceId, password, ...(username === undefined ? {} : { username }),
       deps: { auth: identityServiceDepsFrom({ ...identity, clock, idGen }), codes: identity.recoveryCodes, seededOwnerPrincipalId: owner.principal_id } }, {});
   } finally { await client.close(); }
