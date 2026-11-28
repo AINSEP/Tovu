@@ -2449,3 +2449,14 @@ From `development/coverage-ledger-2026-11-28.md` (Codex 6.2 read-only pass over 
 - T-B10 `W/features/theme/visitor-publication.ts:74`: Lowercasing can shift the index used to splice the original body.
 - T-B11 `D/main/boot/storage-idle-compaction.ts:72–76`: Overlapping ticks can both select a site before either reserves the child slot.
 - T-B12 `D/storage/storage-sheet-actions.ts:100–103`: Parallel confirmations can both pass the check before awaiting.
+
+## 2026-11-28 — tests already failing on the merge-28 base (found by run BF; OPEN, not caused by BF)
+Re-run at the base where noted (Tovu `cloud/bugfix-1128-BF:cloud-results/bugfix-1128-BF.md`, "Dead-code cuts").
+- Jini db `site/__tests__/tool-registrations.database-recovery.test.ts` ×3 — `assertToolIsWirable` on migrate-forward (fails at base d314bcbf).
+- Jini cms `forms/site/publish-content.test` ×1; `media/site/publish-content.test` ×2; `media/site/provider-credential-vault.test` ×1 (fail at base).
+- Jini user-management `newsletter/delivery/tool-registrations.test` ×2; `package-entries.test`; `user-management-rename.contract.test` (runtime-metadata cause; last one not re-run at base).
+- Tovu `trash-service.characterization` B11, `identity-settings.characterization` B05 (fail on pre-cut files too).
+- Tovu `commerce-http.unit`, middleware `site-consent.test` — expect a `console.error('[op]')` line (not re-run at base).
+- Tovu `tool-registrations.contracts.test` — 'posts' in the registry but missing from `CATALOGS_BY_DOMAIN`.
+- Tovu `serve-command-wiring.unit`, `session-resume-wiring` — stale source-text anchors.
+- Tovu site-chat `site-assistant-transport.test` cannot load: react 19.2.8 vs react-dom 19.2.7.
