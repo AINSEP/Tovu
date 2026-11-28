@@ -188,3 +188,33 @@ test("the canonical binding honours a cancelled save, keeps a key on a blank edi
   }
   assert.equal((await keys.resolve({ workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("kept"));
 });
+
+/** The real canonical store with one method replaced: a key deleted or a vault failing after the
+ *  binding's ownership listing already showed the row. */
+function lateFailingRepo(real: CustomCredentialWriteDeps["repo"], late: Partial<Record<"findById" | "delete" | "listByWorkspace", unknown>>): CustomCredentialWriteDeps["repo"] {
+  return Object.assign(Object.create(real) as CustomCredentialWriteDeps["repo"], late);
+}
+
+// Mutations: `translated` drops the NotFound translation (l.107) or swallows other errors instead of rethrowing (l.108).
+test("a canonical key that vanishes or fails after the ownership listing keeps Source Control's error identity", async () => {
+  const credentials = customDeps({ opens: { count: 0 } });
+  const keys = sourceControlKeyBinding({ credentials, loadProviders: providers });
+  const created = await keys.create!({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("race") } });
+  const vanished = sourceControlKeyBinding({ credentials: { ...credentials, repo: lateFailingRepo(credentials.repo, { findById: async () => null }) }, loadProviders: providers });
+  await assert.rejects(vanished.update({ workspaceId: SITE_A, id: created.id, patch: { connection: { token: secret("next") } } }),
+    error => error instanceof SourceControlCredentialNotFoundError && error.message === `no custom credential '${created.id}' in this workspace`);
+  const offline = new Error("vault-offline-3");
+  const failing = sourceControlKeyBinding({ credentials: { ...credentials, repo: lateFailingRepo(credentials.repo, { delete: async () => { throw offline; } }) }, loadProviders: providers });
+  await assert.rejects(failing.remove({ workspaceId: SITE_A, id: created.id }), error => error === offline);
+  assert.equal((await keys.resolve({ workspaceId: SITE_A, providerId: "github" }))?.connection.token, secret("race"), "neither failure changed the saved key");
+});
+
+// Mutation: `tokenHint: row.tokenHint ?? null` -> `?? { length: 0, last4: null }` (a hintless row lists a made-up hint).
+test("a canonical key stored without a token hint lists a null hint, never a sealed value", async () => {
+  const credentials = customDeps({ opens: { count: 0 } });
+  const created = await sourceControlKeyBinding({ credentials, loadProviders: providers }).create!({ workspaceId: SITE_A, connection: { providerId: "github", token: secret("hintless") } });
+  const real = credentials.repo;
+  const hintless = lateFailingRepo(real, { listByWorkspace: async (input: { workspaceId: string }) => (await real.listByWorkspace(input)).map(record => ({ ...record, vaultRecord: record.vaultRecord && { ...record.vaultRecord, tokenLength: null } })) });
+  const listed = await sourceControlKeyBinding({ credentials: { ...credentials, repo: hintless }, loadProviders: providers }).list({ workspaceId: SITE_A });
+  assert.deepEqual(listed.map(row => [row.id, row.providerId, row.tokenHint]), [[created.id, "github", null]]);
+});
