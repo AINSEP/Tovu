@@ -1,7 +1,5 @@
 import { React, act, createRoot, installDom } from "./react-dom-harness";
-import { useSiteAssistantWidget } from "../SiteAssistantWidget.hooks";
 import { JSDOM } from "jsdom";
-import { createSiteVanillaArgs } from "../vanilla-host";
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -12,6 +10,12 @@ import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/re
 import { createSiteAssistantTransport } from "../site-assistant-transport";
 import { createVisitorPageControl } from "../visitor-page-control";
 import type { AgentEvent } from "@jini-ai/core/contracts/site/chat-core";
+
+// Loaded only after the harness has pinned every `react`/`react-dom` specifier to this app's copy:
+// a static import is resolved before the harness runs, so a linked `@jini-ai/chat` would bring its
+// own React (two copies: version mismatch or a null hook dispatcher). Same as the sibling widget tests.
+const { useSiteAssistantWidget } = await import("../SiteAssistantWidget.hooks");
+const { createSiteVanillaArgs } = await import("../vanilla-host");
 
 /**
  * SPEC-046/ADR-054 Task 2, now on the AG-UI wire. `createSiteAssistantTransport` is the main export
