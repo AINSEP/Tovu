@@ -4,7 +4,7 @@ DONE run V7 | branches 3/3 | tests run 1506 pass 1506 fixed 15 dropped 0 | weak 
 
 Unattended cloud run, Opus high, 2026-11-28 04:12–06:27 UTC (≈2 h 15 min; final gates: dsk-1 3e80561d 6/6 PASS, dsk-2 1dd1abe3 6/6 PASS). Brief: `ADS-memory/reports/cloud-runs/briefs/verify-1127.md` (from `origin/cloud/gap-fill-1127`), plus `AI-Dev-Shop/skills/anti-over-engineering/SKILL.md`. Each subagent was the AI-Dev-Shop TDD agent and read the listed TDD skill files first. No RemoteTrigger, no codebase-memory tools, no `--no-verify`, no force-push. `main`/`release/*`/`integ/*` were not touched. No skips, ts-ignore, `as any`, coverage exclusions, threshold edits or guard edits. `.gitleaks.toml` and themes are untouched.
 
-"tests run 1506" counts the tests in Codex's 98 changed test files when first run after the environment fix: dsk-1 703, dsk-2 555 (441 non-renderer + 114 renderer), web-10 248. After the fixes all of them pass. On top of that, about 250 new tests were added across later rounds (counts per branch below). "fixed 15" is 8 failing tests (2 of which proved production bugs) plus 7 typecheck errors.
+"tests run 1506" counts the tests in Codex's 98 changed test files when first run after the environment fix: dsk-1 703, dsk-2 555 (441 non-renderer + 114 renderer), web-10 248. After the fixes all of them pass. On top of that, about 190 new tests were added across later rounds (counts per branch below). "fixed 15" is 8 failing tests (2 of which proved production bugs) plus 7 typecheck errors.
 
 ## Setup (what worked / traps)
 - Node 24, Jini `pnpm install --frozen-lockfile && pnpm -r build`. Tovu: `npm ci --ignore-scripts` (root, site-chat, desktop), electron install, `link:jini`, then build contracts and sdk with tsc after the link.
