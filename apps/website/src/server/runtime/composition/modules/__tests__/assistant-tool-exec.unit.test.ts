@@ -8,7 +8,7 @@ import express from "express";
 import { createRemoteToolExecutor } from "@jini-ai/daemon";
 import { createRouteDeps } from "../../app.js";
 import { createAssistantByokModule } from "../assistant-byok.js";
-import { createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader } from "../assistant-tool-exec.js";
+import { createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, publishDaemonPluginEvent } from "../assistant-tool-exec.js";
 import { runWithDaemonCallContext } from "@jini-ai/daemon/daemon-call-context";
 import { ensureToolExecToken } from "../../../../../assistant/daemon-access.js";
 import { acceptToolRun } from "./assistant-tool-exec.fixture.js";
@@ -92,4 +92,31 @@ test("plugin-install attachments: a daemon call reads only its message refs; a B
   assert.equal((await read(required, limits)).ok, true, "BYOK: owner-scoped, no message binding");
   assert.deepEqual(await runWithDaemonCallContext({ context: { attachmentRefs: [] }, fn: () => read(required, limits) }), { ok: false, refusal: "no-record" });
   assert.equal((await runWithDaemonCallContext({ context: { attachmentRefs: [ref] }, fn: () => read(required, limits) })).ok, true);
+});
+
+test("plugin events: no daemon token or an oversized payload never send; a refusal throws; an accepted event carries the token and exact body", async (t) => {
+  const { createServer } = await import("node:http");
+  const seen: Array<{ url?: string; auth?: string; body: string }> = [];
+  let status = 500;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => { seen.push({ url: req.url, auth: req.headers.authorization, body }); res.statusCode = status; res.end("{}"); });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const previous = process.env.TOVU_AGENT_DAEMON_TOKEN;
+  delete process.env.TOVU_AGENT_DAEMON_TOKEN;
+  t.after(() => { if (previous !== undefined) process.env.TOVU_AGENT_DAEMON_TOKEN = previous; });
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/s/site`;
+  const event = { runId: "run-1", principalId: "owner-1", payload: { type: "agent_plugins" } };
+
+  await assert.rejects(publishDaemonPluginEvent(event), { message: "daemon plugin event delivery is unavailable" });
+  await assert.rejects(publishDaemonPluginEvent({ ...event, payload: { blob: "x".repeat(1024 * 1024) } }, { connection: { url, token: "tok-a" } }), { message: "plugin event is too large" });
+  assert.deepEqual(seen, []);
+  await assert.rejects(publishDaemonPluginEvent(event, { connection: { url, token: "tok-a" } }), { message: "daemon plugin event delivery was refused" });
+  status = 202;
+  assert.equal(await publishDaemonPluginEvent(event, { connection: { url, token: "tok-a" } }), undefined);
+  const expected = { url: "/s/site/internal/agent-plugin-events", auth: "Bearer tok-a", body: JSON.stringify(event) };
+  assert.deepEqual(seen, [expected, expected]);
 });
