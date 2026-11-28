@@ -23,6 +23,12 @@ const worker = await import('../commerce-worker.js');
 mock.module(new URL('../commerce-worker.js', import.meta.url).href, { namedExports: { ...worker, createCommerceWorker: () => ({ kick: async () => {}, close: async () => {} }) } });
 const settings = await import('@jini-ai/commerce');
 mock.module('@jini-ai/commerce', { namedExports: { ...settings, readCommerceConfiguration: async () => { if (configFailure) throw failure(); return null; } } });
+const paymentsKernel = await import('@jini-ai/commerce/payments/kernel');
+type InboxWorkerArgs = Parameters<typeof paymentsKernel.createInboxWorker>;
+let capturedAlerts: NonNullable<InboxWorkerArgs[1]>['alerts'] | undefined;
+mock.module('@jini-ai/commerce/payments/kernel', { namedExports: { ...paymentsKernel, createInboxWorker: (...args: InboxWorkerArgs) => {
+  capturedAlerts = args[1]?.alerts; return paymentsKernel.createInboxWorker(...args);
+} } });
 const { composeCommerce } = await import('../commerce.js');
 
 function reset() { activeFailure = false; probeFailure = false; configFailure = false; ledgerFailure = false; storageExists = false; }
@@ -88,4 +94,21 @@ test('attention scan failure retains the status refusal and a safe diagnostic', 
   const entry = logs.mock.calls.find(call => String(call.arguments[0]).includes('Commerce status could not be read'));
   assert.ok(entry, 'attention scan failure is logged'); assert.match(String(entry.arguments[1]), /Error.*EIO/);
   assert.doesNotMatch(JSON.stringify(entry.arguments), /boom|SECRETSECRETSECRETSECRET/);
+});
+
+test('payment alerts are warned once per payment and the dedupe memory forgets only the oldest past 1000 entries', async t => {
+  reset(); capturedAlerts = undefined; const { warnings } = fixture(t); await settled();
+  const alerts = capturedAlerts; assert.ok(alerts, 'the composition hands its alert port to the inbox worker');
+  const raise = (n: number) => alerts.raise({ alert: { kind: 'unknown-aged', workspaceId: 'ws', mode: 'test', paymentId: `pay-${n}`, detail: 'aged' } });
+  const settlement = () => warnings.filter(line => line.startsWith('Payment settlement needs attention: '));
+  await raise(1); await raise(1);
+  assert.deepEqual(settlement(), ['Payment settlement needs attention: {"kind":"unknown-aged","workspaceId":"ws","mode":"test","paymentId":"pay-1","detail":"aged"}']);
+  for (let n = 2; n <= 1000; n += 1) await raise(n);
+  assert.equal(settlement().length, 1000);
+  await raise(1001); // the 1001st distinct alert evicts pay-1, the longest-held entry
+  await raise(2); await raise(1000); await raise(1001);
+  assert.equal(settlement().length, 1001, 'pay-2, pay-1000 and pay-1001 are still remembered');
+  await raise(1);
+  assert.equal(settlement().length, 1002);
+  assert.equal(settlement().at(-1), 'Payment settlement needs attention: {"kind":"unknown-aged","workspaceId":"ws","mode":"test","paymentId":"pay-1","detail":"aged"}');
 });
