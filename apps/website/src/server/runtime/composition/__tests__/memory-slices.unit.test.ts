@@ -20,7 +20,7 @@ test("publish apply: a replaced theme folder rescans the served roster in place 
   const ports = publishPorts(siteThemes);
   const themeFiles = ports["theme-files"];
   assert.equal(themeFiles.themesDir, builtInThemesDir());
-  const expectedIds = discoverAllBuiltInThemes({ dir: builtInThemesDir() }).map(theme => theme.manifest.id).sort();
+  const expectedIds = discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }).map(theme => theme.manifest.id).sort();
   assert.ok(expectedIds.length > 0, "the built-in themes dir ships at least one theme");
   themeFiles.onReplaced?.();
   assert.deepEqual(siteThemes.map(theme => theme.manifest.id).sort(), expectedIds);
