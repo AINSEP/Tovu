@@ -114,3 +114,28 @@ test("dockerfile PUT: a JSON body that is not an object is a 400 before any writ
     assert.deepEqual(capture, { statusCode: 400, jsonBody: { error: "request body must be a JSON object" } });
   }
 });
+
+test("server-logs: an invalid filter is a 400 naming the filter rule; a log-source fault is not mistaken for one", async () => {
+  const route = "/api/admin/v1/workspaces/:workspaceId/system/server-logs";
+  const filterApp = express();
+  let reads = 0;
+  registerAdminServerLogsRoute({ errors: createRouteIncidentReporter().errors, app: filterApp, deps: { workspaceId: WS, authorize: allow } },
+    { logs: { read: () => { reads++; return { entries: [], capturing: true }; } } });
+  const invalid = createCapturingResponse();
+  invalid.res.locals.principal = { id: "owner" };
+  await extractRouteHandler(filterApp, "get", route)({ params: { workspaceId: WS }, query: { level: "loud" } }, invalid.res);
+  assert.equal(invalid.capture.statusCode, 400);
+  assert.deepEqual(invalid.capture.jsonBody, { error: "level must be one of debug, info, warn, error", code: "VALIDATION_ERROR" });
+  assert.equal(reads, 0);
+
+  const incidents = createRouteIncidentReporter();
+  const faultApp = express();
+  registerAdminServerLogsRoute({ errors: incidents.errors, app: faultApp, deps: { workspaceId: WS, authorize: allow } },
+    { logs: { read: () => { throw new Error("log buffer is detached"); } } });
+  const fault = createCapturingResponse();
+  fault.res.locals.principal = { id: "owner" };
+  await extractRouteHandler(faultApp, "get", route)({ params: { workspaceId: WS }, query: {} }, fault.res);
+  assert.equal(fault.capture.statusCode, 500);
+  assert.equal((fault.capture.jsonBody as { code: string }).code, "INTERNAL_ERROR");
+  assert.equal(incidents.reports.length, 1);
+});
