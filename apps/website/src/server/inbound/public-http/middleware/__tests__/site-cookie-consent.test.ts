@@ -360,6 +360,21 @@ test('detached delivery rechecks the receipt: a forged, withdrawn or stale-polic
   assert.equal(await allowed({ receiptId: id, policyVersion: f.policy }), false);
 });
 
+test('the analytics gate captures the visitor receipt as proof, unless the visitor is excluded', async t => {
+  const f = await publicFixture({ t });
+  const accepted = await postChoice(f);
+  const { id } = await accepted.json() as { id: string };
+  // The browser keeps the accepted choice with its server receipt id; the gate reads only that cookie.
+  const cookie = 'jini_choices=' + encodeURIComponent(JSON.stringify({ v: 1, p: f.policy, t: f.deps.clock.nowMs(), a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: id }));
+  const request = { get: (name: string) => (name.toLowerCase() === 'cookie' ? cookie : undefined) } as unknown as express.Request;
+  bindCookieConsentAnalyticsGate({ deps: f.deps });
+  assert.deepEqual(await f.deps.visitorAnalyticsProof!({ request }), { receiptId: id, policyVersion: f.policy }, 'with no exclusion rule every visitor is checked');
+  const excludedChecks: unknown[] = [];
+  bindCookieConsentAnalyticsGate({ deps: f.deps }, { isExcluded: async ({ request: seen }) => { excludedChecks.push(seen); return true; } });
+  assert.equal(await f.deps.visitorAnalyticsProof!({ request }), undefined);
+  assert.deepEqual(excludedChecks, [request]);
+});
+
 test('a failing exclusion check or receipt read fails closed: no proof is captured and nothing delivers', async t => {
   const f = await publicFixture({ t });
   const excludedChecks: unknown[] = [];

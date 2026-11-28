@@ -20,7 +20,7 @@ const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const iso = (ms: number) => new Date(ms).toISOString();
 
 type Kernel = KyselyKernel<unknown>;
-type Extra = Partial<Pick<Parameters<typeof mediaBytesDeps>[0], "shareTransfers" | "recoveryArtifacts">>;
+type Extra = Partial<Pick<Parameters<typeof mediaBytesDeps>[0], "shareTransfers" | "recoveryArtifacts" | "mediaRepo">>;
 
 /** The production deps on a real migrated kernel; only the media repo and blob sizes are stubbed. */
 async function reportOn(kernel: Kernel, extra: Extra = {}) {
@@ -65,6 +65,31 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => kernel as Ke
     await kernel.execute(sql`INSERT INTO form_definitions (id, workspace_id, name, slug, fields_json, notify_json, created_at, updated_at) VALUES ('f1', ${WS}, 'Jobs', 'jobs', '[]', '{}', ${iso(NOW)}, ${iso(NOW)})`);
     await kernel.execute(sql`INSERT INTO form_submissions (id, workspace_id, form_definition_id, data_json, source_ip, submitted_at, deleted_at) VALUES ('s1', ${WS}, 'f1', ${JSON.stringify({ cv: { mediaId: MEDIA_ID } })}, '', ${iso(NOW)}, ${iso(NOW)})`);
     assert.deepEqual(await reportOn(kernel), { eligible: [], kept: ["forms"] }, "a trashed submission can be restored with its attachment");
+  });
+
+  test(`[${adapter.name}] a media row holds the bytes only with the same sha256 and the probe's own status`, async t => {
+    const kernel = fresh(t);
+    const repo = (rows: Array<{ sha256: string; status: string }>) =>
+      ({ list: async () => rows.map(row => ({ source: { sha256: row.sha256 }, status: row.status })) }) as unknown as VersionedMediaRepoPort;
+    const OTHER = "b".repeat(64);
+    assert.deepEqual(await reportOn(kernel, { mediaRepo: repo([{ sha256: OTHER, status: "active" }, { sha256: OTHER, status: "trashed" }, { sha256: SHA, status: "trashed" }]) }), { eligible: [], kept: ["trashed"] });
+    assert.deepEqual(await reportOn(kernel, { mediaRepo: repo([{ sha256: OTHER, status: "trashed" }, { sha256: SHA, status: "active" }]) }), { eligible: [], kept: ["live"] });
+    assert.deepEqual(await reportOn(kernel, { mediaRepo: repo([{ sha256: OTHER, status: "active" }, { sha256: SHA, status: "draft" }]) }), { eligible: [KEY], kept: [] }, "neither a different file nor another status holds it");
+  });
+
+  test(`[${adapter.name}] a form clean-up job naming the storage key holds it; an unreadable job keeps it as unknown`, async t => {
+    const kernel = fresh(t);
+    const job = (payload: unknown) => kernel.execute(sql`INSERT INTO outbox_events (id, workspace_id, event_json, status, attempts, next_attempt_at, created_at) VALUES (${`forms:file:cleanup:${WS}:${MEDIA_ID}`}, ${WS}, ${JSON.stringify({ name: "form.attachment.cleanup", ...(payload === undefined ? {} : { payload }) })}, 'pending', 0, ${iso(NOW)}, ${iso(NOW)})`);
+    await job({ workspaceId: WS, sha256: "c".repeat(64), storageKeys: ["media/other", KEY] });
+    assert.deepEqual(await reportOn(kernel), { eligible: [], kept: ["forms"] });
+    await kernel.execute(sql`DELETE FROM outbox_events`);
+    await job({ workspaceId: WS, sha256: "c".repeat(64), storageKeys: `${KEY}.old` });
+    assert.deepEqual(await reportOn(kernel), { eligible: [KEY], kept: [] }, "only a list of storage keys names files; a string containing the key does not");
+    for (const payload of [undefined, "forms-file-cleanup"]) {
+      await kernel.execute(sql`DELETE FROM outbox_events`);
+      await job(payload);
+      assert.deepEqual(await reportOn(kernel), { eligible: [], kept: ["unknown"] }, `a job whose payload is ${String(payload)} is never read as releasing the file`);
+    }
   });
 
   test(`[${adapter.name}] in-flight transfer keeps bytes`, async t => {
@@ -123,4 +148,17 @@ test("a memory-only site lists only its restore points", async () => {
   const restorePoint = { filePath: "/journal/point.db", createdAt: 2, bytes: 1 };
   const list = servingRecoveryArtifacts({ restorePoints: { list: async () => [restorePoint] }, contentDbPath: ":memory:" });
   assert.deepEqual(await list(), [restorePoint]);
+});
+
+test("stat reports a size only when the blob store returns a number", async () => {
+  const depsWith = (blobStore: BlobStorePort) => mediaBytesDeps({
+    workspaceId: WS, kernel: {} as Kernel, signal: new AbortController().signal, clock: { nowMs: () => NOW },
+    mediaRepo: { list: async () => [] } as unknown as VersionedMediaRepoPort, blobStore,
+    shareTransfers: undefined, recoveryArtifacts: async () => [],
+  }, {});
+  const asked: unknown[] = [];
+  assert.deepEqual(await depsWith({ sizeOf: async (input: unknown) => { asked.push(input); return 7; } } as unknown as BlobStorePort).stat(KEY), { size: 7 });
+  assert.deepEqual(asked, [{ storageKey: KEY }]);
+  assert.equal(await depsWith({ sizeOf: async () => undefined } as unknown as BlobStorePort).stat(KEY), null);
+  assert.equal(await depsWith({} as BlobStorePort).stat(KEY), null, "a store that cannot size files reports unknown");
 });

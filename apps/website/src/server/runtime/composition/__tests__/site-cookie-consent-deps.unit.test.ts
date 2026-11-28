@@ -49,3 +49,17 @@ test("without a trusted ingress the region readers never consult the plugins", a
   await deps.regionResolvers();
   assert.deepEqual(calls, []);
 });
+
+test("the older region-header setting adds one trimmed header reader without consulting the plugins; a blank one adds none", async () => {
+  const { calls, loadContributions } = countingLoader();
+  const configured = createSiteCookieConsentDeps({ workspaceId: "ws-c", loadContributions }, { env: { TOVU_CONSENT_REGION_HEADER: "  x-visitor-region  " }, nowMs: () => 0 });
+  const resolvers = await configured.regionResolvers!();
+  assert.deepEqual(resolvers.map(resolver => resolver.id), ["configured-header"]);
+  const asked: string[] = [];
+  const request = { header: (name: string) => { asked.push(name); return name === "x-visitor-region" ? "US" : null; }, ip: null };
+  assert.equal(await resolvers[0]!.resolve({ request }), "us");
+  assert.deepEqual(asked, ["x-visitor-region"], "the reader consults exactly the trimmed header name");
+  const blank = createSiteCookieConsentDeps({ workspaceId: "ws-c", loadContributions }, { env: { TOVU_CONSENT_REGION_HEADER: "   " }, nowMs: () => 0 });
+  assert.deepEqual(await blank.regionResolvers!(), []);
+  assert.deepEqual(calls, []);
+});

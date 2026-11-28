@@ -189,3 +189,15 @@ test("backup guide gates source-control pointers and private-backup workflow wit
   assert.match(allowed, /private.*full-site|full-site.*private/);
   assert.match(allowed, /rendered static output/i);
 });
+
+// `target-scope` calls a registration's `normalizeInput` hook on the raw input, before the shared
+// schema walk has renamed aliases, so the hook's own alias handling is the contract on that path.
+test("the site_guide input hook renames the query alias, refuses a query+topic pair, and unwraps a one-item array", async () => {
+  const registration = buildSiteGuideRegistrations({ deps: deps() })[0]!;
+  const normalize = registration.normalizeInput!;
+  assert.deepEqual(await normalize({ input: { operation: "search", query: "forms" } }), { input: { operation: "search", topic: "forms" }, notes: ["query→topic"] });
+  assert.deepEqual(await normalize({ input: { operation: "explain", query: ["forms"] } }), { input: { operation: "explain", topic: "forms" }, notes: ["query→topic", "topic: one-item string array→string"] });
+  assert.deepEqual(await normalize({ input: { operation: "overview" } }), { input: { operation: "overview" }, notes: [] });
+  await assert.rejects(async () => normalize({ input: { operation: "search", query: "forms", topic: "seo" } }),
+    (error: unknown) => error instanceof ToolInputError && error.message === "Conflicting inputs 'query' and 'topic'. Send only 'topic'.");
+});

@@ -130,6 +130,18 @@ test("the serving policies are the share expiry pass (only with a share catalog)
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
+test("a share ZIP that cannot be deleted is reported against the share-files policy", async () => {
+  const row = { shareId: "share-7", status: "revoked" };
+  const registry = { list: async () => [row], get: async () => row, markExpired: async () => {}, artifactPath: () => "/shares/share-7.zip" } as unknown as SiteShareRegistry;
+  const failure = Object.assign(new Error("disk fault"), { code: "EIO" });
+  const reported: Array<{ error: Error; policyId?: string }> = [];
+  const [shares] = siteRetentionPolicies({ registry, fs: { stat: async () => ({ size: 9 }), unlink: async () => { throw failure; } },
+    clock: { now: () => 0 }, signal: new AbortController().signal, reportError: (required) => reported.push(required) });
+  assert.equal(shares?.id, "share-files");
+  assert.deepEqual(await shares!.sweep({ now: 0 }), { removed: 0, freedBytes: 0 });
+  assert.deepEqual(reported, [{ error: failure, policyId: "share-files" }]);
+});
+
 test("database-copies registers as an old-copy class only for a file-backed site", () => {
   const deps = { registry: undefined, fs: { stat: async () => ({ size: 0 }), unlink: async () => {} }, clock: { now: () => 0 }, signal: new AbortController().signal, reportError: () => {} };
   assert.equal(servingDatabaseCopies({ contentDbPath: ":memory:" }), undefined);
