@@ -199,3 +199,70 @@ test('Keep running surfaces a non-Error refusal and accepts a retry for the same
   assert.equal(h.hook.current().asking, null);
   assert.equal(h.hook.current().error, null);
 });
+
+test('with no ask open, Keep running and Stop site do nothing at all', async (t) => {
+  const h = harness(t);
+  await act(() => h.hook.current().keepRunning());
+  await act(() => h.hook.current().stopAndClose());
+  assert.deepEqual(h.keptRunning, []);
+  assert.deepEqual(h.stops, []);
+  assert.deepEqual(h.closed, []);
+  assert.equal(h.hook.current().asking, null);
+});
+
+test('a second press while an answer is in flight is ignored: one hold, one stop', async (t) => {
+  // Second presses are not awaited: a missing in-flight guard must fail the count, not hang the test.
+  const hold = deferred<void>();
+  const kept = harness(t, { keepSiteRunning: () => hold.promise });
+  act(() => kept.hook.current().requestClose({ id: 'a' }));
+  const holding: Promise<void>[] = [];
+  act(() => { holding.push(kept.hook.current().keepRunning()); });
+  act(() => { holding.push(kept.hook.current().keepRunning(), kept.hook.current().stopAndClose()); });
+  assert.deepEqual(kept.keptRunning, ['a']);
+  assert.deepEqual(kept.stops, []);
+  hold.resolve();
+  await act(() => Promise.all(holding).then(() => undefined));
+  assert.deepEqual(kept.closed, ['a']);
+
+  const slow = deferred<SiteRecord>();
+  const stopped = harness(t, { stopSite: () => slow.promise });
+  act(() => stopped.hook.current().requestClose({ id: 'a' }));
+  const stopping: Promise<void>[] = [];
+  act(() => { stopping.push(stopped.hook.current().stopAndClose()); });
+  act(() => { stopping.push(stopped.hook.current().stopAndClose(), stopped.hook.current().keepRunning()); });
+  assert.deepEqual(stopped.stops, ['a']);
+  assert.deepEqual(stopped.keptRunning, []);
+  slow.resolve(site({ status: 'stopped' }));
+  await act(() => Promise.all(stopping).then(() => undefined));
+  assert.deepEqual(stopped.closed, ['a']);
+});
+
+test('A Keep running answer closes A but leaves B newer prompt open, unanswered', async (t) => {
+  const hold = deferred<void>();
+  const h = harness(t, { projects: [site(), site({ id: 'b' })], keepSiteRunning: () => hold.promise });
+  act(() => h.hook.current().requestClose({ id: 'a' }));
+  let done!: Promise<void>;
+  act(() => { done = h.hook.current().keepRunning(); });
+  act(() => h.hook.current().requestClose({ id: 'b' }));
+  hold.resolve();
+  await act(() => done);
+  assert.deepEqual(h.closed, ['a']);
+  assert.equal(h.hook.current().asking?.id, 'b');
+  assert.equal(h.hook.current().stopping, false);
+  assert.equal(h.hook.current().error, null);
+});
+
+test('A Keep running refusal cannot replace B newer prompt with A reason', async (t) => {
+  const hold = deferred<void>();
+  const h = harness(t, { projects: [site(), site({ id: 'b' })], keepSiteRunning: () => hold.promise });
+  act(() => h.hook.current().requestClose({ id: 'a' }));
+  let done!: Promise<void>;
+  act(() => { done = h.hook.current().keepRunning(); });
+  act(() => h.hook.current().requestClose({ id: 'b' }));
+  hold.reject(new Error('A could not be held'));
+  await act(() => done);
+  assert.deepEqual(h.closed, []);
+  assert.equal(h.hook.current().asking?.id, 'b');
+  assert.equal(h.hook.current().error, null);
+  assert.equal(h.hook.current().stopping, false);
+});

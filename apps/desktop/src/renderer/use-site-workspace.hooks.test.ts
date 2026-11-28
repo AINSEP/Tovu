@@ -202,6 +202,15 @@ test('the reducer stores what a navigation reported, and a new guest node starts
   assert.deepEqual(remounted.history, { canGoBack: false, canGoForward: false });
 });
 
+test('an action type the reducer does not know (an untyped caller) yields undefined, not the old state', () => {
+  const populated = { ...initialSiteWorkspaceState, liveUrl: 'http://127.0.0.1:4100/about', reloadNonce: 4 };
+  const unknownAction = { type: 'teleport', url: 'http://127.0.0.1:4100/' } as unknown as SiteWorkspaceAction;
+
+  assert.equal(siteWorkspaceReducer(populated, unknownAction), undefined);
+  // The known cases still answer normally on the same state.
+  assert.equal(siteWorkspaceReducer(populated, { type: 'remount' }).reloadNonce, 5);
+});
+
 // ---------------------------------------------------------------------------------------------
 // Back / forward commands
 // ---------------------------------------------------------------------------------------------

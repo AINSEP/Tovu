@@ -31,6 +31,7 @@ import type {
   WorkspaceChatEventMessage,
   WorkspaceChatReattachInput,
   WorkspaceChatRunSnapshot,
+  WorkspaceChatRunState,
   WorkspaceChatStartInput,
   WorkspaceChatStartResult,
 } from '../contracts/workspace-chat.js';
@@ -356,6 +357,14 @@ for (const [daemonState, chatStatus] of RUN_STATE_MAP) {
   });
 }
 
+test('fetchRunStatus passes a state outside the protocol vocabulary (a newer main) through as undefined', async () => {
+  // IPC is untyped at runtime: a main that grew a new state must not be shown as some other status.
+  const futureState = 'paused' as unknown as WorkspaceChatRunState;
+  const fake = createFakeBridge({ chatStatus: () => Promise.resolve({ runId: 'run-1', state: futureState }) });
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  assert.equal(await transport.fetchRunStatus('run-1'), undefined);
+});
+
 // ---------------------------------------------------------------------------------------------
 // stopRun
 // ---------------------------------------------------------------------------------------------
@@ -678,6 +687,39 @@ test('isMediaBlock rejects a non-object entry and a null entry, not just a wrong
   });
   assert.deepEqual(events, [
     { kind: 'tool_result', toolUseId: 't2', content: 'ok', isError: false, media: [{ type: 'text', text: 'kept' }] },
+  ]);
+});
+
+test('isMediaBlock drops a block of an unknown type even with well-formed fields, and keeps an empty text block', async () => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  const events: AgentEvent[] = [];
+  await transport.startRun(startInput(), dummyHandlers({ onEvent: (e) => events.push(e) }));
+  const sub = fake.calls.chatStart[0]!.subscriptionId;
+  fake.emit({
+    subscriptionId: sub,
+    kind: 'event',
+    event: agentEvent({
+      type: 'tool_result',
+      toolUseId: 't3',
+      content: 'ok',
+      media: [
+        // Non-string text/mimeType/data are covered by 'malformed text and image blocks ...' below.
+        { type: 'video', mimeType: 'video/mp4', data: 'dmlk' },
+        { type: 'IMAGE', mimeType: 'image/png', data: 'cG5n' },
+        { type: 'image', mimeType: 'image/gif', data: 'Z2lm' },
+        { type: 'text', text: '' },
+      ],
+    }),
+  });
+  assert.deepEqual(events, [
+    {
+      kind: 'tool_result',
+      toolUseId: 't3',
+      content: 'ok',
+      isError: false,
+      media: [{ type: 'image', mimeType: 'image/gif', data: 'Z2lm' }, { type: 'text', text: '' }],
+    },
   ]);
 });
 
