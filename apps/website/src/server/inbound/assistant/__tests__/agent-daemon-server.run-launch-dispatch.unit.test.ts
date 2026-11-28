@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { captureDaemonRun } from "./helpers/daemon-source.js";
 
 /**
@@ -31,6 +32,33 @@ describe("dispatchRun — a run withdrawn while it was being prepared", () => {
     assert.equal(checksAfterFolderRead, 2, "the final liveness check and the dispatch check both ran");
     assert.equal(launched, false);
     assert.deepEqual(finishes, [{ runId: RUN_ID, status: "cancelled", code: null, signal: null, resumable: false }]);
+  });
+
+  // Mutation: drop the liveness check after the launch's fresh policy read (the withdrawn run would
+  // then record a chat-settings snapshot and read the picked folder before a later check stops it).
+  test("a run withdrawn during the launch's fresh tool-policy read stops there: no settings snapshot, folder read, executor or finish", async () => {
+    const finishes: unknown[] = [];
+    const chatSettingsByRunId = new Map<string, unknown>();
+    let folderReads = 0;
+    let launched = false;
+    // Each tool-policy read resolves the host signals once. Read 1 is the tool-access preparation;
+    // read 2 is the launch's own fresh read, during which the scope closes.
+    let policyReads = 0;
+    await assert.rejects(captureDaemonRun({ prompt: "go" }, {
+      lifecycle: { waitForTerminal: () => new Promise(() => {}), finish: async (input: unknown) => { finishes.push(input); } },
+      bindings: {
+        resolveHostSignals: (input: Parameters<typeof resolveHostSignals>[0]) => { policyReads += 1; return resolveHostSignals(input); },
+        isDisposed: () => policyReads >= 2,
+        chatSettingsByRunId,
+        getCustomFsRoot: () => { folderReads += 1; return undefined; },
+        agentExecutor: { run: async () => { launched = true; } },
+      },
+    }), { message: "onStarted did not call the executor" });
+    assert.equal(policyReads, 2);
+    assert.equal(chatSettingsByRunId.has(RUN_ID), false);
+    assert.equal(folderReads, 0);
+    assert.equal(launched, false);
+    assert.deepEqual(finishes, []);
   });
 });
 
