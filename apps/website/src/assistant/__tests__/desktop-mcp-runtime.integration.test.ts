@@ -145,3 +145,22 @@ test("owner restart recovers without manual action", async t => {
   const result = await server.daemonCalls.executor.execute({ principal: { id: "owner" }, run: { id: "new-owner" }, toolId: "mcp__tovu-desktop__list_sites", input: {} });
   assert.equal(result.status, "completed", JSON.stringify(result));
 });
+
+test("an accepted handoff whose reload does not admit the preset answers 503; a failing reload reaches the error handler", async t => {
+  for (const [reload, expected] of [[async () => false, 503], [async () => { throw new Error("reload failed"); }, 500]] as const) {
+    const runtime = createDesktopMcpRuntime({ env: { TOVU_DESKTOP_MCP_HANDOFF_TOKEN: "a".repeat(64) } }, {});
+    const app = express();
+    let reloads = 0;
+    registerDesktopMcpHandoff({ router: app, runtime, reload: () => { reloads++; return reload(); } }, {});
+    const failures: unknown[] = [];
+    app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => { failures.push(error); res.sendStatus(500); });
+    const base = await startTestServer(app, t);
+    const response = await fetch(`${base}/internal/desktop-mcp-capability`, { method: "POST",
+      headers: { authorization: `Bearer ${"a".repeat(64)}`, "content-type": "application/json" },
+      body: JSON.stringify({ url: "http://127.0.0.1:49111/mcp", token: "c".repeat(64) }),
+    });
+    assert.equal(response.status, expected);
+    assert.equal(reloads, 1);
+    assert.deepEqual(failures.map(error => (error as Error).message), expected === 500 ? ["reload failed"] : []);
+  }
+});
