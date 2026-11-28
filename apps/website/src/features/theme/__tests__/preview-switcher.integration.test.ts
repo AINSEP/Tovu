@@ -15,6 +15,7 @@ import { buildPreviewSwitcherRegistrations } from "../preview-switcher-tools.js"
 import { readPreviewSwitcher } from "../preview-switcher.js";
 import type { DiscoveredTheme } from "../theme.js";
 import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { OriginNotVerifiedError } from "@jini-ai/core/contracts/server/verified-origin";
 
 /** Owner dispatch 2026-10-20: the actual composed settings writer, HTTP renderer and exporter. */
 async function fixture(t: TestContext) {
@@ -155,6 +156,22 @@ test("live server chooses per request; cookie persists, reset clears, canonical 
     assert.match(await response.text(), new RegExp(`<h1>${theme}</h1>`));
   }));
   assert.equal(concurrent.length, 2);
+});
+
+test("without a verified workspace origin the live preview keeps a relative canonical instead of inventing a host", async t => {
+  const f = await fixture(t);
+  await f.save();
+  t.mock.method(f.deps.originRegistry, "canonicalOrigin", async () => {
+    throw new OriginNotVerifiedError({ message: "no verified origin registered for this workspace" });
+  });
+  const url = await startTestServer(createApp(f.deps), t);
+  const preview = await fetch(`${url}/about?theme=preview-two`);
+  const html = await preview.text();
+  assert.equal(preview.status, 200);
+  assert.match(html, /<h1>preview-two<\/h1>/);
+  assert.match(html, /tovu-theme-preview-host/);
+  assert.match(html, /<link rel="canonical" href="\/about">/);
+  assert.doesNotMatch(html, /tovu-preview\.invalid|localhost:3000\/about/);
 });
 
 test("portable static copies export only the active theme when the preview switcher is enabled", async t => {

@@ -1079,6 +1079,7 @@ test("form analytics captures only a committed submission, never honeypots or du
 for (const [reason, error] of [
   ['schema_changed', new FormSchemaChangedError({ fields: [], schemaHash: 'new', draft: {} as never })],
   ['attachment_space', new FormAttachmentSpaceError({ fields: [], answers: {} })],
+  ['rate_limited', new FormRateLimitExceededError({ message: 'Too many form requests.', retryAfterSeconds: 30 })],
 ] as const) {
   test(`form refusal analytics classifies ${reason} without exposing submitted answers`, { timeout: 5000 }, async t => {
     const events: ProductEvent[] = [];
@@ -1101,3 +1102,17 @@ for (const [reason, error] of [
     assert.deepEqual(events[0]!.properties, { reason, invalidFieldCount: 0 });
   });
 }
+
+test('form refusal analytics classifies a submit to a form that does not exist as unavailable', { timeout: 5000 }, async t => {
+  const events: ProductEvent[] = [];
+  let captured!: () => void;
+  const delivered = new Promise<void>(resolve => { captured = resolve; });
+  const { server, baseUrl } = await startTestApp({ definitionRepo: new InMemoryFormDefinitionRepo(), allowVisitorAnalytics: async () => true,
+    productAnalytics: { capture: event => { events.push(event); captured(); }, identify: () => {} } });
+  t.after(() => new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); }));
+  const response = await fetch(`${baseUrl}/forms/absent-form/submit`, { method: 'POST',
+    headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'private answer' }) });
+  assert.equal(response.status, 404);
+  await delivered;
+  assert.deepEqual(events.map(event => [event.name, event.properties]), [['form_submit_failed', { reason: 'unavailable', invalidFieldCount: 0 }]]);
+});
