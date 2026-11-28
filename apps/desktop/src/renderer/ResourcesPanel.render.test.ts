@@ -261,3 +261,8 @@ test('the Resources panel focuses its first action and its default Stop updates 
   assert.deepEqual(calls, [{ id: SITE.id }]);
   assert.deepEqual(updates, [stopped]);
 });
+
+test('ResourcesChip outside a ResourcesMonitor renders nothing', (t) => {
+  const view = mount(t, createElement('nav', null, createElement(ResourcesChip)));
+  assert.equal(view.host.innerHTML, '<nav></nav>');
+});

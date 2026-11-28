@@ -173,3 +173,20 @@ test('a failed startup sleep read keeps the default and a successful save clears
   assert.equal(view.byLabel({ label: '5 min' })?.getAttribute('aria-checked'), 'false');
   assert.equal(view.container.querySelector('[role="alert"]'), null);
 });
+
+test('SettingsControl: picking the sleep choice already in force writes nothing', async (t) => {
+  const writes: number[] = [];
+  const view = renderSettings(t, { bridge: {
+    getIdleSiteSleepMinutes: async () => 30,
+    setIdleSiteSleepMinutes: async (value) => { writes.push(value); return value; },
+  } });
+  await settle();
+  await view.click({ el: view.gear() });
+  await view.click({ el: view.byLabel({ label: '30 min' }) });
+  await settle();
+  assert.deepEqual(writes, []);
+  assert.equal(view.byLabel({ label: '30 min' })?.getAttribute('aria-checked'), 'true');
+  await view.click({ el: view.byLabel({ label: '10 min' }) });
+  await settle();
+  assert.deepEqual(writes, [10], 'a different choice still saves');
+});

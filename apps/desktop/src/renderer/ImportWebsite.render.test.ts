@@ -185,3 +185,17 @@ test('ImportWebsite: a folder dropped on the page imports that folder by its rea
   assert.equal(drop.defaultPrevented, true, 'the browser does not open the dropped folder');
   assert.equal(view.calls.at(-1), 'drop:/srv/sites/acme');
 });
+
+test('ImportWebsite: dragging over the page marks the drop zone and accepts a copy', async (t) => {
+  const view = render(t);
+  const page = view.container.querySelector('section[aria-label="Import a website"]')!;
+  const zone = view.container.querySelector('.import-zone')!;
+  assert.equal(zone.classList.contains('is-dragging'), false);
+  const over = new dom.window.Event('dragover', { bubbles: true, cancelable: true });
+  const dataTransfer = { dropEffect: 'none' };
+  Object.defineProperty(over, 'dataTransfer', { value: dataTransfer });
+  await act(async () => { page.dispatchEvent(over); });
+  assert.equal(zone.classList.contains('is-dragging'), true);
+  assert.equal(dataTransfer.dropEffect, 'copy');
+  assert.equal(over.defaultPrevented, true);
+});
