@@ -78,3 +78,33 @@ test("a form submission whose attachment row is already gone is purged: the remo
   assert.deepEqual(report.results.map(row => row.outcome), ["purged"]);
   assert.equal(await rows(), 0);
 });
+
+test("purging a trashed form scrubs the delivery jobs planned under that form id: answers blanked, unfinished job failed", async () => {
+  const { deps } = site;
+  const workspaceId = deps.workspaceId;
+  await deps.formDefinitionRepo.create({ id: "scrub-form", workspaceId, name: "Scrub", slug: "scrub-form", status: "active", version: 1,
+    createdAt: AT, updatedAt: AT, fields: [], notify: { enabled: false, recipients: [] } });
+  // The plan is keyed to a submission id that has no row of its own, so only the form-keyed scrub
+  // (purged: { formId }) can reach this job; a submission-keyed scrub would miss it.
+  const event = { id: "scrub-job", name: "form.delivery.job", occurredAt: AT, aggregateId: "plan-only-sub", workspaceId,
+    payload: { binding: { bindingId: "b-1", adapterId: "a-1" }, snapshot: { submission: { answers: { email: "a@b.c" } } } } };
+  await site.kernel.run(async db => {
+    await sql`INSERT INTO form_delivery_plans (workspace_id, submission_id, form_id) VALUES (${workspaceId}, 'plan-only-sub', 'scrub-form')`.execute(db);
+    // A far-future next attempt keeps the outbox worker from claiming the job during the test.
+    await sql`INSERT INTO outbox_events (id, workspace_id, event_json, status, attempts, next_attempt_at, last_error, created_at)
+      VALUES ('scrub-job', ${workspaceId}, ${JSON.stringify(event)}, 'pending', 0, '2999-01-01T00:00:00.000Z', NULL, ${AT})`.execute(db);
+    await sql`INSERT INTO form_delivery_jobs (job_id, workspace_id, submission_id, binding_id, adapter_id) VALUES ('scrub-job', ${workspaceId}, 'plan-only-sub', 'b-1', 'a-1')`.execute(db);
+  });
+  const job = async () => {
+    const [row] = (await site.kernel.run(db => sql<{ status: string; last_error: string | null; event_json: string }>`SELECT status, last_error, event_json FROM outbox_events WHERE id = 'scrub-job'`.execute(db))).rows;
+    assert.ok(row, "the delivery job row exists");
+    const parsed = JSON.parse(row.event_json) as typeof event;
+    return { status: row.status, lastError: row.last_error, answers: parsed.payload.snapshot.submission.answers };
+  };
+  assert.deepEqual(await job(), { status: "pending", lastError: null, answers: { email: "a@b.c" } });
+  const hidden = await deps.trash.trash({ workspaceId, entityType: "form", entityId: "scrub-form", actor: { principalId: "owner" }, display: { title: "Scrub" }, at: AT, expectedVersion: null });
+  assert.equal(hidden.ok, true);
+  const report = await deps.trash.purgeSelected({ workspaceId, ids: [await trashItemId({ entityType: "form", entityId: "scrub-form" })], actor: { principalId: "owner" }, authorizeItem: async () => true });
+  assert.deepEqual(report.results.map(row => row.outcome), ["purged"]);
+  assert.deepEqual(await job(), { status: "failed", lastError: "delivery-failed", answers: {} });
+});
