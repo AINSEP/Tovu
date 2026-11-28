@@ -247,3 +247,32 @@ test('payment webhooks: the commerce receiver is read per request and gets the w
   assert.deepEqual([off.status, JSON.parse(off.body).code], [503, 'PAYMENTS_UNAVAILABLE']);
   assert.equal(paths.length, 1);
 });
+
+test('storefront: an install without commerce mounts no storefront, and a path outside the shop never reads its status', async () => {
+  const off = express();
+  registerCommerceHttp({ app: off, deps: portFake<RouteDeps>({}) });
+  off.use((_req, res) => { res.status(418).send('CMS fallback'); });
+  const checkout = await dispatchHttpRequest({ app: off, method: 'GET', url: '/commerce/checkout.js' });
+  assert.deepEqual([checkout.status, checkout.body], [418, 'CMS fallback']);
+
+  let reads = 0;
+  const on = express();
+  registerCommerceHttp({ app: on, deps: { workspaceId: 'workspace', clock: { nowMs: () => 0, nowIso: () => '2026-11-05T00:00:00.000Z' },
+    commerce: { storefrontStatus: async () => { reads += 1; return { active: true, ready: true, reason: null }; } } } as unknown as RouteDeps });
+  on.use((_req, res) => { res.status(418).send('CMS fallback'); });
+  const about = await dispatchHttpRequest({ app: on, method: 'GET', url: '/about' });
+  assert.deepEqual([about.status, about.body, reads], [418, 'CMS fallback', 0]);
+});
+
+test('signed-out payment return with no theme installed still answers in the bare page shell', async () => {
+  const { createRouteDeps } = await import('#src/server/runtime/composition/app');
+  const app = express();
+  registerCommerceHttp({ app, deps: { ...createRouteDeps(), themes: [], commerce: {
+    storefrontStatus: async () => ({ active: true, ready: true, reason: null }),
+    status: async () => ({ active: true, ready: true, reason: null }),
+  } } as unknown as RouteDeps });
+  const response = await dispatchHttpRequest({ app, method: 'GET', url: '/commerce/return?orderId=order' });
+  assert.equal(response.status, 401);
+  assert.match(response.body, /Sign in/);
+  assert.doesNotMatch(response.body, /data-theme=/);
+});
