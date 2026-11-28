@@ -46,3 +46,11 @@ test('telemetry uses the explicitly selected runtime mode instead of re-reading 
   assert.equal(telemetryEnvironment({ env: { TOVU_RUNTIME_MODE: 'production', ELECTRON_RUN_AS_NODE: '1' }, runtimeMode: 'local' }), 'desktop');
   assert.equal(telemetryEnvironment({ env: {}, runtimeMode: 'production' }), 'production');
 });
+
+test('build metadata that parses to null or a bare value reads as empty: the release and version stay unknown', () => {
+  for (const [manifest, pkg] of [['null', 'null'], ['"1.2.3"', '7']] as const) {
+    const read = (file: string) => (file.endsWith('runtime-manifest.json') ? manifest : pkg);
+    assert.equal(readBuildRelease({ productRoot: '/built' }, { read }), 'tovu@unknown-dev');
+    assert.equal(readProductVersion({ productRoot: '/built' }, { read }), undefined);
+  }
+});
