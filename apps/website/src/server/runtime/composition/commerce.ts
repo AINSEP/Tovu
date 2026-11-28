@@ -101,7 +101,8 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   });
   return { commerce, commerceCatalog: createCommerceCatalog(catalog, { isActive, resolve, warn }),
     // Schema failures are reported by the operation that started migration; close only waits for it.
-    close: async () => { storage.closed = true; await warming; await worker.close(); await storage.schema?.catch(() => {}); },
+    // In-flight reconciliation still resolves its payment context while the worker drains; mark closed after.
+    close: async () => { await warming; await worker.close(); storage.closed = true; await storage.schema?.catch(() => {}); },
   };
 }
 
