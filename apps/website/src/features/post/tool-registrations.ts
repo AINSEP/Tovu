@@ -12,4 +12,4 @@ export const buildPostRegistrations = (routeDeps: PostToolDeps, surfaces: Assist
   build({ ...routeDeps, ...POST_TOOL_HOST }, surfaces);
 
 export const contributePostTools = (_required = {}, _optional = {}): ToolContributor<PostToolDeps, AssistantSurfaceDeps> =>
-  ({ domain: "posts", build: buildPostRegistrations, risk: postDerivedRisk });
+  ({ domain: "post", build: buildPostRegistrations, risk: postDerivedRisk });
