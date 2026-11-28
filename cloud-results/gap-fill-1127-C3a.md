@@ -1,8 +1,100 @@
-PARTIAL run C3a | IN PROGRESS (01:42 UTC) | rounds landed: 9 r1-r2, 11 r1, 12A r1-r2, 12B r1-r3 | started 00:01 UTC | subagents so far 12
+PARTIAL run C3a | jobs 0/3 complete (all 3 advanced every round) | tests added 241 | files newly 100/100/100: 17 strict + 10 where only comment/import/signature lines remain (plus 36 confirmed already-100 SKIPPED) of 270 brief rows | bugs 0 (1 low-severity finding for owner) | left: job 9 ~15 rows, job 11 ~6 rows + unmeasured composition files, job 12 ~35 rows (mostly branch-only)
 
-# Gap fill round 3, run C3a — interim notes (final report replaces this)
+# Gap fill 2026-11-27, round 3, run C3a (Tovu website; jobs tv-w62-cov-web-9, -11, -12)
 
-# Job 9, run C3a round 1 (commits 6d31593a, 05966900, 5da5cc5d; head 5da5cc5d)
+- Start 2026-11-28 00:01 UTC; last subagent dispatched 02:29; report written 02:41 UTC.
+- **Subagents run in total: 18** (opus-high, one job each, each in its own git worktree, up to 4 at once):
+  - job 9: 5 rounds;
+  - job 11: 4 rounds;
+  - job 12: 9 rounds, split as slice A (brief rows 1-55, 4 rounds) and slice B (rows 56-90, 5 rounds). Slice B worked on a second worktree; the coordinator cherry-picked its commits onto the job branch.
+- The loop ran until the 2 h 30 cut-off. Every returning subagent was replaced right away by a fresh one with the updated LEFT list. The last short rounds had hard commit deadlines of 02:45-02:47.
+- What did not happen: no RemoteTrigger, no `--no-verify`, no force-push. Guards, thresholds and coverage config were not touched. No ts-ignore, no `as any`, no skipped tests. `.gitleaks.toml`, themes, packages/commerce and PageEditorChrome were not touched. **No production code changed.** Every branch was checked with `git diff <C2 head> <C3a head> -- ':!**/__tests__/**' ':!**/*.test.ts'`; the table below gives the count of non-test files changed.
+- typecheck:tests exited 0 on every subagent's final commit, and I re-ran it on job 12's combined head after the cherry-picks: 0.
+- **Combined run of every test file changed this run, per branch:**
+  - job 9: 265/265 across 25 files;
+  - job 11: 281/282 across 25 files (the failure is the pre-existing copy-tool "safe fetch refusals…");
+  - job 12: 380/381 across 40 files (the failure is the pre-existing OIDC "challenge CAS rejection…").
+
+## Final pushed SHAs (C2 head -> C3a head)
+
+| job | branch | C2 -> C3a | commits | test()/it() added | removed | non-test files changed |
+|---|---|---|---|---|---|---|
+| tv-w62-cov-web-9 | codex/tv-w62-cov-web-9 | 9bc9cc6b24 -> c15b90f95c | 25 | 76 | 0 | 0 |
+| tv-w62-cov-web-11 | codex/tv-w62-cov-web-11 | 544c0de5fe -> 427c0030cb | 32 | 57 | 0 | 0 |
+| tv-w62-cov-web-12 | codex/tv-w62-cov-web-12 | 5a946c4ca6 -> 98a1c4e50f | 45 | 108 | 0 | 0 |
+
+Job 12 slice B was worked on local branch codex/tv-w62-cov-web-12-b (also pushed as a backup) and every commit was cherry-picked onto codex/tv-w62-cov-web-12. The -b branch can be deleted.
+
+## Setup (what worked)
+- Node 24.22.3 (/opt/node24) and Jini d1ced6c5 (integ/merge-28): `pnpm install --frozen-lockfile` and `pnpm -r build` both green.
+- Tovu: `npm ci --ignore-scripts` (root and site-chat), then `JINI_PACKAGES_DIR=/home/user/Jini/packages npm run link:jini`, then `tsc -p` for contracts and sdk.
+- Worktrees live at /home/user/wt/<job>, with node_modules symlinked and contracts/sdk dist copied in.
+- One shared helper, `cov.sh`, runs node:test with coverage under `flock`. It merges every lcov SF record per source, which avoids the C2 multi-SF trap.
+
+## Read this first (for the owner)
+1. **gitleaks was not run.** It is not installed, and the round-3 brief says not to download it. Every subagent instead ran `git diff --cached | grep -niE 'key|token|secret|passw|bearer'` and read the hits by eye before each commit. Fakes are short, low-entropy values. Run `gitleaks protect`/`detect` on the three branches before merging.
+2. **Coverage line numbers from runs C and C2, and from the brief, are not source lines.** node's coverage under tsx reports transpiled-output lines unless `--enable-source-maps` is set. Percentages were roughly right; the line lists were not. This run added the flag after the first subagents flagged it, and every line number in this report is source-mapped.
+3. **Finding, low severity, not fixed (owner decision): commerce.ts shutdown race.**
+   - `close()` (commerce.ts:105) sets `storage.closed` before it awaits `warming`.
+   - After that, every `resolve()` returns null (line 192). A worker cycle still running then calls `reconcileUnknown`, which calls `contexts.resolve` (line 262), which throws `NO_CREDENTIALS_CONFIGURED`.
+   - Result: a false "Restore the original payment configuration" alert is written at shutdown. When workers are allowed to finish, the configured payment reconciles to succeeded with no alert.
+   - Fix options: skip `reconcileUnknown` while `storage.closed`, or make `resolve` report "shutting down".
+   - BUG-2 from run C (contracts routines.ts:52) is still open and out of scope.
+4. **Environment drift between Jini d1ced6c5 and the Tovu job branches** causes some pre-existing reds:
+   - Jini's google-login `plugin.json` id is `jini/google-login`, but Tovu's `acceptsManifest` expects `tovu/google-login`. `loadBundledLoginProviders` returns [], so ready-providers.test.ts fails 4 of 5, and members anon@159 cannot be reached.
+   - `@jini-ai/admin/shell/lib/assistant-daemon-activation` is missing, which crashes lifecycle/assistant-daemon-connection.test.ts.
+   - tool-contribution-registry.test.ts, cross-site-read-catalog.test.ts and the catalog tests expect `post` but get `posts`.
+   - Likely the same cause: peer-site-reads.test.ts (5 tests) fails with "content_post_list can't read another site yet".
+5. **Incident: a scratch file was clobbered, with no damage.**
+   - Two subagents shared a scratchpad mutation script and backup file (/tmp/claude-0/mut.bak). At about 01:01 UTC, job 12's assistant.ts briefly held job 9's source. It was restored with `git checkout`.
+   - I then checked every branch and worktree for production diffs and found none. All later rounds restored mutations with `git checkout -- <file>` only.
+6. **Test-helper changes, not production:**
+   - `helpers/daemon-source.ts` gained an optional `isDisposed` binding (job 9). Existing users are unchanged: run-start-branches still passes 51/51.
+   - The held-back route test's `buildApp` gained an optional `presentationMissing`.
+   - visitor-submit.unit.test.ts now mock.modules the comments-submit and analytics-ingest route modules. These are collaborators, not the unit under test.
+   - deployment-overview-site-key-row now imports `isolated-catalog-home`.
+7. **EXCEPTIONS proposed and needing your approval** are listed per round below. They fall into four groups:
+   - source-map artefact lines (doc comments, imports, `export function` and signature lines whose bodies are covered);
+   - type-only files;
+   - defensive defaults that zod or type invariants already rule out;
+   - dead "cli" branches, since `resolveSiteAssistantMode` only returns byok.
+8. **Refactor candidates (dead or unreachable code):**
+   - external-mcp/guard.ts is never imported by production code.
+   - The `authorize` forwarders on "direct" mounts are dead: site @47, users @60, trash @84, system-site-backups @47 and system-mail @234; system-telemetry @36 is an inert fail-closed authorizer.
+   - system-site-shares upload-spec deps (57-59, 96-98) are not used, because Tovu mounts its own upload route.
+   - publish-site's `inspectStaticPublish` dep is never invoked.
+   - boot-readiness-gate's `CAPABILITY_INVENTORY` has no seam.
+   - The redundant `RouteRefusalError` rethrow in the thinning/screenshot refusal mappers.
+   - Run-start.ts:424's catch around `describeErrorForLog`, which is documented as never throwing.
+9. **Surviving or equivalent mutants worth knowing** are listed per round. Examples:
+   - run-tool-policy:24, where `resolveNativeToolPolicy` ignores `def`;
+   - held-back:47;
+   - credentials-host-ports:24, the observability getter;
+   - chats content `!Array.isArray`;
+   - build-constants:55.
+10. **Pre-existing reds were left untouched.** Each round's list is below. The main ones:
+    - the system-credentials suites (8) and trash suites (8);
+    - agent-daemon-scope.parser-chain (8: "reporter is not defined");
+    - the agent-daemon-server source scans;
+    - the owner-passkey integration tests;
+    - forms-notification-restart and commerce [postgres], which need a Postgres server;
+    - site-chat-stream.golden page.navigate;
+    - tool-read-wording.integration (run-has-write-access.ts is not listed);
+    - site-backups.integration:65;
+    - media-route-failures "omitted provider map";
+    - member-adapter gapb Trash (×3, clock-dependent);
+    - 15 failures in data-modules importers, including "newsletter repos [sqlite]".
+
+## Files brought to 100/100/100 this run
+- **Strict, 17 files:**
+  - assistant-tool-consent, owner-mfa-routes, owner-recovery-routes, routes/system/sites, admin-raw-route-ports (job 9);
+  - process-error-guards, boot-readiness-warnings, form-delivery-deliverer, boot-data-repairs, doc-render-host, credentials-host-ports, domain-dns-adapters (job 11);
+  - revision-thinning-routes, screenshot-storage, assistant-byok-run-usage, theme-held-back, sites (job 12).
+- **Branches and functions at 100, with only comment, import or signature lines uncovered, 10 files:** themes/explore, scope-lifetime, agent-daemon-scope-control (job 9); bootstrap, error-reporter, visitor-submit, commerce-http, asset-tool-host (job 11); themes, site-assistant-ag-ui (job 12).
+
+# Per-round notes (tests -> mutation, tallies, EXCEPTIONS, LEFT)
+
+## Job 9, run C3a round 1 (commits 6d31593a, 05966900, 5da5cc5d; head 5da5cc5d)
 
 Done:
 - agent-daemon-run-start.ts: extended run-start-branches tests. Remaining sides 415 and 424 are EXCEPTIONS; 420 null-prefix side is executed but unobservable.
@@ -15,7 +107,7 @@ Done:
 
 LEFT: site-key.ts:473; branch sides scope-tools 29/80 (check merged); and every brief FILES row not yet measured by C, C2 or C3a-r1.
 
-# Job 9 round 1 tests (14), test -> mutation that turns it red
+## Job 9 round 1 tests (14), test -> mutation that turns it red
 - run-start-branches "a full/metadata AI trace sink…" -> capture === "full" to !==
 - run-start-branches "a context decoder that throws a non-Error value…" -> String(error) to "unknown"
 - run-start-branches "a standalone run reports its start and each end event…" -> if (event.kind === "end") to true; outcome spread unconditional
@@ -31,7 +123,7 @@ LEFT: site-key.ts:473; branch sides scope-tools 29/80 (check merged); and every 
 - site-key.tw4.pins "the confirm sentence names one credential in the singular…" -> noun always plural (a `length < 2` webhook mutation survives: test uses two webhooks)
 - explore-pure-helpers "renameThemeFileIfChanged: renaming a file to the name it already has is a no-op…" -> same-name short-circuit removed
 
-# Job 9 round 2 (286427dc, a5b6735c, 112a5305, 49e484e6); typecheck 0; 19/19
+## Job 9 round 2 (286427dc, a5b6735c, 112a5305, 49e484e6); typecheck 0; 19/19
 Measured all 66 previously unmeasured brief rows.
 Tests added (19):
 - agent-daemon-core-client.durable-telemetry.unit (new, 11): find null vs head -> value === null to === undefined; malformed head -> principalId z.unknown(); session/ledger op names -> guardTool renamed; >16 MiB refused -> 64 MiB; trace capture follows level -> traceCapture update removed; tracker error redacted+routed -> route fallback / process:"daemon" / exactSecrets removed; delivery failure warning -> warning removed; serialization failure/oversize dropped -> catch rethrows / 2 MiB bound raised; drain >1s stops sender -> stopped=true removed / if(stopped) removed; close stops sender -> telemetry.stop() removed; getEffective null -> null guard changed
@@ -48,7 +140,27 @@ LEFT (real gaps): admin-json-route-ports br 302,303,316,375,376,406,410,430,468;
 Pre-existing reds: agent-daemon-scope.parser-chain.unit (8, "ReferenceError: reporter is not defined" in eval helper); agent-daemon-server page-navigate-error-rewrap (2), session-resume-wiring, tool-restriction-wiring, session-binding-wiring (H2), runtime-guidance-wiring, typed-tools (source scans); owner-passkey-browser and owner-passkey-http integration; publish-site-listing.unit; users/create; users/owner-protection.
 Incident: shared scratchpad mut.sh / /tmp/claude-0/mut.bak clobbered between job 9 and job 12 agents ~01:01 UTC; all branches checked afterwards — no production diff committed or left in any worktree.
 
-# Job 11 round 1 (50cf5baa, 36c8dde6, 9bbf1b8d, 235e4c7a, b9786b11, eaa286cd); typecheck 0; 58/58
+## Job 9 round 3 (34e5c382c9, 87c6d32a16, d6a462a501, 01abd62de4, bd9a311022, ae2b60717f, 5b5ffcc8a8, cbaaa82f38); typecheck 0
+Tally: run-launch L124-128 covered, br 62/99/102/104/123/159, fn@183 -> L94.90/B84.38/F95.24 (2 files; left br 143, 170); site-shares L108-110, br 107/82 (left 75, 148); dev-auth L295, br 294 (left L622-626, br 653); run-session L72, br 83 (done); site-tools br 48/125/179/180/218/221 (left L225, br 216); scope-lifetime -> B100 F100 (1-2 imports); prompt-variants br 43; preflight-events br 25.
+Tests added (~22): agent-daemon-server.run-launch-dispatch.unit (new, 6: scope closed after last check -> cancelled [isDisposed() to false]; model+effort reach executor [spreads removed]; no model/effort sends neither (pin); picked folder read-only + guidance [spreads removed]; no picked folder (pin); failed audit write reported [onError removed]). Test helper helpers/daemon-source.ts gains optional isDisposed binding (existing users unaffected; run-start-branches 51/51). share-download-refusals.integration (new, 3: unacknowledged credentials 403 + warnings [guard removed]; no warning list -> [] [?? [] removed]; directory instead of ZIP -> 500 SHARE_FAILED w/o attachment header [fail->404 / removeHeader removed]). agent-daemon-server.run-session-branches.unit (new, 2: failed dead-session clear logged; durable attempt resumes own locator). agent-daemon-site-tools.branches.unit (new, 5: loading catalog refuses list/search; stale catalog discarded; refused preparation fails; run ended in flight refused; audited discovery records run/person/workspace). dev-auth.unit operator API key resolves as api_key [branch null / kind session]. agent-daemon-scope-lifetime.unit (new, 3: double release once; ordered one-shot dispose [5 mutations]; non-owning scope leaves idle park). prompt-variants.argv-fit forwards only real cancellation signal; preflight-events invalid event 400 before owner lookup.
+EXCEPTIONS: run-launch:170 (def missing -> SETUP before this line); site-shares:148 (shareGate already 503); site-tools:216 (live(state) throws first); publish-site:104-105 (inspectStaticPublish never invoked; type-required dep, refactor candidate); scope-lifetime:1-2.
+LEFT: run-launch br 143; agent-daemon-scope L341-346 br 124,131,270 + 12 fns; site-shares br 75 (needs real socket); dev-auth L622-626 (real WebAuthn), br 653; publish-site fn@102; site-tools L225 (merged-only); agent-daemon-run-tool-access L93-96 + 9 br; untouched: admin-json-route-ports (9 br), warm-site-control (4), peer-transport (4), scope-control (4 + fn@73), held-back (3 + fn@65), owner-mfa fn@44/@45, owner-passkey fn@32/@38-42, tool-consent (3 + fn@61), run-tool-policy (3), admin-request-facts (2 + fn@62), owner-recovery 33, system/sites 195, scope-attachments 128/222, admin-raw-route-ports 97, widgets 68.
+
+## Job 9 round 4 (430c16e859, 849ed35b2c, cadfb88286, 7972240da8, fe415c2b8a, fcab01dd6e); typecheck 0
+Tally: assistant-tool-consent B91.67/F90.91 -> 100/100/100; owner-mfa-routes -> 100/100/100; assistant-run-tool-policy br 24, 41, 51 covered; held-back route B89.29/F92.86 -> B96.67/F92.86; warm-site-control B78.95 -> B95.65; admin-request-facts B81.25/F71.43 -> B100/F85.71.
+Tests added (17): tool-consent x3 (unknown capability keys raw label + Full CLI enabled switch -> ?? key to ?? '' / drop key === 'enabled'; offered agent returned -> alternatives map []; SETUP without injected asker opens real principal-bound card -> default asker declines); run-tool-policy x2 (setup w/o requested switches names host reason -> (keys ?? []) to keys!; non-owner missing def gets SETUP not_installed -> !snapshot.def false / not_owner undefined); held-back x2 (no saved presentation lists themes, no notice -> ?. to !.; helper buildApp gains optional presentationMissing; check throws non-Error -> 500 with reference -> line 47 returns 409); warm-site x2 (only fully configured warm child delegates -> env gate !origin; relays non-listing replies, untyped preview PNG -> octet-stream / listing true / drop method === 'GET' &&); owner-mfa enrollment looks up owner by server-selected principal -> principal changed / ownerMfaDeps rejects; request-facts x3 (grant-only read refuses principal-less request -> throw to return null; localAdmin read from socket/headers -> () => true; raw HTTP/1.0 omits userAgent/host -> unconditional keys).
+Weaker than they look: run-tool-policy:24 `def ?? {}` taken but undetectable (resolveNativeToolPolicy ignores def); held-back:47 guard to false also passes (later instanceof checks false); owner-mfa fixture lacks password store so enroll ends in redacted 500 MFA_UNAVAILABLE (test pins server-selected owner lookup).
+Proposed EXCEPTIONS: held-back br 65/fn@65 (plan-never-restores tripwire; plan() never calls restore); warm-site L1 (comment).
+LEFT: warm-site br 36 (needs real dev TLS certs); admin-request-facts L82-85 refuseUnlessSessionCredential; rest of r3 LEFT unchanged (agent-daemon-scope, run-tool-access, admin-json-route-ports, peer-transport, scope-control, owner-passkey, dev-auth 622-626, site-shares 75, run-launch 143, publish-site fn@102, owner-recovery 33, system/sites 195, scope-attachments, admin-raw-route-ports 97, widgets 68).
+
+## Job 9 round 5 (0a4808e255, ae05cefa21, eb460fa3e7, c15b90f95c); typecheck 0
+Tally: agent-daemon-scope-control L98.39/B81.82/F83.33 -> L98.39/B100/F100 (L1 comment); owner-recovery-routes B95.45 -> 100/100/100; routes/system/sites B98.21 -> 100/100/100; admin-raw-route-ports br 97 -> 100/100/100.
+Tests added (8): scope-control x5 ("parent-only lifecycle notices are refused…" -> drop || operation === "unavailable"; "a ready probe replies with the listener url and pid…" -> url ""; "a stopping daemon refuses every control request…" -> if(isExiting()) to if(false); "re-registering a live scope key with a different token is refused as a rebinding" -> drop binding comparison / token out of binding; "a failed scope boot is forgotten and releases its hold…" -> reject handler no-op); owner-recovery "an owner with an enrolled authenticator has the kit request verified through the site authenticator ports…" -> drop mfa spread (400 instead of redacted 503); sites.tw4.pins "warm-sites dev mode lets a manageable listing switch now…" -> condition false / drop && manageable; admin-raw-route-ports "a public raw mount names its one handler when given a handlerName…" -> ternary true.
+Weaker than they look: owner-recovery proves MFA composition via a 503 from the missing site key (no sealer in fixture).
+EXCEPTION: agent-daemon-scope-control L1 (comment).
+LEFT (job 9 overall): agent-daemon-scope L341-346 br 124,131,270 + 12 fns; agent-daemon-run-tool-access L93-96 + 9 br; admin-json-route-ports 9 br; peer-transport br 74-76,91; owner-passkey fn@32,@38-42; dev-auth L622-626 br 653; site-shares br 75; run-launch br 143; publish-site fn@102; scope-attachments br 128,222; widgets br 68; warm-site br 36; admin-request-facts L82-85; site-tools L225 (merged-only); scope-tools br 29, fn@63.
+
+## Job 11 round 1 (50cf5baa, 36c8dde6, 9bbf1b8d, 235e4c7a, b9786b11, eaa286cd); typecheck 0; 58/58
 Coverage: bootstrap.ts L99.75/B96.43/F90.70 -> L99.75/B100/F100 (419 = export line); agent-daemon-core-rpc.ts B 95.95 -> 97.33 (151 covered); mount-admin-system.ts branch sides 224, 231 + fn 117 covered; commerce.ts (4 importers) L98.14/B91.23/F93.14 -> L98.60/B93.01/F95.10; deps.ts untouched.
 Tests added (10):
 - bootstrap-reporting "non-Error throws from the activations read, face sync and Soon lock are logged by their string form" -> instanceof Error ternary at 54/69/196 replaced
@@ -64,7 +176,31 @@ Tests added (10):
 EXCEPTIONS (proposed): bootstrap.ts:419, mount-admin-system.ts:321 (export lines, bodies covered); agent-daemon-core-rpc.ts 102,120 (zod), :1; commerce.ts:67 (evict throw unreachable), :1; commerce.ts:264 grants.mint/redeem (no registered tool issues grants); mount-admin-system.ts:318 (status type 503|507 only); mount-admin-system.ts:96 toolGapsNeverAuthorizes (deny-by-default, never called).
 Owner question: configured aged-payment variant still raised "restore configuration" alert, with and without activation — check whether resolve() returns null on worker cycles even when configuration exists (possible bug, unconfirmed; not committed).
 
-# Job 12 slice A, round 1 (ddfc6312, b7ad1539, 2a707a10, 8efa15c6, 9fb1c65e); typecheck 0
+## Job 11 round 2 (7ac3f686, fe3d6312, 662e577f, 985d5e93, f8594232, d4dc3be1); typecheck 0
+Changed: process-error-guards.ts 99.35/80.49/87.5 -> 100/100/100; browser-analytics.ts 90.91/84.21/100 -> 96.97/95.45/100; agent-daemon-core-deps.ts 98.88/93.75/75 -> 98.88/100/100; build-constants.ts 78.65/91.30/80 -> 86.52/100/100; serving-origin.ts 92/37.5/100 -> 96/100/100 (new test file).
+Tests added (14): process-error-reporting x3 (real process listeners default log/exit -> `_message` / exit(0); monitor non-Error fatal attributed -> `error as Error`; throwing diagnostic sink cannot skip drain/exit -> try/catch removed); browser-analytics x2 (no port passes through -> line-21 guard removed; undeclared/unreadable metrics setting -> try/catch 25-26 removed); agent-daemon-core-deps x3 (callback origin wins, trace sink only when enabled -> ?? swapped / traceEnabled ? to true ?; failing cleanup logged -> console.error removed; Postgres secret ref via env -> {env} to {}); build-constants x2 (non-object manifest level / bad version -> <= 64 to < 64, typeof removed; process binding env -> {}); serving-origin x4 (trust forced true; split/trim removed; URL.canParse guard removed; typeof req.get guard removed). Equivalent survivor: build-constants:55 object guard.
+SKIPPED-ALREADY-COVERED (100/100/100): agent-daemon-wanted, content-db-schema-guard, mail-delivery-policy, mail-plugin-account-token, resolve-mailer, site-daemon-listener, site-key-boot-notice, agent-pause-gate, built-in-plugin-sources, content-events, form-delivery, host-signals, mail-capture-clear-planner, trash-adapters-forms-widgets.
+EXCEPTION (header/comment/import/export-function lines only): route-guards 3-18, site-boot-readiness 1-26, admin-assistant-enabled 1-27, site-listener-origin, agent-plugin-uninstall-host, authoritative-dns, parent-watchdog-report, production-readiness-gate 1-8,181, collection-list-warnings, dns-change-deps, module-handles, error-reporter 1-10, installed-extension-tools 1-26, browser-analytics-http 1, charts-recharts-source, declared-content-types, local-owner-signin 1,165, agent-pause-tools 57, analytics-providers 74, assistant-history-tools 29, visitor-submit 1-5, commerce-worker 5, process-error-guards 151.
+Proposed EXCEPTIONS: browser-analytics.ts:28 (unreachable after line-21 guard); local-owner-signin.ts:44 (line 43 guarantees it); boot-readiness-gate.ts:20-21 (CAPABILITY_INVENTORY module constant, no seam -> refactor candidate).
+FINDING (commerce.ts, low severity, not fixed — owner decision): close() (commerce.ts:105) sets storage.closed before awaiting warming; every resolve() after that returns null (192); a worker cycle still running at shutdown calls reconcileUnknown -> contexts.resolve (262) -> NO_CREDENTIALS_CONFIGURED -> writes a false "Restore the original payment configuration" alert. With workers allowed to finish (1.5 s) the configured variant reconciles to succeeded with no alert. Fix options: skip reconcileUnknown in the worker run when storage.closed, or have contexts.resolve report "shutting down" when closed.
+LEFT (real gaps): boot-readiness-warnings L98 br 88; mail-provider-catalog br 94; build-release br 13; chart-providers br 17,55; commerce-http br 19,35,48 fn@19; content-target-inputs br 32; credentials-host-ports getters @22-27; doc-render-host fn@23; domain-dns-adapters bindDomainDnsChecks@206 br 59,133; form-delivery-deliverer br 53 fns @55,@57; form-submissions br 62,105,167,168,222,246,247 fns @58-65; form-attachment-purge br 49 fn@66; agent-plugin-install-route br 42; agent-plugin-memory-routes br 59; asset-tool-host L75 br 85; boot-data-repairs fns @42,@45; error-reporter br 70,71; installed-extension-tools br 81; local-owner-signin br 44; visitor-submit fns @45,@67; commerce.ts and mount-admin-system.ts rows from r1. Partly measured (createApp-only closures): boot-readiness-gate, mount-admin-features, mount-assistant, mount-public-site, public-middleware, memory-deps route-deps, memory-trash, publish-apply. Not measured: app.ts, deps.ts, data-modules.ts, repo.sqlite.ts, routes/types.ts, credentials-deps.ts, create-app-options.ts.
+Pre-existing reds: forms-notification-restart 2 postgres tests (no server); automatic-agent-plugins.integration; fs-files/copy-tool; public-http/middleware/site-consent; site-cookie-consent.errors; public-http/routes/mail-feedback x2; deps-provider-plugin-boot.integration; site-deps/publish-apply.characterization; "AC-23/24", "real bundled resend and SMTP composition", "the default SMTP transport…", "CATALOGS_BY_DOMAIN…".
+
+## Job 11 round 3 (13 commits 22cefa9a26..3147c9bb89); typecheck 0
+Tally: form-submissions 100/92.86/91.30 -> 100/97.20/100; boot-readiness-warnings 99.09/92.86/100 -> 100/100/100; asset-tool-host 95.29/96.88/100 -> 95.29/100/100 (1-4 imports); form-delivery-deliverer -> 100/100/100; boot-data-repairs -> 100/100/100; doc-render-host -> 100/100/100; commerce-http -> 98.36/96.30/100 (br 35 left); chart-providers -> 98.28/94.74/100 (br 17 exception); domain-dns-adapters br 59 covered (133 still reported); credentials-host-ports @27 covered (@22-24 left); error-reporter B100 F100; build-release B100; mail-provider-catalog br 94 covered; data-modules first measure 96.55/100/100 (1-2 imports).
+Tests added (24): form-submissions x7 (hosting preview only once key saved -> .some forced false / ?.connection.token dropped; forms w/o receiver previews off -> message 65; co-hosted publish reuses saved key -> workspaceId 64; external receiver w/o username -> equivalent survivor; pull with no kit gets own deploy host kit -> 105 default {}; receiver throws non-Error logged by string -> 167 ?? console.error no-op; stackless Error logged by message -> 246 ?? root.message ""); boot-readiness-warnings x2 (bundled host manifests label -> 50 empty env; deployed warning bundled advice -> equivalent); copy-tool "a URL copied to media fetches under the media import policy…" -> 85 media ? false; form-delivery-deliverer x3 (OAuth ref w/o account fails closed -> 55 plain Error; workspace w/o host delivers with saved custom credential -> 57 findById/resolveByLabel null; security: other workspace's attempt -> 53 workspace check removed); boot-data-repairs watermark stamp + trash types -> 42 no-op / 45 empty registry; commerce-http x4 (no commerce no webhook route; receiver read per request -> 19; storefront gate -> 48; signed-out payment return no theme -> br 35 still untaken); domain-dns-adapters x2 (non-JSON resolver reply -> 59 fallback; HTTPS URLs with port/password dropped -> 133 url.port / url.password removed); chart-providers undeclared JS fails snapshot -> 55 guard disabled; render-host-ports legacy src-only image vs private original -> 23 isPrivatePath false / /i dropped; credentials-host-ports publish compatibility bag -> 27 getter {}; error-reporter secret name sent as plain Error, stackless without stack -> 70 exportable dropped / 71 delete view.stack dropped; build-release null/bare metadata empty -> 13 object guard removed; mail-provider-catalog-setup resolveMailCredential -> 94 SMTP rule removed / 95 username spread / continue to return null.
+Proposed EXCEPTIONS: form-submissions 168 (pull wraps every failure in Error), 222 (code comment: unreachable), 247 (saved key always has secret); chart-providers 17 (split.at(-1) never undefined); form-attachment-purge 49 (unique ids), @66 (defensive callback never called by purge); agent-plugin-install-route 42 (raw body parser always Buffer); agent-plugin-memory-routes 59 (real port throws objects only); import/header lines asset-tool-host 1-4, error-reporter 1-10, commerce-http 1, chart-providers 1, data-modules 1-2.
+LEFT: commerce-http br 35; domain-dns-adapters br 133; credentials-host-ports @22-24; installed-extension-tools br 81; visitor-submit fns @45, @67; content-target-inputs:32 is a test fixture (out of scope); credentials-deps.ts, create-app-options.ts no direct importer; repo.sqlite.ts not measured.
+Pre-existing reds: copy-tool "safe fetch refusals propagate in caller-safe form without writing"; 15 failures in data-modules importers incl. "newsletter repos [sqlite]".
+
+## Job 11 round 4 (b04773fc09, 95126c06a1, 06ee5e1635, cb11ea9f90, 6bd63d34ba, e59ebe2874, 427c0030cb); typecheck 0
+Tally: installed-extension-tools br 81 -> B100 (L77.97/B100/F87.50 over 3 test files); visitor-submit -> L95.90/B100/F100 (1-5 comment); commerce-http -> L98.36/B100/F100 (1 import); credentials-host-ports -> 100/100/100; domain-dns-adapters 98.46/99.23/96.00 -> 100/100/100.
+Why commerce-http br 35 was untaken: the existing "no theme" test passed themes: [] so resolveActiveTheme returned null, never NO_THEME_ID; true side needs stored/override theme id "none" (owner chose "No theme").
+Tests added (8): installed-extension-tools.preview-port "the capability tool refuses a post that does not exist with a not-found error naming it" -> 81 plain Error / if(!post) disabled; visitor-submit.unit "comments salt: a production server with no salt and no site key warns…" -> 45 warn no-op; visitor-submit.unit "analytics ingest: every host resolves to the single site workspace" -> 67 returns "default" (file stubs comments-submit/analytics-ingest route modules, not the unit under test); commerce-http.unit "signed-out payment return on a site that chose \"No theme\" skips the installed themes…" -> 35 falls back to themes[0]; credentials-host-ports.unit "source-control writes load the providers and the HTTP client from the bag current when a build runs" -> 22 drops input / bag captured at bind / 23 fixed client; domain-dns-adapters x2 ("known hosting addresses skip saved values that are not URLs or name no public domain…" -> 133 catch rethrows / fallback host; "the bound domain checks authorize each operation, then run this host's TLS probe and saved-host list" -> probeTls / listExpectedHosts / authorize stubbed).
+Survivor: credentials-host-ports line 24 observability getter -> undefined (no span check without real kit.fetch).
+LEFT: installed-extension-tools 1-26 + anon_2@53 (other importers, not chased); content-target-inputs:32 test fixture; credentials-deps.ts, create-app-options.ts (no direct importer); repo.sqlite.ts not measured.
+
+## Job 12 slice A, round 1 (ddfc6312, b7ad1539, 2a707a10, 8efa15c6, 9fb1c65e); typecheck 0
 Now 100/100/100: revision-thinning-routes.ts (was B 88.89), screenshot-storage.ts (was B 95.12). SKIPPED: routine-recovery-admission.ts.
 Tests added (11):
 - assistant-run-acceptance.unit "the production owner-chat acceptance captures the run's own principal and dispatches each queued run through the daemon client" -> userId `run.principalId ?? ""` to ""; launch closure returns Promise.resolve()
@@ -80,7 +216,7 @@ Surviving mutants (redundant lines): `if (error instanceof RouteRefusalError) th
 Proposed EXCEPTIONS: assistant-run-acceptance.ts 144 and 212 `if (!client.launch) throw` (createHttpRunDaemonClient always provides launch, run-daemon-http-client.ts:143); assistant.ts 160-161 `!isPlainObject(parsed)` (parseAdminRunEnvelope already rejects non-objects; caught at 156); assistant-ag-ui.ts 3-46 doc comment.
 Pre-existing reds: media-route-failures.unit "omitted provider map clears the whole set" (409 vs 200); member-adapter.test 3 "gapb member … survives Trash" (60-day backstop tied to real clock); members-auth/OIDC "challenge CAS rejection is 401 but database outage surfaces as 500"; "a session-repo failure surfaces as a 500 internal error".
 
-# Job 12 slice A round 2 (9dbf8183, 626fe6bd, 9fe23388, fe54e783); typecheck 0
+## Job 12 slice A round 2 (9dbf8183, 626fe6bd, 9fe23388, fe54e783); typecheck 0
 Tally: assistant.ts 97.63/83.52/93.10 -> 99.74/91.33/98.28; assistant-run-acceptance.ts B~89/F91.3 -> 100/92.21/95.65 (before fe54e783, which adds recover@148, br 82, 113-115); members.ts 99.58/-/76 -> 99.58/100/96.00; public-members.ts -> 99.67/97.50/100; assistant-chats.ts -> 99.33/93.29/98.33.
 Tests added (~25): assistant-proxy-routes (5: 204 body-less answer; disconnect cancels reader; non-JSON activation refusal; attachment upload w/o content type 502; malformed A2UI action refused), assistant-agent-list-live-models (2: no inventory 503; claude w/o static models one prefixed warning), assistant-checkpoint-route.unit (2: changed checkpoint streams saved JSON verbatim; durable run start 201/404/409/next), members-oidc-deps.unit (new, 4: randomBytes, kernel transaction, lockKey, public: prefix, resolveClient workspace), member-password-auth (2: sign-out uniform 401/500; forgot-password delivery throws -> public:member-delivery), assistant-chats-routes (7: client-chosen id; non-string rename title; string content required; store w/o streamed reader; failing streamed read -> next(error); 503 NOT_CONFIGURED + UNAVAILABLE_BULK_DELETION; single-use preview token), assistant-run-acceptance.unit (2: settlement past unknown status/malformed events; production cancel via load). Mutations per test in the agent report (each confirmed red).
 Survivor: chats content check `!Array.isArray` arm is equivalent.
@@ -90,7 +226,23 @@ Environment drift (owner): ready-providers.test.ts 4/5 red — Jini google-login
 Pre-existing reds: gapb member Trash x3; "challenge CAS rejection…"; "a session-repo failure surfaces as a 500…"; ready-providers 4/5.
 LEFT: assistant.ts br 150,154,160,171,202,218,222,267,285,293,297,510,519,520,521,691, anon@125 (.catch on reader.cancel); assistant-chats.ts U 143-145 anon@144, br 129,142,225,248,273,333,421; public-members br 274; assistant-ag-ui.ts, assistant-routines.ts unchanged; media.ts re-measure; unmeasured branch-only rows.
 
-# Job 12 slice B, round 1 (local branch codex/tv-w62-cov-web-12-b: bd202d89, a5eeae92, 8eb7ba3a, 96e5ea38)
+## Job 12 slice A round 3 (d3577c006d, c58ac0be3d, 4aed852675, b3ac0877ff, 2620896d9e, 8558103f76); typecheck 0
+Tests added (8): assistant-tool-access-lowering.unit x3 (cold site resolves own readiness -> default isReady `() => true`; oversized change / missing credential / non-true ok refused -> >1024 to >4096, token throw removed, `!== true` to `=== false`; default fetch carries env daemon token (real local HTTP server) -> default token "x"); assistant-tool-exec.unit "plugin events: no daemon token or an oversized payload never send…" (real HTTP server) -> token throw removed / size doubled / !response.ok false / default token; h4-autosave.unit "autosave GET reads and DELETE clears the snapshot of the post the slug resolves to" -> readAutosave null / clearAutosave no-op; assistant-server-federation.lowering.unit "a discovery reload that fails after a confirmed Stop is logged once by error type…" -> .catch(() => {}); desktop-mcp-runtime.integration "an accepted handoff whose reload does not admit the preset answers 503; a failing reload reaches the error handler" -> always 204 / 500 instead of next; assistant-byok-run-usage "a counter only an earlier request reported survives a later request that omits it" -> `y === null ? null : (x ?? 0) + y`.
+Tally: assistant-tool-access-lowering 100/70.59/50 -> 100/91.30/100; assistant-byok-run-usage 98.36/97.30/100 -> 100/100/100; assistant-tool-exec merged 97.52/85.83/75.44 (69, br 66/68/72 now covered); assistant-server-federation anon@47 now runs; posts anon@110/@114 now run; desktop-mcp-handoff br 22 both ways.
+SKIPPED-ALREADY-COVERED: assistant-byok-history, run-daemon-origins, run-finalizer/checkpointer, run-finalizer/shared, commerce.ts (website module).
+Measured, unchanged (LEFT): assistant-byok 97.73/68.29/81.25 (191, 210-212, 236-237; 13 br; closures @119,170,171,190,209,264); assistant-byok-preflight 100/89.29/100 (br 116,166,169,201,202,218); assistant-byok-turn 100/87.38/97.06 (13 br; anon@206); assistant-daemon-client 96.22/90.79/96.88 (370-386 tested by lifecycle/assistant-daemon-connection.test.ts which crashes here); assistant-attachment-read 99.10/93.33/100 (br 62,104); assistant-ag-ui-launch 78.95/100/100; publish-trust 100/100/90.91 (anon@108 mintSession); owner-auth 85.29/100/100; run-daemon-http-client br 79; run-finalizer bounded-follow br 97,103; entry br 273,274,287 anon@273/@274; recovery-binding br 54,60,66,73; stream br 32,57; watch-state L99; recovery-restore L108.
+Not measured: content, external-mcp, forms, forms-admin, newsletter, plugins, seo, media, publish-content-*; assistant-agent-plugin-guidance-rpc and content-write-bindings have no direct importer. Priority 2 (assistant-routines, assistant-ag-ui, assistant-chats 143-145) not reached.
+Proposed EXCEPTIONS: capped-route-app.ts 3-16, owner-auth.ts 1-5 (doc comments); consent.ts 28, posts.ts 98, assistant-ag-ui-approval-segment.ts 64 (signature lines); recovery-restore.ts 101-102 + database-migrate-forward.ts 84-85 (getters never read: direct mounts); change-sets.ts 55 (register never called by revert spec).
+Pre-existing reds: lifecycle/assistant-daemon-connection.test.ts crash (Cannot find module '@jini-ai/admin/shell/lib/assistant-daemon-activation' — env drift); tool-contribution-registry.test.ts 2 ('posts' vs 'post'); "server executable plugin tools share the server's confirmation store"; commerce settlement "[postgres] member purchase…" (no Postgres socket).
+
+## Job 12 slice A round 4 (c9a630657d, 576b4806c2, 731996e3f2, cd4a2753ac, 6233820f1f, e4b958111f); typecheck 0
+Tally: assistant-routines 100/92.04/89.83 -> 100/95.00/93.22 (br 247, 294, 296; fns 241, 243, 247); assistant-attachment-read br 62, 104 covered (merged expected 100/100/100, not re-run); publish-trust anon@108 mintSession called (merged F expected 100); run-finalizer/stream br 32, 57; run-finalizer/bounded-follow br 97, 103 (new direct tests).
+Tests added (12): assistant-routines.integration x4 ("a toggle after close is ignored and re-enabling during the drain keeps the lease" -> if(true) service.stop / closed || dropped; "a failing assistant-off drain is logged as a toggle failure and the beacon is still written" -> catch stops logging routine-toggle-failed; "an injected run handler builder wins over the composed starter" -> required.runStarter ?? createRunHandler; "a scheduled slot whose starter throws is reported through the composed log under the scheduler's code and the error type only" -> default log no-op / message instead of type); assistant-attachment-read.unit x2 (wildcard If-None-Match fresh -> noneMatch === "*" removed; default fs reader answers missing attachment 404 -> default reader stub ok); publish-trust-gate-predicates.characterization "a correctly signed session response is minted a session token the publish gate admits as its source" (real ed25519 handshake) -> mint with other workspaceId / other sourceInstallationId; stream.unit x3 (error frame before succeeded end -> failed [status: outcome.terminal]; error frame before canceled end keeps end status [watch.failed ? "failed"]; aborted mid-checkpoint applies no later frame [in-loop signal.aborted removed]); bounded-follow.unit x2 (quiet stream with non-retaining recovery stopped by timeout recovery [stopWatch 103 removed]; end frame during deadline probe outranks failed probe [if (watch.terminal) return removed]).
+Dropped (mutation survived): run-now/runs page missing-routine 404 (Jini factory owns the 404); reconcile while assistant off.
+Proposed EXCEPTIONS: assistant-routines 206, 212 (UNOPENED_STORE throw, refusal host onCommandCommitted: command gate refuses first); 136 (Jini runs route always passes limit, routines.ts:390); 142, 147 service?. side (null store only in refusal host); 143 (run-now commits row before reading it back).
+LEFT: assistant-routines br 102 (likely exception: factories map missing routine via unlessMissing), 301 (likely equivalent), fns @246/@247 updateRun (needs run handler calling updateRun + receipt read); rows from job12A-r3 LEFT not touched this round.
+
+## Job 12 slice B, round 1 (local branch codex/tv-w62-cov-web-12-b: bd202d89, a5eeae92, 8eb7ba3a, 96e5ea38)
 typecheck:tests: the 2 errors it saw were job 9's in-progress file, since fixed (5da5cc5d). Not ours.
 Tests added (10):
 - storage-routes.unit.test.ts "cleanup refuses an array body and class lists that are not words…" -> drop Array.isArray(body) / drop classes.some(non-string)
@@ -103,7 +255,7 @@ SKIPPED-ALREADY-COVERED: serving-routines writeRoutineBeaconAtomically (serving-
 EXCEPTIONS: site-assistant.ts 113-118 + site-assistant-preflight.ts 261-269 (dead cli branches: resolveSiteAssistantMode only returns byok); storage-routes.ts 157 unboundRunOnce (bind always replaces runOnce); move-site-storage.ts 112-130 (live Postgres only; covered by move-site-storage.postgres.test.ts where a server exists); mutation-actor.ts, types.ts (as in C).
 Pre-existing reds: site-backups.integration.test.ts:65 (push answer inProgress undefined, expected true); peer-site-reads.test.ts "inSite: reads B's posts/media/forms…" (ToolInputError content_post_list can't read another site yet).
 
-# Job 12 slice B round 2 (fc426328, e6f9dc97, 57f9cc01, d75907a3, cac3fa18, 02ce495c); typecheck 0
+## Job 12 slice B round 2 (fc426328, e6f9dc97, 57f9cc01, d75907a3, cac3fa18, 02ce495c); typecheck 0
 site-assistant-turn.ts now L100 B88.57 F100.
 Tests added (20):
 - site-assistant-turn.tool-outcomes.integration (new): "a tool whose store fails…" -> error case returns String(outcome.error); "site_guide call runs the public guide" -> siteGuide stubbed; "an audit sink that fails…" -> code visitor_tools_audit to _policy; "an unreadable visitor-tools policy…" -> reverse; "beginStream … HTTP/2 … without flushHeaders" -> httpVersionMajor < 3 / res.flushHeaders!(); "beginStream keeps keep-alive on HTTP/1.1" -> httpVersionMajor < 1
@@ -115,7 +267,7 @@ Dropped (mutant survived): no-args tool call (call.input ?? {}); pglite listing 
 Candidate EXCEPTIONS: other-site-keys @68 now/newId, @88 newId (defensive throws never called by get/put-with-id); other-site-keys:52 object-meta side (SQLite meta always string); site-search:167 (available values are strings by type).
 Pre-existing reds: site-chat-stream.golden.test.ts:265 "page.navigate … ends the turn" (2 !== 1); tool-read-wording.integration.test.ts:94 (run-has-write-access.ts missing from list).
 
-# Job 12 slice B round 3 (35c62d4fea, b511380940, 482e169e7b, 1951e90c18 + type fix); typecheck 0
+## Job 12 slice B round 3 (35c62d4fea, b511380940, 482e169e7b, 1951e90c18 + type fix); typecheck 0
 Tests added (8):
 - peer-site-reads.idle-and-ports.integration (new): "the peer's redirect write port answers Trash reads…" -> readsOnly drops 'then' check / isInTrash !== null to === null; "the peer's clock reports the real current time…" -> nowIso: () => ''; "an unexpected failure opening a peer is the fixed refusal…" -> non-ToolInputError catch rethrows; "a bag idle for exactly idleMs is closed on the next read…" -> >= to >; "an idle bag whose close fails is logged…" -> catch silent; "an idle timer that fires while a read is running…" -> remove loses || entry.busy
 - site-search.unit "bound sources load one published post's text and one stored image by id…" -> toPostRecord blanks title / loadMedia null
@@ -124,3 +276,18 @@ Tally: peer-site-reads L99.39/B94.21/F91.07 -> L100/B97.73/F98.21 (left br 198, 
 Candidate EXCEPTIONS: site-search 422 (contentType already string image/*), 439 (sort equal case; ids are PKs), 440 (cursor known defined); storage-routes:118 (storageOwnerFrom rejects missing id first); widgets @84 isSameOrigin (no spec consults it, per code comment); system-site-backups @47 and system-mail @234 authorize forwarders look dead -> refactor suggestion.
 Pre-existing reds: peer-site-reads.test.ts 5 red ("content_post_list can't read another site yet" / build undefined); cross-site-read-catalog.test.ts 2 (posts domains unclassified); tool-registrations / byok-google-catalog 4 catalog tests (post domain); mcp-ui-tool-calls-route.visitor-isolation.test.ts 1; site-chat-stream.golden page.navigate; serve-command-wiring.unit "runServeCommand's body passes the resolved host into app.listen"; site-backups.integration:65.
 
+## Job 12 slice B round 4 (c85622972d..9823ca3ad0, 9 commits); typecheck 0
+Tests added (15): held-back-route "the theme-held-back module binds the placement checks itself…" -> explainThemeTree: () => [] (themeChecks: [] survives: fixtures never reach loadTheme); duplicate-route "a copy that fails with a plain filesystem error…bare 500 and leaves no copy" -> duplicateThemeErrorCode returns err.code always; tool-execution-caller-express.unit (new, 2: reads daemon default variable / unset -> not configured) -> undefined side {tokenEnvVar:"OTHER_TOKEN"}; observability-export.unit live process env -> env = {} default; serving-routines-default-edges x2 (stop before compose installs no wake receiver -> drop if(!stopped); no owning store never opens routine db -> drop && hooks !== undefined); site-assistant-ag-ui-approval.unit x2 (rate-limited resume 429; turned off 404 -> limiter/enabled checks non-refusing); peer-site-reads.idle-and-ports x2 (no themes folder resolves -> drop existsSync return; registry entry with gone folder never current -> drop inner realpath try/catch); deployment-overview-site-key-row inspects own TOVU_SITE_KEY -> siteKey ?? fixed 'none'; other-site-keys.integration empty provider column -> String(row.provider); site-assistant.body-errors.unit approval resume fails before streaming -> 400 to 502; sites-warm-delegation.unit (new) warm dev tab Sites listing answered by control host -> drop return after registerWarmSiteControl.
+Tally: theme-held-back NOT LOADED -> 100/100/100; themes 96/92.31/100 -> 96/100/100 (41, 51 artefacts); tool-execution-caller-express br 29 both sides; observability-export 95.74 -> 97.87/100/100; serving-routines 96.69/91.67/68.97 -> 96.69/93.33/72.41; site-assistant-ag-ui-approval br 111/112 covered; peer-site-reads 100/97.73/98.21 -> 100/99.25/98.21; other-site-keys 100/92.31/89.36 -> 100/93.33/89.36; system-deploy L100/F100, br 97 covered (with route tests); sites 100/100/100.
+SKIPPED-ALREADY-COVERED: site-previews-route, pending-agent-plugin-tokens, open-site-content-db.
+Measured, unchanged: system-credentials 99.78/98.70/96.88; system-site-shares 99.28/93.48/91.89; users 99.41/100/95.65; settings 99.18/100/100; trash 99.30/100/96; theme-explore 98.93/100/100; site 100/100/66.67 (@47); system-telemetry 100/100/75 (@36); system-assistant 99.07/100/100.
+Candidate EXCEPTIONS: source-map artefact lines (themes 41/51, settings 223/257, trash 151, users 145, system-credentials 463, system-assistant 110, theme-explore 184/190, system-site-shares 118, observability-export 1, tool-execution-caller-express 1-7); dead authorize forwarders on direct mounts (site @47, users @60, trash @84; system-telemetry @36 inert fail-closed) -> refactor candidates; system-credentials @236/@244 credentialKind placeholders replaced per request, br 206 null registry ruled out by type; system-site-shares br 57-59 + @96-98 feed the Jini upload spec Tovu does not mount -> refactor; serving-routines @136 settle placeholder overwritten synchronously.
+LEFT: serving-routines L49-51, 130, br 121, 144, fns @48, @144 x2, @151, @154, @123, @124; peer-site-reads br 443, pagesHtmlStore@235; other-site-keys br 52, 70, 71, 89, 126, 136, 193, 202, fns @40 x2, @68 x2, @88; site-assistant-turn branches; site-assistant shutdown@124/@158/@164/@191; open-site-store not measured.
+Pre-existing reds: tool-read-wording.integration; peer-site-reads.test.ts 5; system-credentials suites 8 (CREATE_USER 201, neutral credential fields, owner email edit, providers list, publish list/delete 500, publish preview, publish-host card vercel, publish-targets 500); trash suites 8 (L255 restore x2, list filters x4, list parse/project x2); mcp-ui allowlist completeness x2.
+
+## Job 12 slice B round 5 (678384b7ea, cherry-picked); typecheck 0
+open-site-store.ts (3 test files, 23/23): L100/B91.84/F91.67 -> L100/B98.08/F91.67.
+Tests added (3) in open-site-store.integration: "sqlite: a caller's opener opens both content.db and chat.db" -> line 74 always {}; "postgres: a caller-supplied SQLite content.db is refused before anything is opened" -> guard throw 103 removed; "pglite: …refused before anything is opened" -> guard throw 119 removed (mutant hangs the run: PGlite owner never stops).
+EXCEPTION: open-site-store 105/@106 Postgres success path + pool close (only open-site-store.postgres.test.ts, needs a live server).
+Pre-existing red: open-site-store.postgres.test.ts:31 after hook rmSync(undefined) when no Postgres env.
+LEFT: site-assistant @124/@158/@164/@191; site-assistant-turn br 127,135,136,189,190,194,214,231,247,295,296; serving-routines L49-51,130 br 121,144 + fns; peer-site-reads br 443, pagesHtmlStore@235; other-site-keys br 52,70,71,89,126,136,193,202 + fns @40 x2, @68 x2, @88.

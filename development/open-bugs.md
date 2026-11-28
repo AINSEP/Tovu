@@ -2398,3 +2398,13 @@ Fixed unless marked OPEN.
   - Fix: also reject when `new TextEncoder().encode(text).byteLength > ROUTINE_BEACON_MAX_BYTES`.
   - Test, in `cloud-results/gap-fill-1127-C.md`: a note of `"x".repeat(1950) + "é".repeat(1100)` should return null.
 - SUSPECT (owner decides): `packages/contracts/src/content-chat-title.ts:31-40`. `opening ??= index` keeps the earliest opening quote, so `'Edit the post "unfinished “Correct Title”'` yields `unfinished “Correct Title`.
+
+## gap-fill-1127 run C3a (2026-11-28), Tovu website coverage jobs 9, 11, 12
+- OPEN, low severity (seen on codex/tv-w62-cov-web-11, not fixed, owner decides): `apps/website/src/server/runtime/composition/modules/commerce.ts:105`.
+  - `close()` sets `storage.closed` before it awaits `warming`, so every `resolve()` after that returns null (line 192).
+  - A worker cycle still running at shutdown then calls `reconcileUnknown` -> `contexts.resolve` (line 262), gets `NO_CREDENTIALS_CONFIGURED`, and writes a false "Restore the original payment configuration" alert.
+  - Fix: skip `reconcileUnknown` in the worker run while `storage.closed`, or have `resolve` report "shutting down" when closed.
+- ENV DRIFT (not a Tovu bug; seen on all 3 job branches with Jini d1ced6c5):
+  - Jini google-login `extensions.jini.id` is `jini/google-login`, but Tovu `acceptsManifest` expects `tovu/google-login`. Result: ready-providers.test.ts fails 4 of 5.
+  - `@jini-ai/admin/shell/lib/assistant-daemon-activation` is missing, so lifecycle/assistant-daemon-connection.test.ts crashes.
+  - The tool registry installs `posts` where tests expect `post`.
