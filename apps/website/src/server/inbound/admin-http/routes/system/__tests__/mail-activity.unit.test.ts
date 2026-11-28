@@ -158,3 +158,9 @@ test("feedback dependency failures are safe HTTP errors without partial receivin
   assertIncidentDiagnostics({ incidents, step: "routes/system/mail-activity", diagnostics: [/describe unavailable/, /credentials unavailable/, /inbox unavailable/] });
   assert.equal(incidents.reports.length, 3);
 });
+
+test("mail-capture/clear on a root with no content database is the 503 unavailable answer, not a crash", async () => {
+  const reply = await call(deps(["admin.forms.manage", "mail.activity.read"], { contentKernel: undefined }),
+    "/api/admin/v1/workspaces/:workspaceId/system/mail-capture/clear", { body: { confirmed: true } }, WS, "post");
+  assert.deepEqual([reply.statusCode, (reply.jsonBody as { code: string }).code], [503, "MAIL_ACTIVITY_UNAVAILABLE"]);
+});
