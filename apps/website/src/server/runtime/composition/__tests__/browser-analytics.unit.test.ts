@@ -118,3 +118,35 @@ test('error and already compressed admin pages are served without analytics or r
   }
   assert.deepEqual(calls, []);
 });
+
+test('without a browser-analytics port, admin pages pass through with their own body and cache headers', async t => {
+  const deps = createRouteDeps();
+  assert.equal(deps.browserAnalytics, undefined);
+  const app = express();
+  applyAdminBrowserAnalytics({ app, deps });
+  const html = '<html><body>plain admin</body></html>';
+  app.get('/admin/plain', (_req, res) => { res.type('html').set('Cache-Control', 'no-cache').set('ETag', '"v1"').end(html); });
+  const response = await fetch(`${await startTestServer(app, t)}/admin/plain`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-cache');
+  assert.equal(response.headers.get('etag'), '"v1"');
+  assert.equal(await response.text(), html);
+});
+
+test('an undeclared or unreadable metrics setting never enables admin browser telemetry, and the page still renders', async t => {
+  const html = '<html><body>admin</body></html>';
+  const unreadable = new Proxy(new InMemorySettingsRepo(), { get: () => async () => { throw new Error('settings store offline'); } });
+  for (const [label, settingsRepo] of [['undeclared', new InMemorySettingsRepo()], ['unreadable', unreadable]] as const) {
+    const deps = { ...createRouteDeps(), workspaceId: 'workspace-1', settingsRepo,
+      browserAnalytics: () => [{ source: 'function(){return function(){};}', origins: [], supportsStatic: false }] };
+    const app = express();
+    applyAdminBrowserAnalytics({ app, deps });
+    app.get('/admin/page', (_req, res) => { res.type('html').end(html); });
+    const response = await fetch(`${await startTestServer(app, t)}/admin/page`);
+    assert.equal(response.status, 200, label);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store', label);
+    const body = await response.text();
+    assert.ok(body.includes('"hasChoice":false,"analytics":false'), `${label}: consent stays off`);
+    assert.equal(body.split('data-jini-browser-analytics').length, 2, `${label}: the contribution is injected once`);
+  }
+});
