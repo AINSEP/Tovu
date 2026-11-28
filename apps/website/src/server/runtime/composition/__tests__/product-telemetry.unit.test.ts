@@ -551,3 +551,49 @@ test('child launch environment determines product eligibility before provider lo
     }
   } finally { await f.close(); }
 });
+
+test('a thrown non-Error value and a stackless error still reach the provider as plain Errors with a defined stack', async () => {
+  const f = await fixture();
+  try {
+    const product = await bootProductTelemetry(f.required, { ...f.options, readConsent: () => granted });
+    product.observability.reportError({ error: 'plain failure text', context: { operation: 'fake.operation' } });
+    const stackless = new Error('no frames');
+    stackless.stack = undefined;
+    product.observability.reportError({ error: stackless, context: { operation: 'fake.operation' } });
+    assert.deepEqual(f.errors.map(sent => { const error = sent.error as Error; return { isError: error instanceof Error, name: error.name, message: error.message }; }),
+      [{ isError: true, name: 'Error', message: 'plain failure text' }, { isError: true, name: 'Error', message: 'no frames' }]);
+    assert.equal((f.errors[1]!.error as Error).stack, '');
+  } finally { await f.close(); }
+});
+
+test('a provider whose cleanup also fails still leaves boot with noops and one warning on the default console sink', async t => {
+  const f = await fixture();
+  const warned = t.mock.method(console, 'warn', () => {});
+  try {
+    f.raw.observability.crashUpload = () => { throw new Error('fake capability failure'); };
+    f.raw.dispose = async () => { throw new Error('fake cleanup failure'); };
+    const product = await bootProductTelemetry(f.required, f.options);
+    assert.equal(isNoopObservabilityPort(product.observability), true);
+    assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true);
+    assert.deepEqual(warned.mock.calls.map(call => call.arguments), [['[product-telemetry] unavailable; product reporting is disabled']]);
+  } finally { await f.close(); }
+});
+
+test('without an explicit export decision the boot asks this launch environment, and only an export-enabled boot offers crash upload', async () => {
+  const f = await fixture();
+  const saved = process.env.TOVU_TELEMETRY_FORCE_ENABLE;
+  try {
+    const { observabilityExportEnabled: _decided, ...undecided } = f.required;
+    process.env.TOVU_TELEMETRY_FORCE_ENABLE = '1';
+    const forced = await bootProductTelemetry(undecided, { ...f.options, readConsent: () => granted });
+    delete process.env.TOVU_TELEMETRY_FORCE_ENABLE;
+    // node:test sets NODE_TEST_CONTEXT, so this is a development launch: export stays off unless forced.
+    const development = await bootProductTelemetry(undecided, { ...f.options, readConsent: () => granted });
+    assert.deepEqual(f.inputs.map(input => input.observabilityExportEnabled), [true, false]);
+    assert.deepEqual(forced.crashUpload, { submitURL: 'https://crash.example.test/upload', globalExtra: { release: 'tovu-desktop@0.0.0-test' } });
+    assert.equal(development.crashUpload, undefined);
+  } finally {
+    if (saved === undefined) delete process.env.TOVU_TELEMETRY_FORCE_ENABLE; else process.env.TOVU_TELEMETRY_FORCE_ENABLE = saved;
+    await f.close();
+  }
+});

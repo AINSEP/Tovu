@@ -83,3 +83,15 @@ for (const valid of [true, false]) {
     }
   });
 }
+
+test("the seed copy's post repo reports a rollback failure to the operator log with both its message and diagnostic", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "seed-hash-rollback-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const seedDbPath = join(dir, "content.seed.db");
+  openContentDb(seedDbPath).$client.close();
+  const deps = loadSqliteSeedDeps({ seedDbPath, workspaceId: "ws", clock, idGen, redirectsWriteDeps: {} as never });
+  assert.ok(deps, "the seed lookup must load the fixture");
+  const logged = t.mock.method(console, "error", () => {});
+  (deps.ports.post as unknown as { reportRollbackError(message: string, diagnostic: string): void }).reportRollbackError("rollback failed", "diag-7");
+  assert.deepEqual(logged.mock.calls.map(call => call.arguments), [["rollback failed", "diag-7"]]);
+});
