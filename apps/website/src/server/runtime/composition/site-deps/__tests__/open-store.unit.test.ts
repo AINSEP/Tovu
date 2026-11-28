@@ -13,7 +13,7 @@ import { openCompositionStore, type StoreCloseRegistration } from "../open-store
  * sweeps, and a supplied SQLite opener opens the database.
  */
 
-type Overrides = NonNullable<Parameters<typeof openCompositionStore>[1]>["overrides"];
+type Overrides = NonNullable<NonNullable<Parameters<typeof openCompositionStore>[1]>["overrides"]>;
 
 function siteDir(t: test.TestContext): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "open-store-"));
@@ -26,7 +26,7 @@ test("releasing a supplied client store drains boot work, then disposes registra
   const supplied = { content: { kernel: "content" }, chat: { kernel: "chat" }, close: async () => { order.push("store closed"); } };
   const opened: unknown[] = [];
   const dbPath = path.join(siteDir(t), "site", "content.db");
-  const result = await openCompositionStore({ dbPath }, { overrides: { store: supplied, storeRole: "client", onStoreOpened: ({ store }) => { opened.push(store); } } as unknown as Overrides });
+  const result = await openCompositionStore({ dbPath }, { overrides: { store: supplied, storeRole: "client", onStoreOpened: ({ store }: { store: unknown }) => { opened.push(store); } } as unknown as Overrides });
   result.beforeClose({ drain: async () => { order.push("drained"); } });
   const registration: StoreCloseRegistration = Promise.resolve(() => { order.push("unregistered"); });
   result.onClose({ registration });

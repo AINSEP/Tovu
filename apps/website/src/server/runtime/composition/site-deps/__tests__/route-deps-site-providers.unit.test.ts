@@ -36,6 +36,9 @@ mock.module(new URL("../../analytics-providers.js", import.meta.url).href, { nam
 const { routeDepsSiteThemesTelemetry, routeDepsProviderAnalytics } = await import("../route-deps-site-providers.js");
 type Themes = Parameters<typeof routeDepsSiteThemesTelemetry>[0];
 type Analytics = Parameters<typeof routeDepsProviderAnalytics>[0];
+/** Every port these builders return is set, so the test reads them as required. */
+type ThemesDeps = Required<ReturnType<typeof routeDepsSiteThemesTelemetry>>;
+type AnalyticsDeps = Required<ReturnType<typeof routeDepsProviderAnalytics>>;
 const TRACEPARENT = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
 const capturedInput = (name: string) => (captured[name] as { input: Record<string, unknown> }).input;
 
@@ -63,7 +66,7 @@ function themesTelemetry(t: test.TestContext, { mediaIsRemoteByEnv, observabilit
     siteTitlePreservationStore: {}, siteDisplayName: {}, siteTimeZone: {}, menuRepo: {}, outbox: {}, bus: {}, trashRepo: {},
     siteAssistantSecretSealer: { sealer: 1 }, providerConfigSource: {}, customCredentialSetRepo: { repo: 1 }, providerPlugins: providerPlugins(calls),
     aiTraceSink: {}, observability, tracker: {}, postRepo: {}, siteThemes: {},
-  } as unknown as Themes);
+  } as unknown as Themes) as ThemesDeps;
   return { deps, calls, loadPluginContributions };
 }
 
@@ -92,8 +95,8 @@ test("revert transaction, telemetry flush and test, and provider reapply forward
   const work = async () => "work";
   assert.equal(await deps.revertTransaction({ work }), "tx");
   assert.equal(await deps.flushTelemetry(), "dispose-done");
-  assert.equal(await deps.sendTelemetryTest(), "sendTelemetryTest-done");
-  assert.equal(await deps.reapplyProvider({ pluginId: "p-2" } as unknown as Parameters<typeof deps.reapplyProvider>[0]), "reapply-done");
+  assert.equal(await deps.sendTelemetryTest({}), "sendTelemetryTest-done");
+  assert.equal(await deps.reapplyProvider({ pluginId: "p-2" }), "reapply-done");
   const [transaction, dispose, telemetryTest, reapply] = calls;
   assert.deepEqual([transaction, dispose, reapply], [["transaction", work], ["dispose", {}], ["reapply", { pluginId: "p-2" }]]);
   const { error } = telemetryTest[1] as { error: Error };
@@ -128,8 +131,8 @@ test("provider analytics: applies-at forwards to provider plugins, legacy keys a
   const deps = routeDepsProviderAnalytics({
     agentPluginLifecycle: { loadPluginContributions: async () => [] }, kernel: contentKernel({ store: db }), workspaceId: "ws-8", publishTrustRevocations: {}, clock: {}, idGen: {},
     settingsRepo: {}, siteAssistantSecretSealer: sealer, customCredentialSetRepo: repo, providerPlugins: providerPlugins(calls), projectKeys: {}, observability: {},
-  } as unknown as Analytics);
-  assert.equal(await deps.providerAppliesAt({ pluginId: "p-3" } as unknown as Parameters<typeof deps.providerAppliesAt>[0]), "appliesAt-done");
+  } as unknown as Analytics) as AnalyticsDeps;
+  assert.equal(await deps.providerAppliesAt({ pluginId: "p-3" }), "appliesAt-done");
   assert.deepEqual(calls, [["appliesAt", { pluginId: "p-3" }]]);
   assert.deepEqual([await deps.legacyProviderCredential({ pluginId: "mail-x" }), await deps.legacyProviderCredential({ pluginId: "other" })], [true, false]);
   const findCredential = capturedInput("analyticsProviders").findCredential as (input: unknown) => Promise<unknown>;
