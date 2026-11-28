@@ -10,6 +10,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDuplicateRoute } from "#src/server/runtime/composition/modules/themes";
 import type { ContentRouteDeps } from "#src/server/runtime/composition/modules/content";
@@ -148,6 +149,19 @@ test("duplicate: an unexpected failure is a bare 500", async (t) => {
   const { status, json } = await post(t, failing, { body: { newName: "X" } });
   assert.equal(status, 500);
   assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
+});
+
+test("duplicate: a copy that fails with a plain filesystem error (not a duplicate refusal) is the bare 500 and leaves no copy", async (t) => {
+  const { app, root, themes } = buildApp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  // The pristine-originals folder is a regular file, so recording the copy's original fails with ENOTDIR.
+  fs.writeFileSync(path.join(root, THEME_CATALOG_DIR), "x");
+  const { status, json } = await post(t, app, { body: { newName: "Broken Copy" } });
+  assert.equal(status, 500);
+  assert.equal(json.code, "INTERNAL_ERROR");
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });
+  assert.equal(fs.existsSync(path.join(root, "declarative", "broken-copy")), false);
+  assert.deepEqual(themes.map((theme) => theme.manifest.id), [SOURCE_ID]);
 });
 
 for (const newId of [undefined, "", null, 42]) {

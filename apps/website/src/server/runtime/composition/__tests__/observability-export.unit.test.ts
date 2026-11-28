@@ -60,3 +60,17 @@ test('denied export preserves console output, the local buffer and file persiste
     assert.equal(file.isHealthy(), true);
   } finally { uninstall(); unsubscribe(); await rm(root, { recursive: true, force: true }); }
 });
+
+test('with no environment given, the live process environment is the one read', () => {
+  const previous = process.env.TOVU_TELEMETRY_FORCE_ENABLE;
+  try {
+    process.env.TOVU_TELEMETRY_FORCE_ENABLE = '1';
+    assert.equal(resolveTovuObservabilityExport({}, { checkout: true }), true);
+    delete process.env.TOVU_TELEMETRY_FORCE_ENABLE;
+    // This runner sets NODE_TEST_CONTEXT, a development launch signal, so the default environment denies.
+    assert.equal(resolveTovuObservabilityExport({}, { checkout: false }), false);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_TELEMETRY_FORCE_ENABLE;
+    else process.env.TOVU_TELEMETRY_FORCE_ENABLE = previous;
+  }
+});

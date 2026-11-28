@@ -15,6 +15,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { explainThemeTree as explainWithChecks } from "#src/features/site-backup/import-restore-placement";
 import { registerAdminHeldBackThemeRoutes, type HeldBackRouteDeps } from "../held-back.js";
 import { THEME_PLACEMENT_CHECKS } from "#src/server/runtime/composition/theme-placement-checks";
+import { createThemeHeldBackModule } from "#src/server/runtime/composition/modules/theme-held-back";
 /** The held-back re-check as the host binds it (`modules/theme-held-back.ts`). */
 const explainThemeTree = (required: { root: string; id: string; files: readonly string[] }) => explainWithChecks({ ...required, themeChecks: THEME_PLACEMENT_CHECKS });
 
@@ -51,7 +52,7 @@ function buildSite() {
   return { siteDir, themesDir, held };
 }
 
-function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string; explain?: typeof explainThemeTree } = {}) {
+function buildApp(options: { allowed?: (permission: string) => boolean; activeThemeId?: string; explain?: typeof explainThemeTree; viaModule?: boolean } = {}) {
   const routeErrors = createRouteIncidentReporter().errors;
   const site = buildSite();
   const themes = discoverAllBuiltInThemes({ dir: site.themesDir, source: "built-in" });
@@ -83,7 +84,14 @@ function buildApp(options: { allowed?: (permission: string) => boolean; activeTh
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerAdminHeldBackThemeRoutes({ errors: routeErrors, app, deps });
+  if (options.viaModule) {
+    // The host's module binds its own re-check; it is handed every dep except that one.
+    const { explainThemeTree: _testBinding, ...moduleDeps } = deps;
+    const module = createThemeHeldBackModule(moduleDeps);
+    assert.equal(module.name, "theme-held-back");
+    assert.ok(module.registerRoutes);
+    module.registerRoutes({ errors: routeErrors, app });
+  } else registerAdminHeldBackThemeRoutes({ errors: routeErrors, app, deps });
   return { app, themes, permissions, presentation, ...site };
 }
 
@@ -165,6 +173,19 @@ test("held-back re-check refused on a still-bad manifest", async (t) => {
 
   assert.equal((await call(t, app, { path: "/check", body: { themeId: "../x" } })).json.code, "INVALID_ID");
   assert.equal((await call(t, app, { path: "/check", body: { themeId: "static/nope" } })).status, 404);
+});
+
+test("the theme-held-back module binds the placement checks itself: a misplaced tier and server code are refused, a clean theme passes", async (t) => {
+  const { app } = buildApp({ viaModule: true });
+  const tier = await call(t, app, { path: "/check", body: { themeId: "declarative/bad-tier" } });
+  assert.equal(tier.status, 200);
+  assert.equal(tier.json.passes, false);
+  assert.match(tier.json.problems.join(" "), /says it is a static theme, but it sits in the declarative folder/);
+  const code = await call(t, app, { path: "/check", body: { themeId: "declarative/has-code" } });
+  assert.equal(code.json.passes, false);
+  assert.match(code.json.problems.join(" "), /server\.ts/);
+  const good = await call(t, app, { path: "/check", body: { themeId: GOOD } });
+  assert.deepEqual([good.json.passes, good.json.problems], [true, []]);
 });
 
 /** Live + held trees, so "refused and nothing moved" is two deepEquals. */
