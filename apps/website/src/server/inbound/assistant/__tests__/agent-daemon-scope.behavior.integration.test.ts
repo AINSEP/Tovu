@@ -47,6 +47,8 @@ const controls = {
   rehydrateError: undefined as Error | undefined,
   credential: undefined as ((token: string) => ReturnType<ReturnType<typeof access.createRunScopedCredentials>["resolveCaller"]>) | undefined,
   memory: true,
+  /** The scope's real run-credential registry, so a test can mint the token a bridge would carry. */
+  runCredentials: undefined as ReturnType<typeof access.createRunScopedCredentials> | undefined,
   deps: undefined as core.AgentDaemonCoreDeps | undefined,
   /** The real host deps the scope hands Jini's delegated route list (the route list itself is stubbed). */
   delegatedDeps: undefined as Parameters<typeof http.delegatedToolRoutes>[0]["deps"] | undefined,
@@ -103,6 +105,7 @@ mock.module("#src/assistant/agents", { namedExports: { ...agents,
 mock.module("#src/assistant/daemon-access", { namedExports: { ...access,
   createRunScopedCredentials: (...args: Parameters<typeof access.createRunScopedCredentials>) => {
     const actual = access.createRunScopedCredentials(...args);
+    controls.runCredentials = actual;
     return { ...actual, resolveCaller: (input: Parameters<typeof actual.resolveCaller>[0]) => controls.credential ? controls.credential(input.token) : actual.resolveCaller(input) };
   },
   createRunOwnerRegistry: (...args: Parameters<typeof access.createRunOwnerRegistry>) => {
@@ -455,6 +458,26 @@ test("the message-claim route refuses a caller without a live run credential bef
     const stale = await fetch(`${h.url}/api/runs/any-run/messages/claim`, { method: "POST", headers: { authorization: "Bearer gone-token", "content-type": "application/json" }, body: "{" });
     const expected = { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } };
     assert.deepEqual([missing.status, await missing.json(), stale.status, await stale.json()], [401, expected, 401, expected]);
+  } finally { await h.close(); }
+});
+
+// Mutation: principalOfLiveRun answers no principal for a live run. (After the run ends the 401 also comes
+// from terminal cleanup revoking the credential itself, so that half does not isolate principalOfLiveRun.)
+test("a bridge credential minted for a live run admits its claim calls until the run ends", async () => {
+  const h = await harness();
+  try {
+    controls.execution = gate();
+    const runId = await h.start("live-credential");
+    await until(() => controls.launches.length === 1);
+    const token = controls.runCredentials!.mint({ runId }, {});
+    const claim = () => fetch(`${h.url}/api/runs/${runId}/messages/claim`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}" });
+    const live = await claim();
+    // Past the credential gate: the body check answers, not the 401.
+    assert.deepEqual([live.status, await live.json()], [400, { error: { code: "BAD_REQUEST", message: "body must contain only via: tool-result or check_messages" } }]);
+    await h.scope.lifecycle.finish({ runId, status: "cancelled", code: null, signal: null, resumable: false });
+    await h.flush();
+    const ended = await claim();
+    assert.deepEqual([ended.status, await ended.json()], [401, { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } }]);
   } finally { await h.close(); }
 });
 
