@@ -71,7 +71,8 @@ export function publishVisitorPage({ html, path, workspaceId }: { html: string; 
   const data = JSON.stringify(publication).replace(/</g, '\\u003c');
   html = html.replace(/<body\b/i, () => `<body data-visitor-page-root data-agent-publication="${revision}"`);
   const script = `<script type="application/json" id="tovu-visitor-publication">${data}</script>`;
-  const bodyEnd = html.toLowerCase().lastIndexOf('</body>');
+  // Search the original string: lowercasing can change its length ("İ") and shift the offset.
+  const bodyEnd = html.search(/<\/body>(?![\s\S]*<\/body>)/i);
   return bodyEnd < 0 ? html + script : html.slice(0, bodyEnd) + script + html.slice(bodyEnd);
 }
 
