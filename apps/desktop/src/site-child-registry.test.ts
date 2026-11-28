@@ -182,6 +182,19 @@ test("readProcessCommand reads a live process's own argv, and null once it is go
   assert.equal(readProcessCommand({ pid: child.pid! }), null);
 });
 
+test("with no ps executable on PATH, a live process's command and parent are unknown, never guessed", () => {
+  const saved = process.env.PATH;
+  process.env.PATH = path.join(os.tmpdir(), "tovu-no-ps-here");
+  try {
+    assert.equal(isProcessAlive({ pid: process.pid }), true, "liveness needs no ps");
+    assert.equal(readProcessCommand({ pid: process.pid }), null);
+    assert.equal(readProcessParentPid({ pid: process.pid }), null);
+  } finally {
+    process.env.PATH = saved;
+  }
+  assert.match(readProcessCommand({ pid: process.pid }) ?? "", /node/, "the same call succeeds once ps is reachable again");
+});
+
 test("isServeProcessForSite requires BOTH the site dir and the exact --port token", () => {
   const row = { siteDir: "/fake/site/marker-2", port: 4002 };
   assert.equal(isServeProcessForSite({ commandLine: "node cli.js serve /fake/site/marker-2 --port 4002", row }), true);
