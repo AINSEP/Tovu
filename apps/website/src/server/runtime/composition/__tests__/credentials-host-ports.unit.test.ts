@@ -46,3 +46,23 @@ test("the saved-key host port reads the current workspace store and describes wi
     id: "credential-9", category: "ops", baseUrl, additionalHosts: [], connection: { token },
   });
 });
+
+test("publish compatibility reads the deploy-target loader and verification cache from the bag when an invalidation is prepared", async () => {
+  const loads: unknown[] = [];
+  let current: CredentialsHostPortDeps | undefined;
+  const { publishCompatibility } = bindCredentialsHostPorts({ readDeps: () => {
+    assert.ok(current, "binding must never read before its deps are assembled");
+    return current;
+  } });
+
+  current = portFake<CredentialsHostPortDeps>({});
+  await publishCompatibility.prepareInvalidation({ workspaceId: "site-a" });
+  assert.deepEqual(loads, [], "no cache bound: the deploy targets are not loaded");
+
+  current = portFake<CredentialsHostPortDeps>({
+    loadDeployTargets: (async (input: unknown) => { loads.push(input); return { list: () => [] }; }) as unknown as CredentialsHostPortDeps["loadDeployTargets"],
+    publishCredentialVerificationCache: new Map() as unknown as CredentialsHostPortDeps["publishCredentialVerificationCache"],
+  });
+  await publishCompatibility.prepareInvalidation({ workspaceId: "site-a" });
+  assert.deepEqual(loads, [{ workspaceId: "site-a" }]);
+});
