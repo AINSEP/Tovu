@@ -343,3 +343,23 @@ test('a closed runtime stops handing out the webhook receiver', async t => {
   await f.stop();
   assert.equal(runtime.commerce.resolveReceiver(), null);
 });
+
+test('an operator status read that fails reports checkout unavailable and logs a redacted cause while the site stays online', async t => {
+  const f = await fixture(t);
+  await f.order();
+  await f.stop();
+  const kernel = observedKernel(f.kernel, (method, table) => {
+    if (method === 'selectFrom' && table === 'commerce_quarantine') throw new Error('fixture quarantine unreadable');
+  });
+  const runtime = f.boot({ kernel });
+  const logged: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { logged.push(args); });
+  assert.deepEqual(await runtime.commerce.status(), {
+    active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.',
+  });
+  const entry = logged.find(args => args[0] === '[commerce] Commerce status could not be read; checkout remains unavailable.');
+  assert.ok(entry, 'the failed status read is logged for the operator');
+  // The cause is described by kind only; the raw storage message stays out of the log.
+  assert.equal(entry[1], 'Error');
+  assert.equal(JSON.stringify(logged).includes('fixture quarantine unreadable'), false);
+});
