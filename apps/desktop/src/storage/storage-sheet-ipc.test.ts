@@ -220,3 +220,34 @@ test("an inconsistent registry entry cannot turn a listed website into a Trash t
   assert.deepEqual(h.calls.trashed, []);
   assert.deepEqual(h.calls.removed, []);
 });
+
+/** The opaque ID is not under test here; the size fields are. */
+const siteId = (view: View) => (view.sites[0] as { id: string }).id;
+
+test("a site whose report cannot be read lists unknown sizes; a report without an automatic class lists no automatic bytes", async () => {
+  const unread = await list(harness({ runReport: async () => ({ state: "unknown" }) }));
+  assert.deepEqual(unread.sites, [{ id: siteId(unread), label: "Site A", totalBytes: null, automaticBytes: null, files: 0 }]);
+  const ownerOnly = await list(harness({ runReport: async () => ({ state: "ok", report: { totalBytes: 6, knownBytes: 6, classes: { "owner-data": { bytes: 6, files: 3 } } } }) }));
+  assert.deepEqual(ownerOnly.sites, [{ id: siteId(ownerOnly), label: "Site A", totalBytes: 6, automaticBytes: null, files: 3 }]);
+});
+
+test("a sign-in kept for a reason other than busy is reported as unknown, not in use", async () => {
+  const h = harness({ removePartition: async () => ({ state: "kept", reason: "protected" }) });
+  const view = await list(h);
+  assert.deepEqual(await removeSignIn(h, view.signIns.items[0]!.id), { state: "kept", reason: "unknown" });
+});
+
+test("a payload that is not an object is relisted without resolving anything", async () => {
+  const h = harness();
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.preview, null), { state: "relist" });
+  assert.deepEqual(await h.call(STORAGE_SHEET_CHANNELS.act, "confirmation"), { state: "relist" });
+  assert.equal(h.calls.dialogs, 0);
+});
+
+test("a handler that throws reports the error in main and answers with the refusal, never the error text", async () => {
+  const reported: { where: string; error: unknown }[] = [];
+  const failure = new Error("registry unreadable at /sites");
+  const h = harness({ listStrict: async () => { throw failure; }, reportError: (entry) => { reported.push(entry); } });
+  assert.equal(await h.call(STORAGE_SHEET_CHANNELS.list), null);
+  assert.deepEqual(reported, [{ where: "list", error: failure }]);
+});
