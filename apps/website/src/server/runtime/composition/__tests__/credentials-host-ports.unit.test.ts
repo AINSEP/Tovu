@@ -57,7 +57,8 @@ test("publish compatibility reads the deploy-target loader and verification cach
 
   current = portFake<CredentialsHostPortDeps>({});
   await publishCompatibility.prepareInvalidation({ workspaceId: "site-a" });
-  assert.deepEqual(loads, [], "no cache bound: the deploy targets are not loaded");
+  // `assert.deepEqual` would narrow `loads` to `never[]` for the rest of the test.
+  assert.equal(loads.length, 0, "no cache bound: the deploy targets are not loaded");
 
   current = portFake<CredentialsHostPortDeps>({
     loadDeployTargets: (async (input: unknown) => { loads.push(input); return { list: () => [] }; }) as unknown as CredentialsHostPortDeps["loadDeployTargets"],
