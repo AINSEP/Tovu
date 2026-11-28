@@ -239,3 +239,16 @@ test("a public raw mount keeps explicit refusals out of its custom incident writ
   assert.deepEqual(await server.call("/downloads/local/file"), { status: 410, body: { error: "The file has expired.", code: "FILE_EXPIRED" } });
   assert.deepEqual(unexpected, []);
 });
+
+// Mutation `public-raw-mount-handler-name-dropped`: mountPublicRawRoute ignores `handlerName` -> the layer reads <anonymous>.
+test("a public raw mount names its one handler when given a handlerName, and the named route still answers", async (t) => {
+  const app = fakeAdminApp({ principal: false });
+  const named = defineRawRoute<object>({ method: "get", path: "/hooks/named", handle: async () => new Response("named-ok") });
+  mountPublicRawRoute({ errors: createRouteIncidentReporter().errors, app, spec: named, deps: {}, failure: visitor, handlerName: "publicHookHandler" });
+  assert.deepEqual(layerNames({ app, path: "/hooks/named" }), ["publicHookHandler"]);
+  const server = await listen({ app });
+  t.after(server.close);
+  const response = await fetch(`${server.base}/hooks/named`);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "named-ok");
+});
