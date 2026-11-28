@@ -554,6 +554,23 @@ test("chat_settings_get answers the run's launch snapshot to its own principal o
   } finally { await h.close(); }
 });
 
+// Mutation: the run's attachment resolver reads no store (getAttachmentStore returns undefined), which fails the
+// run with "attachments are not ready yet" instead of reaching the opened store's claim.
+test("a run naming an attachment the opened store never registered fails before launch as an unreadable file", { timeout: 10_000 }, async () => {
+  const h = await harness();
+  try {
+    const response = await fetch(`${h.url}/api/runs`, { method: "POST", headers: {
+      authorization: `Bearer ${h.token}`, "x-tovu-principal-id": "owner", "content-type": "application/json",
+    }, body: JSON.stringify({ agentId: "claude", contextRef: JSON.stringify({ prompt: "hello", principalId: "owner", conversationId: "attachment-missing", attachmentIds: ["att-missing"] }) }) });
+    assert.equal(response.status, 201);
+    const runId = ((await response.json()) as { run: { id: string } }).run.id;
+    await until(() => controls.failures.length === 1);
+    assert.deepEqual(controls.failures.map(failure => [failure.runId, failure.message]), [[runId, "The assistant could not start: an attached file could not be read."]]);
+    assert.equal(controls.launches.length, 0);
+    assert.equal((await h.scope.lifecycle.get({ runId }))?.state, "failed");
+  } finally { await h.close(); }
+});
+
 // Mutations: fabricate a principal for an untracked run; ignore `requireReadOnly`; attenuate every call.
 test("delegated calls resolve the run's tracked principal, attenuated only for a read-only request", async () => {
   const h = await harness();
